@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KindredCompass — Find Places That Feel Like You</title>
+  <meta name="description" content="KindredCompass matches you to restaurants, activities, and hotels based on your personal DNA — food preferences, music taste, and lifestyle. Not just reviews. Your kind of place." />
+  <meta property="og:title" content="KindredCompass" />
+  <meta property="og:description" content="Find places that feel like you. Your DNA, your city, your kind of spot." />
+  <meta property="og:image" content="images/screenshot1.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #080D21; --surface: #111833; --card: #171E38;
+      --accent: #7866FA; --amber: #FF9E33; --eat: #FF6B47;
+      --do: #3B82F6; --stay: #A855F7; --text: #FFFFFF; --subtext: #B5BAD4;
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; background: rgba(8,13,33,0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .nav-logo { font-size: 15px; font-weight: 900; letter-spacing: 4px; background: linear-gradient(90deg, var(--accent), var(--do)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .nav-cta { display: inline-flex; align-items: center; gap: 8px; background: var(--accent); color: white; text-decoration: none; font-size: 14px; font-weight: 600; padding: 10px 20px; border-radius: 50px; transition: opacity 0.2s; }
+    .nav-cta:hover { opacity: 0.85; }
+
+    .hero { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 120px 24px 80px; position: relative; overflow: hidden; }
+    .hero::before { content: ''; position: absolute; top: -200px; left: 50%; transform: translateX(-50%); width: 800px; height: 800px; background: radial-gradient(circle, rgba(120,102,250,0.18) 0%, transparent 70%); pointer-events: none; }
+    .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(120,102,250,0.12); border: 1px solid rgba(120,102,250,0.3); color: var(--accent); font-size: 12px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; padding: 8px 16px; border-radius: 50px; margin-bottom: 28px; }
+    .hero h1 { font-size: clamp(36px, 7vw, 72px); font-weight: 900; line-height: 1.1; letter-spacing: -1px; margin-bottom: 24px; max-width: 800px; }
+    .hero h1 span { background: linear-gradient(135deg, var(--accent), var(--do)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .hero p { font-size: clamp(16px, 2.5vw, 20px); color: var(--subtext); max-width: 560px; line-height: 1.7; margin-bottom: 40px; }
+    .hero-buttons { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-bottom: 64px; }
+    .btn-primary { display: inline-flex; align-items: center; gap: 10px; background: linear-gradient(135deg, var(--accent), #5B82F5); color: white; text-decoration: none; font-size: 16px; font-weight: 700; padding: 16px 32px; border-radius: 50px; box-shadow: 0 8px 32px rgba(120,102,250,0.35); transition: transform 0.2s; }
+    .btn-primary:hover { transform: translateY(-2px); }
+    .btn-secondary { display: inline-flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: white; text-decoration: none; font-size: 16px; font-weight: 600; padding: 16px 32px; border-radius: 50px; }
+
+    .screenshot-wrap { position: relative; max-width: 280px; margin: 0 auto; }
+    .screenshot-wrap::before { content: ''; position: absolute; inset: -2px; background: linear-gradient(135deg, var(--accent), var(--do), var(--stay)); border-radius: 48px; z-index: -1; opacity: 0.5; filter: blur(8px); }
+    .screenshot-wrap img { width: 100%; border-radius: 44px; border: 1px solid rgba(255,255,255,0.08); display: block; }
+
+    section { padding: 100px 24px; }
+    .section-label { font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; text-align: center; }
+    .section-title { font-size: clamp(28px, 5vw, 48px); font-weight: 800; text-align: center; margin-bottom: 16px; }
+    .section-sub { font-size: 18px; color: var(--subtext); text-align: center; max-width: 560px; margin: 0 auto 64px; line-height: 1.7; }
+
+    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; max-width: 1000px; margin: 0 auto; }
+    .step { background: var(--surface); border: 1px solid rgba(255,255,255,0.06); border-radius: 24px; padding: 32px; }
+    .step-number { width: 44px; height: 44px; background: linear-gradient(135deg, var(--accent), #5B82F5); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 900; margin-bottom: 20px; }
+    .step h3 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+    .step p { font-size: 14px; color: var(--subtext); line-height: 1.6; }
+
+    .features-bg { background: var(--surface); }
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 1100px; margin: 0 auto; }
+    .feature-card { background: var(--card); border: 1px solid rgba(255,255,255,0.06); border-radius: 20px; padding: 28px; }
+    .feature-icon { font-size: 32px; margin-bottom: 16px; display: block; }
+    .feature-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .feature-card p { font-size: 14px; color: var(--subtext); line-height: 1.6; }
+    .feature-tag { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; padding: 4px 10px; border-radius: 50px; margin-bottom: 14px; }
+    .tag-eat { background: rgba(255,107,71,0.15); color: var(--eat); }
+    .tag-do  { background: rgba(59,130,246,0.15); color: var(--do); }
+    .tag-stay { background: rgba(168,85,247,0.15); color: var(--stay); }
+    .tag-new { background: rgba(120,102,250,0.15); color: var(--accent); }
+
+    .categories { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-bottom: 64px; }
+    .category-pill { display: flex; align-items: center; gap: 10px; padding: 14px 24px; border-radius: 50px; font-size: 15px; font-weight: 600; }
+    .pill-eat  { background: rgba(255,107,71,0.12);  border: 1px solid rgba(255,107,71,0.3);  color: var(--eat);  }
+    .pill-do   { background: rgba(59,130,246,0.12);  border: 1px solid rgba(59,130,246,0.3);  color: var(--do);   }
+    .pill-stay { background: rgba(168,85,247,0.12);  border: 1px solid rgba(168,85,247,0.3);  color: var(--stay); }
+
+    .cta-section { text-align: center; padding: 100px 24px; }
+    .cta-section h2 { font-size: clamp(32px, 5vw, 56px); font-weight: 900; margin-bottom: 20px; }
+    .cta-section p { font-size: 18px; color: var(--subtext); margin-bottom: 40px; max-width: 480px; margin-left: auto; margin-right: auto; }
+
+    .apple-badge { display: inline-flex; align-items: center; gap: 12px; background: black; border: 1px solid rgba(255,255,255,0.15); border-radius: 14px; padding: 12px 20px; text-decoration: none; color: white; }
+    .apple-badge svg { width: 24px; height: 24px; fill: white; }
+    .apple-badge-text { text-align: left; }
+    .apple-badge-text span { display: block; }
+    .apple-badge-text .small { font-size: 10px; color: rgba(255,255,255,0.6); letter-spacing: 0.5px; }
+    .apple-badge-text .big { font-size: 17px; font-weight: 700; }
+
+    footer { border-top: 1px solid rgba(255,255,255,0.06); padding: 40px 24px; text-align: center; }
+    .footer-logo { font-size: 13px; font-weight: 900; letter-spacing: 4px; background: linear-gradient(90deg, var(--accent), var(--do)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 16px; }
+    .footer-links { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; }
+    .footer-links a { color: var(--subtext); text-decoration: none; font-size: 14px; }
+    footer p { font-size: 13px; color: rgba(181,186,212,0.5); }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="nav-logo">KINDRED</div>
+    <a href="https://apps.apple.com/us/app/kindredcompass/id6743690961" class="nav-cta" target="_blank">Download Free</a>
+  </nav>
+
+  <section class="hero">
+    <div class="hero-badge">🧬 Now Available on the App Store</div>
+    <h1>Find places that<br /><span>feel like you.</span></h1>
+    <p>Stop scrolling. KindredCompass uses your food preferences, music taste, and lifestyle to match you with restaurants, activities, and hotels — in any city.</p>
+    <div class="hero-buttons">
+      <a href="https://apps.apple.com/us/app/kindredcompass/id6743690961" class="btn-primary" target="_blank">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+        Download on App Store
+      </a>
+      <a href="#how-it-works" class="btn-secondary">See How It Works</a>
+    </div>
+    <div class="screenshot-wrap">
+      <img src="images/screenshot1.png" alt="KindredCompass app showing matched spots" />
+    </div>
+  </section>
+
+  <section id="how-it-works">
+    <div class="section-label">How It Works</div>
+    <h2 class="section-title">Your DNA. Your kind of spot.</h2>
+    <p class="section-sub">Three simple steps to find places that actually match who you are.</p>
+    <div class="steps">
+      <div class="step"><div class="step-number">1</div><h3>Build Your DNA</h3><p>Tell KindredCompass what you love — food, music, lifestyle. Takes 2 minutes and gets smarter over time.</p></div>
+      <div class="step"><div class="step-number">2</div><h3>Scan Your City</h3><p>Hit Scan. Our AI matches your DNA against thousands of real venues in your city or wherever you're traveling.</p></div>
+      <div class="step"><div class="step-number">3</div><h3>Find Your Spot</h3><p>Get personalized matches with a DNA match percentage. Save favorites, share with friends, or get directions instantly.</p></div>
+    </div>
+  </section>
+
+  <section style="padding-top: 0; text-align: center;">
+    <div class="section-label">What We Match</div>
+    <h2 class="section-title">Every kind of spot</h2>
+    <p class="section-sub">Whether you're looking for dinner, something to do, or a place to stay — KindredCompass has you covered.</p>
+    <div class="categories">
+      <div class="category-pill pill-eat">🍴 To Eat</div>
+      <div class="category-pill pill-do">⭐ To Do</div>
+      <div class="category-pill pill-stay">🛏 To Stay</div>
+    </div>
+  </section>
+
+  <section class="features-bg">
+    <div class="section-label">Features</div>
+    <h2 class="section-title">Built for real travelers</h2>
+    <p class="section-sub">Everything you need to discover your kind of place, wherever you are.</p>
+    <div class="features-grid">
+      <div class="feature-card"><span class="feature-tag tag-new">New in 2.2</span><span class="feature-icon">📤</span><h3>Share a Spot</h3><p>Found somewhere great? Share it with friends directly from your results with one tap.</p></div>
+      <div class="feature-card"><span class="feature-tag tag-new">New in 2.2</span><span class="feature-icon">📴</span><h3>Offline Favorites</h3><p>Browse your saved spots even without internet. Perfect for travel days and spotty connections.</p></div>
+      <div class="feature-card"><span class="feature-tag tag-new">New in 2.2</span><span class="feature-icon">🟦</span><h3>Home Screen Widget</h3><p>See your top 3 matched spots right on your home screen. No need to open the app.</p></div>
+      <div class="feature-card"><span class="feature-tag tag-do">AI Powered</span><span class="feature-icon">🧬</span><h3>DNA Matching</h3><p>Powered by Gemini AI and Google Places. Every match is explained so you know exactly why it fits.</p></div>
+      <div class="feature-card"><span class="feature-tag tag-eat">Discovery</span><span class="feature-icon">🗺️</span><h3>Map View</h3><p>See all your matched spots on an interactive map. Filter by category and get directions instantly.</p></div>
+      <div class="feature-card"><span class="feature-tag tag-stay">Travel</span><span class="feature-icon">🧳</span><h3>Trip Planner</h3><p>Build a full day itinerary with matched stops. Add it to your calendar in one tap.</p></div>
+      <div class="feature-card"><span class="feature-tag tag-new">Adventure</span><span class="feature-icon">⛺</span><h3>RV Mode</h3><p>Planning a road trip? RV Mode finds campgrounds and RV-friendly stops along your route.</p></div>
+      <div class="feature-card"><span class="feature-tag tag-do">Smart</span><span class="feature-icon">🕐</span><h3>Scan History</h3><p>Never lose a great find. Your last 10 scans are saved so you can revisit any city's results instantly.</p></div>
+    </div>
+  </section>
+
+  <section class="cta-section">
+    <h2>Your city. Your DNA.<br />Your kind of spot.</h2>
+    <p>Free to download. No account required. Start finding places that feel like you in under 2 minutes.</p>
+    <a href="https://apps.apple.com/us/app/kindredcompass/id6743690961" class="apple-badge" target="_blank">
+      <svg viewBox="0 0 24 24"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+      <div class="apple-badge-text">
+        <span class="small">Download on the</span>
+        <span class="big">App Store</span>
+      </div>
+    </a>
+  </section>
+
+  <footer>
+    <div class="footer-logo">KINDRED</div>
+    <div class="footer-links">
+      <a href="privacy.html">Privacy Policy</a>
+      <a href="mailto:support@kindredcompass.com">Support</a>
+      <a href="https://apps.apple.com/us/app/kindredcompass/id6743690961" target="_blank">App Store</a>
+    </div>
+    <p>© 2026 KindredCompass. Built by a solo developer with ❤️</p>
+  </footer>
+
+</body>
+</html>
