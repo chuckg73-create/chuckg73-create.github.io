@@ -1,1 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Accessibility statement for KindredCompass — the app that matches places to your taste.">
+    <title>Accessibility · KindredCompass</title>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --surface: #f7f7fb;
+            --border: #e6e6ee;
+            --text: #1a1a2e;
+            --text-muted: #5c5c77;
+            --accent: #7066fc;
+            --accent-2: #5a8cfa;
+            --radius: 12px;
+            --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        }
 
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #080d22;
+                --surface: #121933;
+                --border: #1f2a4a;
+                --text: #f3f4fb;
+                --text-muted: #b5b9cd;
+                --accent: #857aff;
+                --accent-2: #6e90ff;
+            }
+        }
+
+        * { box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font);
+            font-size: 16px;
+            line-height: 1.65;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .container {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 56px 24px 80px;
+        }
+
+        header {
+            margin-bottom: 40px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand {
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: transparent;
+            margin-bottom: 12px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            margin: 0 0 8px 0;
+            letter-spacing: -0.01em;
+        }
+
+        .updated {
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            margin: 0;
+        }
+
+        .intro {
+            font-size: 1.05rem;
+            margin: 24px 0 40px;
+            color: var(--text);
+        }
+
+        h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-top: 40px;
+            margin-bottom: 14px;
+            letter-spacing: -0.005em;
+        }
+
+        p { margin: 0 0 16px 0; }
+
+        ul {
+            padding-left: 0;
+            margin: 0 0 16px 0;
+            list-style: none;
+        }
+
+        ul li {
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+        }
+
+        ul li strong {
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        ul.plain li {
+            background: transparent;
+            border: none;
+            padding: 4px 0 4px 20px;
+            margin: 0;
+            position: relative;
+        }
+
+        ul.plain li::before {
+            content: "\2022";
+            color: var(--accent);
+            position: absolute;
+            left: 4px;
+            font-weight: 700;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: border-color 0.15s ease;
+        }
+
+        a:hover { border-bottom-color: var(--accent); }
+
+        .email {
+            display: inline-block;
+            padding: 10px 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        footer {
+            margin-top: 64px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            text-align: center;
+        }
+
+        footer a { font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="brand">Kindred &middot; Compass</div>
+            <h1>Accessibility</h1>
+            <p class="updated">Last updated: April 2026</p>
+        </header>
+
+        <p class="intro">
+            KindredCompass is built to be usable by as many people as possible. We take accessibility
+            seriously, and we keep working on it. This page documents what we currently support,
+            where we know we fall short, and how to reach us if something doesn't work for you.
+        </p>
+
+        <h2>What We Support Today</h2>
+        <ul>
+            <li><strong>VoiceOver</strong> &mdash; Every screen has been labeled. Cards, buttons, filters, and sheets announce themselves with descriptive labels, values, and hints. Navigation works screen-by-screen without visual focus.</li>
+            <li><strong>Dynamic Type</strong> &mdash; All text scales with the iOS text size setting, from the smallest caption label up through AX3 (Accessibility 3). The layout reflows rather than clipping.</li>
+            <li><strong>Reduce Motion</strong> &mdash; When Reduce Motion is enabled in iOS Settings, card animations, spring transitions, and phase crossfades are replaced with instant or gentle fades.</li>
+            <li><strong>Dark mode</strong> &mdash; The entire app renders in a dark palette with high-contrast text and clear focus states. No bright white flashes.</li>
+            <li><strong>Tap target sizing</strong> &mdash; Every interactive element meets or exceeds Apple's 44&times;44 point minimum for comfortable tapping, including filter pills and small icon buttons.</li>
+            <li><strong>Haptic feedback</strong> &mdash; Actions that matter (scan, favorite, adventure transitions) use the iOS haptic engine so users who don't rely on sight still feel the confirmation.</li>
+            <li><strong>Semantic grouping</strong> &mdash; Related elements are combined into single accessibility elements so VoiceOver users don't have to swipe through every child view to hear one card's content.</li>
+        </ul>
+
+        <h2>Where We Fall Short</h2>
+        <p>
+            We're honest about gaps because fixing them depends on hearing about them.
+        </p>
+        <ul class="plain">
+            <li>Voice Control has not been systematically tested. Most actions should work, but we can't guarantee coverage of every screen.</li>
+            <li>External keyboard navigation on iPad is partial. Core scan and result-browsing flows work; deeper flows like Adventure editing haven't been fully verified.</li>
+            <li>Dynamic Type beyond AX3 is best-effort. Above that size, some denser layouts may still wrap awkwardly. We cap at AX3 intentionally so the design stays coherent.</li>
+            <li>Switch Control has not been audited. If you use Switch Control and hit a blocker, please tell us; we treat those reports as urgent.</li>
+            <li>We do not currently publish a WCAG conformance report. We target WCAG 2.1 AA as a working standard but have not completed a formal audit.</li>
+        </ul>
+
+        <h2>How We Test</h2>
+        <p>
+            Accessibility is part of the release checklist. Before every release we verify
+            VoiceOver labels on new screens, confirm Reduce Motion is respected where we added
+            animation, and run the app at multiple Dynamic Type sizes. We also use Apple's
+            Accessibility Inspector to catch missing labels and contrast issues.
+        </p>
+
+        <h2>Ongoing Work</h2>
+        <p>
+            Each release we pick one accessibility area to strengthen. Current priorities:
+        </p>
+        <ul class="plain">
+            <li>Voice Control audit across every primary flow</li>
+            <li>External keyboard navigation on iPad for Adventure editing</li>
+            <li>Better descriptive context for DNA match percentages in VoiceOver</li>
+            <li>Offline-mode accessibility (when we ship it) from day one</li>
+        </ul>
+
+        <h2>Report an Issue</h2>
+        <p>
+            If something doesn't work for you, please tell us. Accessibility bug reports are
+            always prioritized over feature requests. You don't need to know the technical name
+            for the issue &mdash; a plain description of what you were trying to do is enough.
+        </p>
+        <a href="mailto:kindredcompasssupport@gmail.com?subject=Accessibility%20feedback" class="email">kindredcompasssupport@gmail.com</a>
+
+        <h2>Standards Reference</h2>
+        <p>
+            We work against Apple's <a href="https://developer.apple.com/accessibility/" rel="noopener">iOS Accessibility Guidelines</a>
+            and WCAG 2.1 AA as a target standard. KindredCompass is not certified, but our
+            intent is to match or exceed these in every release.
+        </p>
+
+        <footer>
+            &copy; 2026 KindredCompass &middot;
+            <a href="index.html">Home</a> &middot;
+            <a href="privacy.html">Privacy</a> &middot;
+            <a href="#top">Back to top</a>
+        </footer>
+    </div>
+</body>
+</html>
