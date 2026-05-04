@@ -37,6 +37,7 @@
 
     .hero { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 120px 24px 80px; position: relative; overflow: hidden; }
     .hero::before { content: ''; position: absolute; top: -200px; left: 50%; transform: translateX(-50%); width: 800px; height: 800px; background: radial-gradient(circle, rgba(120,102,250,0.18) 0%, transparent 70%); pointer-events: none; }
+    .hero-icon { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 16px 40px rgba(120,102,250,0.28), 0 0 0 1px rgba(255,255,255,0.06); margin-bottom: 28px; display: block; }
     .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(120,102,250,0.12); border: 1px solid rgba(120,102,250,0.3); color: var(--accent); font-size: 12px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; padding: 8px 16px; border-radius: 50px; margin-bottom: 28px; }
     .hero h1 { font-size: clamp(36px, 7vw, 72px); font-weight: 900; line-height: 1.1; letter-spacing: -1px; margin-bottom: 24px; max-width: 800px; }
     .hero h1 span { background: linear-gradient(135deg, var(--accent), var(--do)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
@@ -105,6 +106,7 @@
   </nav>
 
   <section class="hero">
+    <img class="hero-icon" src="images/apple-touch-icon.png" alt="KindredCompass app icon" />
     <div class="hero-badge">Now Available on the App Store</div>
     <h1>Places that<br /><span>match your taste.</span></h1>
     <p>Scan a neighborhood. Plan a day out. Route a road trip. Map a full RV adventure. Every result matched to your food, music, and lifestyle — not the algorithm's top picks.</p>
