@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>$100 Starter — Build & Track Your Investing Plan</title>
+  <meta name="description" content="A free, educational tool that turns $100 into a diversified starter portfolio, projects its potential growth, and tracks your plan — then hands off to Alinea to actually invest." />
+  <meta property="og:title" content="$100 Starter — Build & Track Your Investing Plan" />
+  <meta property="og:description" content="Pick a risk level, get a diversified $100 allocation, see projected growth, save your plan. Educational only." />
+  <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="images/apple-touch-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #080D21; --surface: #111833; --card: #171E38;
+      --accent: #7866FA; --amber: #FF9E33; --eat: #FF6B47;
+      --do: #3B82F6; --stay: #A855F7; --green: #34D399;
+      --text: #FFFFFF; --subtext: #B5BAD4; --line: rgba(255,255,255,0.08);
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; background: rgba(8,13,33,0.85); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+    .nav-logo { font-size: 15px; font-weight: 900; letter-spacing: 3px; background: linear-gradient(90deg, var(--accent), var(--green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-decoration: none; }
+    .nav-back { color: var(--subtext); text-decoration: none; font-size: 14px; font-weight: 600; }
+    .nav-back:hover { color: var(--text); }
+
+    .wrap { max-width: 860px; margin: 0 auto; padding: 120px 20px 80px; }
+
+    .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(120,102,250,0.12); border: 1px solid rgba(120,102,250,0.3); color: var(--accent); font-size: 12px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; padding: 8px 16px; border-radius: 50px; margin-bottom: 22px; }
+    h1 { font-size: clamp(30px, 6vw, 52px); font-weight: 900; line-height: 1.1; letter-spacing: -1px; margin-bottom: 16px; }
+    h1 span { background: linear-gradient(135deg, var(--accent), var(--green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .lede { font-size: 17px; color: var(--subtext); line-height: 1.7; max-width: 620px; margin-bottom: 24px; }
+
+    .disclaimer { display: flex; gap: 12px; background: rgba(255,158,51,0.08); border: 1px solid rgba(255,158,51,0.28); border-radius: 16px; padding: 16px 18px; margin-bottom: 40px; }
+    .disclaimer .ico { font-size: 20px; line-height: 1.4; }
+    .disclaimer p { font-size: 13.5px; color: #F5D9AE; line-height: 1.6; }
+    .disclaimer strong { color: var(--amber); }
+
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: 24px; padding: 28px; margin-bottom: 24px; }
+    .card-title { font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 18px; }
+
+    .field-label { font-size: 14px; font-weight: 600; color: var(--subtext); margin-bottom: 10px; display: block; }
+    .amount-row { display: flex; align-items: center; gap: 12px; margin-bottom: 26px; }
+    .amount-input { position: relative; flex: 1; max-width: 220px; }
+    .amount-input span { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 22px; font-weight: 800; color: var(--subtext); }
+    .amount-input input { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 14px; color: var(--text); font-size: 22px; font-weight: 800; font-family: inherit; padding: 14px 14px 14px 36px; }
+    .amount-input input:focus { outline: none; border-color: var(--accent); }
+    .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+    .chip { background: var(--bg); border: 1px solid var(--line); color: var(--subtext); font-size: 13px; font-weight: 700; padding: 8px 14px; border-radius: 50px; cursor: pointer; font-family: inherit; }
+    .chip:hover { border-color: var(--accent); color: var(--text); }
+
+    .risk-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .risk-opt { background: var(--bg); border: 1.5px solid var(--line); border-radius: 16px; padding: 18px 14px; cursor: pointer; text-align: left; font-family: inherit; transition: border-color .15s, background .15s; }
+    .risk-opt:hover { border-color: rgba(120,102,250,0.5); }
+    .risk-opt.active { border-color: var(--accent); background: rgba(120,102,250,0.10); }
+    .risk-opt .rname { font-size: 15px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+    .risk-opt .rdesc { font-size: 12px; color: var(--subtext); line-height: 1.5; }
+    .risk-opt .rmeta { font-size: 11px; font-weight: 700; color: var(--green); margin-top: 8px; letter-spacing: .3px; }
+
+    .btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%; background: linear-gradient(135deg, var(--accent), var(--do)); color: white; border: none; font-family: inherit; font-size: 16px; font-weight: 800; padding: 16px 24px; border-radius: 50px; cursor: pointer; box-shadow: 0 8px 32px rgba(120,102,250,0.30); margin-top: 26px; transition: transform .15s; }
+    .btn-primary:hover { transform: translateY(-2px); }
+
+    .results { display: none; }
+    .results.show { display: block; animation: fade .4s ease; }
+    @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    .alloc-row { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+    .alloc-row:last-child { border-bottom: none; }
+    .alloc-dot { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; }
+    .alloc-main { flex: 1; min-width: 0; }
+    .alloc-name { font-size: 15px; font-weight: 700; }
+    .alloc-sub { font-size: 12.5px; color: var(--subtext); margin-top: 2px; }
+    .alloc-nums { text-align: right; flex-shrink: 0; }
+    .alloc-pct { font-size: 15px; font-weight: 800; }
+    .alloc-amt { font-size: 12.5px; color: var(--green); margin-top: 2px; font-weight: 600; }
+
+    .bar { display: flex; height: 12px; border-radius: 50px; overflow: hidden; margin: 4px 0 22px; }
+    .bar > div { height: 100%; }
+
+    .proj-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 6px; }
+    .proj-cell { background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 16px 14px; text-align: center; }
+    .proj-cell .yr { font-size: 12px; font-weight: 700; color: var(--subtext); letter-spacing: .5px; }
+    .proj-cell .val { font-size: 22px; font-weight: 900; margin: 6px 0 2px; }
+    .proj-cell .gain { font-size: 12px; font-weight: 700; color: var(--green); }
+    .proj-note { font-size: 12px; color: var(--subtext); line-height: 1.6; margin-top: 16px; }
+
+    canvas { width: 100%; height: auto; display: block; margin-top: 6px; }
+
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+    .btn-alinea { flex: 1; min-width: 200px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; background: var(--green); color: #05261B; text-decoration: none; font-size: 15px; font-weight: 800; padding: 15px 22px; border-radius: 50px; }
+    .btn-ghost { flex: 1; min-width: 140px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--line); color: var(--text); font-family: inherit; font-size: 15px; font-weight: 700; padding: 15px 22px; border-radius: 50px; cursor: pointer; text-decoration: none; }
+    .btn-ghost:hover { background: rgba(255,255,255,0.09); }
+
+    .saved-banner { display: none; align-items: center; gap: 10px; background: rgba(52,211,153,0.10); border: 1px solid rgba(52,211,153,0.3); color: var(--green); font-size: 13.5px; font-weight: 600; padding: 12px 16px; border-radius: 14px; margin-bottom: 24px; }
+    .saved-banner.show { display: flex; }
+    .saved-banner button { margin-left: auto; background: none; border: none; color: var(--subtext); font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; text-decoration: underline; }
+
+    footer { border-top: 1px solid var(--line); padding: 40px 24px; text-align: center; margin-top: 40px; }
+    .footer-links { display: flex; gap: 22px; justify-content: center; flex-wrap: wrap; margin-bottom: 18px; }
+    .footer-links a { color: var(--subtext); text-decoration: none; font-size: 14px; }
+    footer p { font-size: 12.5px; color: rgba(181,186,212,0.55); line-height: 1.6; max-width: 640px; margin: 0 auto; }
+
+    @media (max-width: 560px) {
+      .risk-grid { grid-template-columns: 1fr; }
+      .proj-grid { grid-template-columns: 1fr; }
+      .wrap { padding-top: 100px; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="index.html" class="nav-logo">$100 STARTER</a>
+    <a href="index.html" class="nav-back">← Back to site</a>
+  </nav>
+
+  <div class="wrap">
+
+    <div class="hero-badge">Free · Educational · No account</div>
+    <h1>Turn <span>$100</span> into a real starting plan.</h1>
+    <p class="lede">Pick how much risk you're comfortable with. This tool builds you a diversified starter portfolio, shows what it could grow into, and saves your plan so you can track it. When you're ready to invest for real, hand it off to a licensed app like Alinea.</p>
+
+    <div class="disclaimer">
+      <div class="ico">⚠️</div>
+      <p><strong>Read this first.</strong> This is an <strong>educational tool, not financial advice</strong> and not a brokerage. It does not hold money or place trades. Projections are hypothetical estimates based on historical long-run averages — <strong>real returns vary and you can lose money</strong>. To actually invest, use a licensed, regulated app and do your own research.</p>
+    </div>
+
+    <div class="saved-banner" id="savedBanner">
+      <span>💾</span><span id="savedText">Loaded your saved plan.</span>
+      <button id="clearSaved">Clear saved plan</button>
+    </div>
+
+    <!-- BUILDER -->
+    <div class="card">
+      <div class="card-title">1 · Your Starting Amount</div>
+      <label class="field-label">How much are you starting with?</label>
+      <div class="amount-row">
+        <div class="amount-input"><span>$</span><input id="amount" type="number" min="1" step="1" value="100" inputmode="decimal" /></div>
+      </div>
+      <div class="chips">
+        <button class="chip" data-amt="25">$25</button>
+        <button class="chip" data-amt="100">$100</button>
+        <button class="chip" data-amt="250">$250</button>
+        <button class="chip" data-amt="500">$500</button>
+        <button class="chip" data-amt="1000">$1,000</button>
+      </div>
+
+      <div class="card-title" style="margin-top:30px;">2 · Your Risk Level</div>
+      <div class="risk-grid" id="riskGrid">
+        <button class="risk-opt" data-risk="conservative">
+          <div class="rname">Conservative</div>
+          <div class="rdesc">Steadier ride, more bonds. Smaller swings, slower growth.</div>
+          <div class="rmeta">~5%/yr est.</div>
+        </button>
+        <button class="risk-opt active" data-risk="balanced">
+          <div class="rname">Balanced</div>
+          <div class="rdesc">Mostly broad-market stocks with a bond cushion. A solid default.</div>
+          <div class="rmeta">~7%/yr est.</div>
+        </button>
+        <button class="risk-opt" data-risk="aggressive">
+          <div class="rname">Aggressive</div>
+          <div class="rdesc">Heavier on growth & themes. Bigger upside, bigger drops.</div>
+          <div class="rmeta">~9%/yr est.</div>
+        </button>
+      </div>
+
+      <button class="btn-primary" id="buildBtn">Build my plan →</button>
+    </div>
+
+    <!-- RESULTS -->
+    <div class="results" id="results">
+
+      <div class="card">
+        <div class="card-title">Your <span id="riskLabel">Balanced</span> Allocation · <span id="amtLabel">$100</span></div>
+        <div class="bar" id="allocBar"></div>
+        <div id="allocList"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">If it grows at ~<span id="rateLabel">7</span>%/yr *</div>
+        <canvas id="chart" width="800" height="300"></canvas>
+        <div class="proj-grid" id="projGrid"></div>
+        <p class="proj-note">* Hypothetical, compounded annually at the risk level's long-run average estimate — no fees, taxes, or market crashes modeled. The real path is bumpy and never a straight line. Markets have historically trended up over long periods, but past performance doesn't guarantee future results.</p>
+      </div>
+
+      <div class="actions">
+        <a class="btn-alinea" id="alineaBtn" href="https://apps.apple.com/us/app/alinea-personalized-investing/id1554623825" target="_blank" rel="noopener">Invest for real on Alinea →</a>
+        <button class="btn-ghost" id="saveBtn">💾 Save my plan</button>
+        <button class="btn-ghost" id="copyBtn">📋 Copy allocation</button>
+      </div>
+      <p class="proj-note" style="margin-top:16px;">Alinea is an independent, regulated investing app (paid membership) — not affiliated with this tool. This link just points you there so you can recreate your plan with real money. Always review any app's fees and terms yourself.</p>
+
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-links">
+      <a href="index.html">Home</a>
+      <a href="privacy.html">Privacy Policy</a>
+      <a href="accessibility.html">Accessibility</a>
+    </div>
+    <p>Educational tool only. Nothing here is financial, investment, tax, or legal advice, and no money is held or moved. Investing involves risk, including possible loss of principal. Consult a licensed professional before investing. © 2026</p>
+  </footer>
+
+  <script>
+  (function () {
+    // ---- Portfolio models. Percentages sum to 100. ----
+    // "ticker" is a real, broadly-known low-cost ETF you can find on most apps.
+    var MODELS = {
+      conservative: {
+        rate: 0.05, label: "Conservative",
+        holdings: [
+          { name: "Total US Bond Market", ticker: "BND", note: "Broad US bonds — ballast", pct: 45, color: "#3B82F6" },
+          { name: "Total US Stock Market", ticker: "VTI", note: "Every US company, one fund", pct: 30, color: "#7866FA" },
+          { name: "International Stocks", ticker: "VXUS", note: "The rest of the world", pct: 15, color: "#A855F7" },
+          { name: "Cash / Money Market", ticker: "—", note: "Dry powder, low risk", pct: 10, color: "#34D399" }
+        ]
+      },
+      balanced: {
+        rate: 0.07, label: "Balanced",
+        holdings: [
+          { name: "Total US Stock Market", ticker: "VTI", note: "Every US company, one fund", pct: 50, color: "#7866FA" },
+          { name: "International Stocks", ticker: "VXUS", note: "Diversify beyond the US", pct: 20, color: "#A855F7" },
+          { name: "Total US Bond Market", ticker: "BND", note: "Cushions the swings", pct: 20, color: "#3B82F6" },
+          { name: "Cash / Money Market", ticker: "—", note: "Flexibility", pct: 10, color: "#34D399" }
+        ]
+      },
+      aggressive: {
+        rate: 0.09, label: "Aggressive",
+        holdings: [
+          { name: "Total US Stock Market", ticker: "VTI", note: "Core growth engine", pct: 45, color: "#7866FA" },
+          { name: "Growth / Tech (e.g. QQQ)", ticker: "QQQ", note: "Higher-growth, higher-swing", pct: 25, color: "#FF6B47" },
+          { name: "International Stocks", ticker: "VXUS", note: "Global growth", pct: 20, color: "#A855F7" },
+          { name: "Thematic (AI / Innovation)", ticker: "theme", note: "A small, spicy tilt", pct: 10, color: "#FF9E33" }
+        ]
+      }
+    };
+
+    var state = { amount: 100, risk: "balanced" };
+
+    var $ = function (id) { return document.getElementById(id); };
+    var money = function (n) {
+      return "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+    var money0 = function (n) {
+      return "$" + Math.round(n).toLocaleString("en-US");
+    };
+
+    // ---- Inputs ----
+    $("amount").addEventListener("input", function () {
+      var v = parseFloat(this.value);
+      state.amount = isNaN(v) || v <= 0 ? 0 : v;
+    });
+    Array.prototype.forEach.call(document.querySelectorAll(".chip"), function (c) {
+      c.addEventListener("click", function () {
+        state.amount = parseFloat(c.getAttribute("data-amt"));
+        $("amount").value = state.amount;
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll(".risk-opt"), function (r) {
+      r.addEventListener("click", function () {
+        document.querySelectorAll(".risk-opt").forEach(function (x) { x.classList.remove("active"); });
+        r.classList.add("active");
+        state.risk = r.getAttribute("data-risk");
+      });
+    });
+
+    $("buildBtn").addEventListener("click", function () {
+      if (!state.amount || state.amount <= 0) {
+        $("amount").focus();
+        return;
+      }
+      render();
+      $("results").classList.add("show");
+      $("results").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    function render() {
+      var model = MODELS[state.risk];
+      var amt = state.amount;
+
+      $("riskLabel").textContent = model.label;
+      $("amtLabel").textContent = money0(amt);
+      $("rateLabel").textContent = Math.round(model.rate * 100);
+
+      // Allocation bar
+      var bar = $("allocBar");
+      bar.innerHTML = "";
+      model.holdings.forEach(function (h) {
+        var seg = document.createElement("div");
+        seg.style.width = h.pct + "%";
+        seg.style.background = h.color;
+        bar.appendChild(seg);
+      });
+
+      // Allocation list
+      var list = $("allocList");
+      list.innerHTML = "";
+      model.holdings.forEach(function (h) {
+        var row = document.createElement("div");
+        row.className = "alloc-row";
+        var dollars = amt * h.pct / 100;
+        var tickerTxt = (h.ticker && h.ticker !== "—" && h.ticker !== "theme") ? (" · " + h.ticker) : "";
+        row.innerHTML =
+          '<span class="alloc-dot" style="background:' + h.color + '"></span>' +
+          '<div class="alloc-main"><div class="alloc-name">' + h.name + '</div>' +
+          '<div class="alloc-sub">' + h.note + tickerTxt + '</div></div>' +
+          '<div class="alloc-nums"><div class="alloc-pct">' + h.pct + '%</div>' +
+          '<div class="alloc-amt">' + money(dollars) + '</div></div>';
+        list.appendChild(row);
+      });
+
+      // Projection cells (5 / 10 / 20 yr)
+      var horizons = [5, 10, 20];
+      var grid = $("projGrid");
+      grid.innerHTML = "";
+      horizons.forEach(function (yr) {
+        var fv = amt * Math.pow(1 + model.rate, yr);
+        var gain = fv - amt;
+        var cell = document.createElement("div");
+        cell.className = "proj-cell";
+        cell.innerHTML =
+          '<div class="yr">' + yr + ' YEARS</div>' +
+          '<div class="val">' + money0(fv) + '</div>' +
+          '<div class="gain">+' + money0(gain) + '</div>';
+        grid.appendChild(cell);
+      });
+
+      drawChart(amt, model.rate, 20);
+      state.built = { model: model, amt: amt };
+    }
+
+    // ---- Simple growth curve on canvas ----
+    function drawChart(amt, rate, years) {
+      var canvas = $("chart");
+      var ctx = canvas.getContext("2d");
+      var W = canvas.width, H = canvas.height;
+      var padL = 52, padR = 14, padT = 14, padB = 28;
+      ctx.clearRect(0, 0, W, H);
+
+      var pts = [];
+      for (var y = 0; y <= years; y++) {
+        pts.push(amt * Math.pow(1 + rate, y));
+      }
+      var maxV = pts[pts.length - 1];
+      var xFor = function (y) { return padL + (W - padL - padR) * (y / years); };
+      var yFor = function (v) { return H - padB - (H - padT - padB) * (v / maxV); };
+
+      // gridlines + y labels
+      ctx.strokeStyle = "rgba(255,255,255,0.06)";
+      ctx.fillStyle = "#B5BAD4";
+      ctx.font = "11px Inter, sans-serif";
+      ctx.lineWidth = 1;
+      for (var g = 0; g <= 4; g++) {
+        var val = maxV * g / 4;
+        var yy = yFor(val);
+        ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(W - padR, yy); ctx.stroke();
+        ctx.fillText("$" + Math.round(val).toLocaleString("en-US"), 6, yy + 4);
+      }
+      // x labels
+      ctx.textAlign = "center";
+      [0, 5, 10, 15, 20].forEach(function (yr) {
+        ctx.fillText(yr + "y", xFor(yr), H - 10);
+      });
+      ctx.textAlign = "start";
+
+      // area fill
+      var grad = ctx.createLinearGradient(0, padT, 0, H - padB);
+      grad.addColorStop(0, "rgba(120,102,250,0.45)");
+      grad.addColorStop(1, "rgba(120,102,250,0.02)");
+      ctx.beginPath();
+      ctx.moveTo(xFor(0), yFor(pts[0]));
+      pts.forEach(function (v, i) { ctx.lineTo(xFor(i), yFor(v)); });
+      ctx.lineTo(xFor(years), H - padB);
+      ctx.lineTo(xFor(0), H - padB);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // line
+      ctx.beginPath();
+      ctx.moveTo(xFor(0), yFor(pts[0]));
+      pts.forEach(function (v, i) { ctx.lineTo(xFor(i), yFor(v)); });
+      ctx.strokeStyle = "#7866FA";
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      // end dot
+      ctx.beginPath();
+      ctx.arc(xFor(years), yFor(pts[years]), 4, 0, Math.PI * 2);
+      ctx.fillStyle = "#34D399";
+      ctx.fill();
+    }
+
+    // ---- Save / load plan (localStorage) ----
+    var KEY = "starter100_plan_v1";
+    function savePlan() {
+      var data = {
+        amount: state.amount, risk: state.risk,
+        savedOn: new Date().toISOString().slice(0, 10)
+      };
+      try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {}
+      showBanner("Plan saved on " + data.savedOn + " — it'll be here when you come back.");
+    }
+    function loadPlan() {
+      try {
+        var raw = localStorage.getItem(KEY);
+        if (!raw) return;
+        var d = JSON.parse(raw);
+        state.amount = d.amount; state.risk = d.risk;
+        $("amount").value = d.amount;
+        document.querySelectorAll(".risk-opt").forEach(function (x) {
+          x.classList.toggle("active", x.getAttribute("data-risk") === d.risk);
+        });
+        render();
+        $("results").classList.add("show");
+        showBanner("Loaded your plan from " + d.savedOn + ".");
+      } catch (e) {}
+    }
+    function showBanner(msg) {
+      $("savedText").textContent = msg;
+      $("savedBanner").classList.add("show");
+    }
+    $("saveBtn").addEventListener("click", savePlan);
+    $("clearSaved").addEventListener("click", function () {
+      try { localStorage.removeItem(KEY); } catch (e) {}
+      $("savedBanner").classList.remove("show");
+    });
+
+    $("copyBtn").addEventListener("click", function () {
+      var model = MODELS[state.risk], amt = state.amount;
+      var lines = ["My $100 Starter plan — " + model.label + " · " + money0(amt), ""];
+      model.holdings.forEach(function (h) {
+        var t = (h.ticker && h.ticker !== "—" && h.ticker !== "theme") ? " (" + h.ticker + ")" : "";
+        lines.push("• " + h.pct + "%  " + money(amt * h.pct / 100) + "  " + h.name + t);
+      });
+      lines.push("", "Built with the free $100 Starter tool. Educational only — not advice.");
+      var text = lines.join("\n");
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+          $("copyBtn").textContent = "✓ Copied!";
+          setTimeout(function () { $("copyBtn").textContent = "📋 Copy allocation"; }, 1800);
+        });
+      }
+    });
+
+    // Load any saved plan on start
+    loadPlan();
+  })();
+  </script>
+
+</body>
+</html>
