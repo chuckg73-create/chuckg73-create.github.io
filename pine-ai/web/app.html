@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cedar — Live demo</title>
+  <meta name="description" content="Try Cedar's brain: describe a task and watch Claude plan the call, write the script, and role-play the negotiation." />
+  <link rel="stylesheet" href="assets/styles.css" />
+  <link rel="stylesheet" href="assets/app.css" />
+</head>
+<body class="app-body">
+  <header class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="index.html"><span class="brand-mark">🌲</span> Cedar</a>
+      <nav class="nav-links">
+        <a href="index.html">← Home</a>
+        <a href="#" id="settingsBtn" class="btn btn-ghost">API key</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="app-main container">
+    <div class="app-intro">
+      <h1>See Cedar think</h1>
+      <p class="muted">
+        Describe a call you'd want handled. Claude plans the strategy, writes the
+        opening script, and then role-plays the rep so you can practice or preview
+        how the real call would go. <b>No real calls are placed here</b> — this is the
+        "brain," which the full app connects to a phone line.
+      </p>
+    </div>
+
+    <div id="keyNotice" class="notice hidden">
+      <b>Add your Anthropic API key to begin.</b>
+      <p>The demo calls Claude directly from your browser using a key you provide.
+      It's stored only in this browser (localStorage) and sent only to Anthropic.
+      <span class="warn">For real use, proxy the key through a backend — never ship a key in a browser app.</span></p>
+      <button class="btn btn-primary" id="openSettings">Add API key</button>
+    </div>
+
+    <div class="examples" id="examples">
+      <span class="ex-label">Try:</span>
+      <button class="chip" data-ex="Call my internet provider (Xfinity) and lower my monthly bill. I've been a customer 4 years and pay $89/mo. Account holder: Chuck.">Lower my internet bill</button>
+      <button class="chip" data-ex="Cancel my Planet Fitness gym membership. They usually push retention offers — I want it fully canceled with a confirmation number.">Cancel a gym membership</button>
+      <button class="chip" data-ex="Dispute a $35 late fee on my credit card. The payment was 1 day late and it's my first time. Ask for a courtesy waiver.">Dispute a late fee</button>
+    </div>
+
+    <div id="chat" class="chat"></div>
+
+    <form id="composer" class="composer">
+      <textarea id="input" rows="1" placeholder="Describe the task… e.g. 'Cancel my subscription and get a refund for last month.'"></textarea>
+      <button class="btn btn-primary" id="send" type="submit">Plan the call</button>
+    </form>
+    <p class="muted small disclaimer">Cedar can make mistakes. Always review scripts before relying on them. This demo does not place phone calls.</p>
+  </main>
+
+  <!-- Settings modal -->
+  <div id="settings" class="modal hidden">
+    <div class="modal-card">
+      <h3>Anthropic API key</h3>
+      <p class="muted small">Get one at <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a>. Stored locally in your browser only.</p>
+      <input type="password" id="apiKey" placeholder="sk-ant-…" />
+      <label class="row"><span>Model</span>
+        <select id="model">
+          <option value="claude-sonnet-5">Claude Sonnet 5 (recommended)</option>
+          <option value="claude-opus-5">Claude Opus 5 (most capable)</option>
+          <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (fastest)</option>
+        </select>
+      </label>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="clearKey">Clear</button>
+        <button class="btn btn-primary" id="saveKey">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/app.js"></script>
+</body>
+</html>

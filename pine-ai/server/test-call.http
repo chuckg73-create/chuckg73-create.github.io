@@ -1,0 +1,21 @@
+# Quick way to kick off a call once the server is running.
+# Use with the VS Code "REST Client" extension, or translate to curl (below).
+
+POST http://localhost:3000/calls
+Content-Type: application/json
+
+{
+  "to": "+15559998888",
+  "task": "Lower my Xfinity internet bill. I pay $89/mo, been a customer 4 years.",
+  "context": "Account holder: Chuck. Willing to switch providers if they won't budge."
+}
+
+###
+# curl version:
+# curl -X POST http://localhost:3000/calls \
+#   -H "Content-Type: application/json" \
+#   -d '{"to":"+15559998888","task":"Lower my internet bill","context":"..."}'
+
+###
+# Check the result / summary:
+# GET http://localhost:3000/calls/CA0123...
