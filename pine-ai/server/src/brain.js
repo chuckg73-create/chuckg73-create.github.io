@@ -8,7 +8,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { buildCallSystemPrompt, SUMMARY_INSTRUCTION } from "./prompts.js";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const MODEL = process.env.CEDAR_MODEL || "claude-sonnet-5";
+const MODEL = process.env.KINDREDAGENT_MODEL || "claude-sonnet-5";
 
 export class Conversation {
   constructor({ task, context }) {
@@ -17,8 +17,8 @@ export class Conversation {
     this.ended = false;
   }
 
-  // The rep (or IVR) said something. Get Cedar's next spoken line.
-  // Returns { text, end } where `end` means Cedar wants to hang up.
+  // The rep (or IVR) said something. Get KindredAgent's next spoken line.
+  // Returns { text, end } where `end` means KindredAgent wants to hang up.
   async respond(repSaid) {
     if (repSaid && repSaid.trim()) {
       this.turns.push({ role: "user", content: repSaid.trim() });
@@ -45,7 +45,7 @@ export class Conversation {
     return { text, end };
   }
 
-  // Cedar's opening line, before the rep says anything.
+  // KindredAgent's opening line, before the rep says anything.
   async opening() {
     return this.respond("[The call just connected. The other party said nothing yet.]");
   }

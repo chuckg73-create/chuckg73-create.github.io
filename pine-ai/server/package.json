@@ -1,9 +1,9 @@
 {
-  "name": "cedar-server",
+  "name": "kindredagent-server",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Cedar backend — Claude brain + Twilio voice for AI-driven phone calls.",
+  "description": "KindredAgent backend — Claude brain + Twilio voice for AI-driven phone calls.",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",

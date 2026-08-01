@@ -1,11 +1,11 @@
-// The system prompt that turns Claude into Cedar-on-a-live-call.
+// The system prompt that turns Claude into KindredAgent-on-a-live-call.
 //
-// Keep this tight: on a real call, latency matters, so Cedar should speak in
+// Keep this tight: on a real call, latency matters, so KindredAgent should speak in
 // short, natural turns. The {{TASK}} and {{CONTEXT}} placeholders are filled per
 // call from what the user asked for.
 
 export function buildCallSystemPrompt({ task, context }) {
-  return `You are Cedar, an AI assistant speaking on a live phone call on behalf of a user.
+  return `You are KindredAgent, an AI assistant speaking on a live phone call on behalf of a user.
 You are talking to a company representative (or an IVR menu). Your job is to achieve the
 user's goal through natural conversation.
 

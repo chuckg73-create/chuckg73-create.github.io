@@ -1,11 +1,11 @@
-# 🌲 Cedar — your own "Pine AI"
+# 🧭 KindredAgent — your own "Pine AI"
 
 A personal AI assistant that makes real phone calls for you — negotiating bills,
 canceling subscriptions, disputing charges, and waiting on hold. This is a
 starter foundation with all three layers wired up.
 
-> **Cedar is a placeholder name.** Rename it to whatever you want (search/replace
-> "Cedar" and the 🌲 emoji).
+> **KindredAgent is a placeholder name.** Rename it to whatever you want (search/replace
+> "KindredAgent" and the 🧭 emoji).
 
 ## What's here
 
@@ -55,7 +55,7 @@ curl -X POST http://localhost:3000/calls \
   -d '{"to":"+1YOURNUMBER","task":"Ask what time the store closes today","context":""}'
 ```
 
-Cedar dials, speaks, listens, and prints a summary when the call ends. Start by
+KindredAgent dials, speaks, listens, and prints a summary when the call ends. Start by
 calling **your own phone** or a friendly business — see the legal checklist in
 `docs/ROADMAP.md` before calling anyone else.
 

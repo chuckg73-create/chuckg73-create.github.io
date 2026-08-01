@@ -1,6 +1,6 @@
-# Cedar — Architecture
+# KindredAgent — Architecture
 
-Cedar is a personal AI assistant that makes real phone calls on your behalf. This
+KindredAgent is a personal AI assistant that makes real phone calls on your behalf. This
 is the same shape as products like Pine AI. There are four moving parts.
 
 ```
@@ -8,7 +8,7 @@ is the same shape as products like Pine AI. There are four moving parts.
                             │
                             ├─▶ Claude  (the brain: plans + decides what to say)
                             ├─▶ STT     (speech-to-text: hears the rep)
-                            └─▶ TTS     (text-to-speech: gives Cedar a voice)
+                            └─▶ TTS     (text-to-speech: gives KindredAgent a voice)
 ```
 
 ## 1. The brain — Claude
@@ -45,7 +45,7 @@ Where you describe the task and read the result. Today that's:
 
 ## Request flow of a real call (Path A)
 1. `POST /calls {to, task, context}` → backend starts a Twilio call.
-2. Callee answers → Twilio fetches `/voice` → Cedar speaks its opening line.
+2. Callee answers → Twilio fetches `/voice` → KindredAgent speaks its opening line.
 3. `<Gather>` captures the rep's reply → Twilio posts `/gather`.
 4. Backend sends the reply to Claude → speaks the next line → gathers again.
 5. Claude emits `[END_CALL]` → backend hangs up → generates a summary.
@@ -58,4 +58,4 @@ Where you describe the task and read the result. Today that's:
   (e.g. two-party consent, TCPA in the US). Disclose that it's an AI assistant,
   get consent to record, and don't auto-dial without permission. See ROADMAP.md.
 - **Identity/authorization:** many tasks require the account holder's verification.
-  Cedar must not impersonate the user. Decide how you'll handle verified handoff.
+  KindredAgent must not impersonate the user. Decide how you'll handle verified handoff.

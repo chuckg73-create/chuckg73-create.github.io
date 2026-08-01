@@ -33,7 +33,7 @@ export function attachMediaStream(server) {
             context: msg.start.customParameters?.context || "",
           });
           // TODO: open a Deepgram live-transcription socket here.
-          // TODO: speak Cedar's opening via ElevenLabs -> send audio frames to Twilio.
+          // TODO: speak KindredAgent's opening via ElevenLabs -> send audio frames to Twilio.
           break;
 
         case "media":

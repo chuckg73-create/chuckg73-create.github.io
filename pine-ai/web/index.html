@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cedar — Your AI that gets things done on the phone</title>
-  <meta name="description" content="Cedar is a personal AI assistant that makes real phone calls for you — negotiating bills, canceling subscriptions, disputing charges, and waiting on hold so you don't have to." />
+  <title>KindredAgent — Your AI that gets things done on the phone</title>
+  <meta name="description" content="KindredAgent is a personal AI assistant that makes real phone calls for you — negotiating bills, canceling subscriptions, disputing charges, and waiting on hold so you don't have to." />
   <link rel="stylesheet" href="assets/styles.css" />
 </head>
 <body>
   <header class="nav">
     <div class="container nav-inner">
       <a class="brand" href="index.html">
-        <span class="brand-mark">🌲</span> Cedar
+        <span class="brand-mark">🧭</span> KindredAgent
       </a>
       <nav class="nav-links">
         <a href="#how">How it works</a>
@@ -29,9 +29,9 @@
           <span class="pill">Personal AI · makes real calls</span>
           <h1>The AI that gets things done<br /><span class="accent">on the phone.</span></h1>
           <p class="lede">
-            Cedar calls companies for you — negotiating your bills, canceling
+            KindredAgent calls companies for you — negotiating your bills, canceling
             subscriptions, disputing charges, and sitting on hold so you never
-            have to. You describe the goal; Cedar handles the conversation.
+            have to. You describe the goal; KindredAgent handles the conversation.
           </p>
           <div class="hero-cta">
             <a href="#waitlist" class="btn btn-primary btn-lg">Join the waitlist</a>
@@ -42,7 +42,7 @@
         <div class="hero-visual" aria-hidden="true">
           <div class="phone">
             <div class="call-header">
-              <span class="dot live"></span> Cedar · live call
+              <span class="dot live"></span> KindredAgent · live call
               <span class="timer">03:12</span>
             </div>
             <div class="bubbles">
@@ -61,12 +61,12 @@
     <section id="tasks" class="section">
       <div class="container">
         <h2>Point it at the annoying stuff</h2>
-        <p class="section-sub">The calls you keep putting off. Cedar makes them.</p>
+        <p class="section-sub">The calls you keep putting off. KindredAgent makes them.</p>
         <div class="grid">
-          <div class="card"><div class="card-ico">💸</div><h3>Negotiate bills</h3><p>Internet, phone, insurance — Cedar asks for promotions and loyalty discounts.</p></div>
+          <div class="card"><div class="card-ico">💸</div><h3>Negotiate bills</h3><p>Internet, phone, insurance — KindredAgent asks for promotions and loyalty discounts.</p></div>
           <div class="card"><div class="card-ico">🚫</div><h3>Cancel subscriptions</h3><p>Cuts through retention scripts and confirms the cancellation in writing.</p></div>
-          <div class="card"><div class="card-ico">↩️</div><h3>Dispute & refund</h3><p>Wrong charge, late fee, bad order — Cedar makes the case and pushes for a credit.</p></div>
-          <div class="card"><div class="card-ico">⏳</div><h3>Wait on hold</h3><p>Cedar holds the line and pulls you in only when a human picks up.</p></div>
+          <div class="card"><div class="card-ico">↩️</div><h3>Dispute & refund</h3><p>Wrong charge, late fee, bad order — KindredAgent makes the case and pushes for a credit.</p></div>
+          <div class="card"><div class="card-ico">⏳</div><h3>Wait on hold</h3><p>KindredAgent holds the line and pulls you in only when a human picks up.</p></div>
           <div class="card"><div class="card-ico">📅</div><h3>Book & schedule</h3><p>Appointments, reservations, reschedules — handled with a quick call.</p></div>
           <div class="card"><div class="card-ico">🔎</div><h3>Get answers</h3><p>Call a business to confirm hours, availability, or policy details.</p></div>
         </div>
@@ -77,9 +77,9 @@
       <div class="container">
         <h2>How it works</h2>
         <div class="steps">
-          <div class="step"><span class="step-n">1</span><h3>Tell Cedar the goal</h3><p>"Lower my internet bill" or "Cancel my gym membership." Add any account details.</p></div>
-          <div class="step"><span class="step-n">2</span><h3>Cedar plans the call</h3><p>It researches the company, drafts a strategy, and prepares for pushback before dialing.</p></div>
-          <div class="step"><span class="step-n">3</span><h3>It makes the call</h3><p>Cedar speaks and listens in real time, adapting to whatever the rep says.</p></div>
+          <div class="step"><span class="step-n">1</span><h3>Tell KindredAgent the goal</h3><p>"Lower my internet bill" or "Cancel my gym membership." Add any account details.</p></div>
+          <div class="step"><span class="step-n">2</span><h3>KindredAgent plans the call</h3><p>It researches the company, drafts a strategy, and prepares for pushback before dialing.</p></div>
+          <div class="step"><span class="step-n">3</span><h3>It makes the call</h3><p>KindredAgent speaks and listens in real time, adapting to whatever the rep says.</p></div>
           <div class="step"><span class="step-n">4</span><h3>You get the result</h3><p>A summary of what happened, what changed, and any confirmation numbers.</p></div>
         </div>
         <div class="stack-note">
@@ -94,7 +94,7 @@
       <div class="container narrow">
         <h2>Be first to hand off a call</h2>
         <p class="section-sub">Join the waitlist and we'll reach out when early access opens.</p>
-        <form class="wl-form" onsubmit="return cedarWaitlist(event)">
+        <form class="wl-form" onsubmit="return kindredAgentWaitlist(event)">
           <input type="email" required placeholder="you@example.com" aria-label="Email address" />
           <button class="btn btn-primary" type="submit">Join waitlist</button>
         </form>
@@ -106,13 +106,13 @@
 
   <footer class="footer">
     <div class="container footer-inner">
-      <span>🌲 Cedar — a starter project. Rename it to whatever you like.</span>
+      <span>🧭 KindredAgent — a starter project. Rename it to whatever you like.</span>
       <span class="muted small">Built as a foundation, not affiliated with any existing product.</span>
     </div>
   </footer>
 
   <script>
-    function cedarWaitlist(e){
+    function kindredAgentWaitlist(e){
       e.preventDefault();
       var msg = document.getElementById('wl-msg');
       msg.textContent = "✓ Thanks! (Demo only — connect this form to your backend to actually store emails.)";

@@ -1,4 +1,4 @@
-# Cedar — Roadmap & realistic costs
+# KindredAgent — Roadmap & realistic costs
 
 ## Phased plan
 
@@ -49,7 +49,7 @@ change — treat these as ballpark and check each vendor's current pricing.
 - **Recording consent:** some US states require all-party consent; many countries too.
 - **TCPA / robocall rules:** don't auto-dial people without consent; this is for
   calling *businesses on your own behalf*, not outbound marketing.
-- **No impersonation:** Cedar assists; it does not pretend to be the account holder.
+- **No impersonation:** KindredAgent assists; it does not pretend to be the account holder.
 - **Authorization:** for account changes, plan a verified-handoff step.
 
 When in doubt, talk to a lawyer before taking on real users.

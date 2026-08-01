@@ -1,8 +1,8 @@
-// Cedar backend — places a real phone call and lets Claude drive the conversation.
+// KindredAgent backend — places a real phone call and lets Claude drive the conversation.
 //
 // Flow (simplest, Twilio-native voice):
-//   1. POST /calls        -> you tell Cedar the task + number to call. We start a Twilio call.
-//   2. Twilio hits /voice  -> we return TwiML: Cedar speaks its opening line, then <Gather>
+//   1. POST /calls        -> you tell KindredAgent the task + number to call. We start a Twilio call.
+//   2. Twilio hits /voice  -> we return TwiML: KindredAgent speaks its opening line, then <Gather>
 //                             listens for the rep's reply via Twilio speech-to-text.
 //   3. Twilio hits /gather -> we send what the rep said to Claude, speak the reply, gather again.
 //   4. On [END_CALL]       -> we <Hangup> and generate a summary.
@@ -58,7 +58,7 @@ app.post("/calls", async (req, res) => {
   }
 });
 
-// --- 2. Call answered: Cedar speaks first ------------------------------------
+// --- 2. Call answered: KindredAgent speaks first ------------------------------------
 app.post("/voice", async (req, res) => {
   const callSid = req.body.CallSid;
   const entry = calls.get(callSid);
@@ -145,10 +145,10 @@ function speakAndGather(twiml, text, end) {
   twiml.redirect("/gather"); // fallback if no speech captured
 }
 
-app.get("/", (_req, res) => res.send("Cedar server is running. POST /calls to start a call."));
+app.get("/", (_req, res) => res.send("KindredAgent server is running. POST /calls to start a call."));
 
 app.listen(PORT, () => {
-  console.log(`🌲 Cedar server on :${PORT}`);
+  console.log(`🧭 KindredAgent server on :${PORT}`);
   if (!PUBLIC_BASE_URL) console.warn("⚠  Set PUBLIC_BASE_URL — Twilio must reach this server.");
   if (!TWILIO_ACCOUNT_SID) console.warn("⚠  Missing Twilio credentials in .env");
 });

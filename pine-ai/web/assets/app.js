@@ -1,4 +1,4 @@
-/* Cedar demo — the "brain" running client-side.
+/* KindredAgent demo — the "brain" running client-side.
  *
  * This calls the Anthropic API directly from the browser using a key the user
  * provides. That is fine for a local/personal demo, but for anything real you
@@ -6,11 +6,11 @@
  * ../server for a backend that does this (and also places real calls).
  */
 
-const LS_KEY = "cedar.apiKey";
-const LS_MODEL = "cedar.model";
+const LS_KEY = "kindredagent.apiKey";
+const LS_MODEL = "kindredagent.model";
 const API_URL = "https://api.anthropic.com/v1/messages";
 
-const SYSTEM_PROMPT = `You are Cedar, an AI assistant that handles phone calls on a user's behalf
+const SYSTEM_PROMPT = `You are KindredAgent, an AI assistant that handles phone calls on a user's behalf
 (negotiating bills, canceling subscriptions, disputing charges, booking things, etc.).
 
 The user will describe a task. Respond in THIS structure using markdown-style headings
@@ -37,7 +37,7 @@ After that structure, add ONE line:
 "Want me to role-play the rep so you can practice? Reply and I'll respond as them."
 
 If the user is clearly continuing a role-play (they're speaking as the rep), then DROP the
-structure and simply respond in-character as Cedar on the call — short, spoken, one turn at a
+structure and simply respond in-character as KindredAgent on the call — short, spoken, one turn at a
 time — and stay in character until the task is resolved. Never invent confirmation numbers as
 if they're real; if you'd need one, note it in [brackets] as a placeholder.
 
@@ -161,7 +161,7 @@ async function callClaude(){
 function addMessage(role, text){
   const el = document.createElement("div");
   el.className = "msg "+role;
-  el.innerHTML = '<span class="role">'+(role==="user"?"You":"🌲 Cedar")+'</span><div class="body">'+render(text)+'</div>';
+  el.innerHTML = '<span class="role">'+(role==="user"?"You":"🧭 KindredAgent")+'</span><div class="body">'+render(text)+'</div>';
   $("chat").appendChild(el);
   el.scrollIntoView({behavior:"smooth", block:"end"});
   return el;
