@@ -1,2 +1,12 @@
 .DS_Store
 **/.DS_Store
+
+# Xcode / iOS build artifacts
+KindredTable/**/xcuserdata/
+KindredTable/**/*.xcuserstate
+KindredTable/build/
+KindredTable/DerivedData/
+*.xcuserstate
+
+# Secrets — never commit real API keys
+KindredTable/Secrets.xcconfig
