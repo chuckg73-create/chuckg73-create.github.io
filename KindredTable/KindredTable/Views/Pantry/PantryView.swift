@@ -6,9 +6,22 @@ struct PantryView: View {
     @Environment(PantryStore.self) private var pantry
     var goToRecipes: () -> Void
 
-    @State private var showAdd = false
-    @State private var editing: Ingredient?
+    @State private var activeSheet: ActiveSheet?
     @State private var search = ""
+
+    /// A single sheet slot. Using one `.sheet` avoids the SwiftUI conflict that
+    /// arises when two `.sheet` modifiers are attached to the same view.
+    private enum ActiveSheet: Identifiable {
+        case add
+        case edit(Ingredient)
+
+        var id: String {
+            switch self {
+            case .add: return "add"
+            case .edit(let ingredient): return ingredient.id.uuidString
+            }
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -20,7 +33,7 @@ struct PantryView: View {
                         title: "Your pantry is empty",
                         message: "Snap a photo on the Capture tab, or add ingredients by hand to get started.",
                         actionTitle: "Add ingredient",
-                        action: { showAdd = true }
+                        action: { activeSheet = .add }
                     )
                 } else {
                     list
@@ -29,15 +42,17 @@ struct PantryView: View {
             .navigationTitle("Pantry")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { showAdd = true } label: { Image(systemName: "plus") }
+                    Button { activeSheet = .add } label: { Image(systemName: "plus") }
                 }
                 ToolbarItem(placement: .topBarLeading) { ProfileToolbarButton() }
             }
-            .sheet(isPresented: $showAdd) {
-                IngredientEditor(ingredient: nil) { pantry.add($0) }
-            }
-            .sheet(item: $editing) { item in
-                IngredientEditor(ingredient: item) { pantry.update($0) }
+            .sheet(item: $activeSheet) { sheet in
+                switch sheet {
+                case .add:
+                    IngredientEditor(ingredient: nil) { pantry.add($0) }
+                case .edit(let item):
+                    IngredientEditor(ingredient: item) { pantry.update($0) }
+                }
             }
         }
     }
@@ -58,7 +73,7 @@ struct PantryView: View {
                         ForEach(group.items) { item in
                             IngredientRow(ingredient: item)
                                 .contentShape(Rectangle())
-                                .onTapGesture { editing = item }
+                                .onTapGesture { activeSheet = .edit(item) }
                                 .listRowBackground(KindredTheme.card)
                         }
                         .onDelete { offsets in
