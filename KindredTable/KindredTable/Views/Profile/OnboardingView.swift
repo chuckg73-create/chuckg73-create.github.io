@@ -6,13 +6,11 @@ struct OnboardingView: View {
     @State private var page = 0
 
     var body: some View {
-        @Bindable var store = profileStore
-
         ZStack {
             KindredBackground()
             TabView(selection: $page) {
                 welcome.tag(0)
-                quickTaste(store: store).tag(1)
+                quickTaste(store: profileStore).tag(1)
             }
             .tabViewStyle(.page(indexDisplayMode: .always))
             .indexViewStyle(.page(backgroundDisplayMode: .always))
@@ -56,8 +54,9 @@ struct OnboardingView: View {
         }
     }
 
-    private func quickTaste(store: ProfileStore) -> some View {
-        VStack(spacing: 20) {
+    private func quickTaste(store storeRef: ProfileStore) -> some View {
+        @Bindable var store = storeRef
+        return VStack(spacing: 20) {
             VStack(spacing: 8) {
                 Text("A little about your taste")
                     .font(.title2).fontWeight(.bold)
