@@ -20,8 +20,8 @@ enum RecipeServiceError: LocalizedError {
                 return "The recipe service returned an error (\(status)). Please try again in a moment."
             }
             return "The recipe service returned an error (\(status)): \(detail)"
-        case .decoding:
-            return "KindredTable couldn't read the suggestions it got back. Please try again."
+        case .decoding(let detail):
+            return "Couldn't read the suggestions (\(detail)). Please try again."
         case .noRecipes:
             return "No matching recipes came back this time. Try adding another ingredient or two."
         }
@@ -196,17 +196,20 @@ struct GeminiRecipeService {
 
     // MARK: Response decoding
 
-    /// Pull the model's text out of the Gemini candidate envelope.
+    /// Pull the model's text out of the Gemini candidate envelope, with
+    /// diagnostic errors when the model returns no usable content.
     static func extractText(from data: Data) throws -> String {
         let decoded = try JSONDecoder().decode(GeminiResponse.self, from: data)
-        guard let text = decoded.candidates?
-            .first?
-            .content?
-            .parts?
-            .compactMap(\.text)
-            .joined()
-        else {
-            throw RecipeServiceError.decoding("no candidate text")
+
+        if let block = decoded.promptFeedback?.blockReason {
+            throw RecipeServiceError.decoding("blocked: \(block)")
+        }
+        guard let candidate = decoded.candidates?.first else {
+            throw RecipeServiceError.decoding("no candidates returned")
+        }
+        let text = candidate.content?.parts?.compactMap(\.text).joined()
+        guard let text, !text.isEmpty else {
+            throw RecipeServiceError.decoding("empty response, finishReason: \(candidate.finishReason ?? "unknown")")
         }
         return text
     }
@@ -221,7 +224,7 @@ struct GeminiRecipeService {
             let payload = try JSONDecoder().decode(RecipePayload.self, from: data)
             return payload.recipes.map { $0.toRecipe() }
         } catch {
-            throw RecipeServiceError.decoding(String(describing: error))
+            throw RecipeServiceError.decoding("bad JSON near: \(String(json.prefix(80)))")
         }
     }
 
@@ -274,8 +277,13 @@ private struct GeminiResponse: Decodable {
             var parts: [Part]?
         }
         var content: Content?
+        var finishReason: String?
+    }
+    struct PromptFeedback: Decodable {
+        var blockReason: String?
     }
     var candidates: [Candidate]?
+    var promptFeedback: PromptFeedback?
 }
 
 // MARK: - Recipe payload
