@@ -14,13 +14,29 @@ enum RecipeServiceError: LocalizedError {
             return "Add a few ingredients first — snap a photo of your fridge or add them by hand."
         case .missingAPIKey:
             return "No Gemini API key is configured, so KindredTable is showing sample ideas. Add a key to get suggestions tailored to your pantry."
-        case .badResponse(let status, _):
-            return "The recipe service returned an error (\(status)). Please try again in a moment."
+        case .badResponse(let status, let body):
+            let detail = Self.humanReadableDetail(from: body)
+            if detail.isEmpty {
+                return "The recipe service returned an error (\(status)). Please try again in a moment."
+            }
+            return "The recipe service returned an error (\(status)): \(detail)"
         case .decoding:
             return "KindredTable couldn't read the suggestions it got back. Please try again."
         case .noRecipes:
             return "No matching recipes came back this time. Try adding another ingredient or two."
         }
+    }
+
+    /// Pull Google's human-readable `error.message` out of an error response body,
+    /// falling back to a trimmed snippet.
+    static func humanReadableDetail(from body: String) -> String {
+        guard let data = body.data(using: .utf8) else { return "" }
+        if let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let error = object["error"] as? [String: Any],
+           let message = error["message"] as? String {
+            return String(message.prefix(200))
+        }
+        return String(body.prefix(200))
     }
 }
 

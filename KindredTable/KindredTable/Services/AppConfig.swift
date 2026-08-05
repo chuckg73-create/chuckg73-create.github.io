@@ -28,7 +28,8 @@ enum AppConfig {
 
     static var hasGeminiKey: Bool { geminiAPIKey != nil }
 
-    /// Model used for recipe matching. `gemini-1.5-flash` is fast and cheap and
-    /// matches the KindredCompass recommendation flow.
-    static let geminiModel = "gemini-1.5-flash-latest"
+    /// Model used for recipe matching. `gemini-2.5-flash` is fast, cheap, and
+    /// supports JSON response formatting. (The older 1.5-flash aliases now
+    /// return 404 for freshly issued API keys.)
+    static let geminiModel = "gemini-2.5-flash"
 }
