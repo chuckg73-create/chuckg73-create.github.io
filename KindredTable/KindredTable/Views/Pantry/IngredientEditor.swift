@@ -30,9 +30,33 @@ struct IngredientEditor: View {
                     Section("Ingredient") {
                         TextField("Name", text: $name)
                             .textInputAutocapitalization(.words)
+                            .autocorrectionDisabled()
                         TextField("Quantity (optional)", text: $quantity)
                     }
                     .listRowBackground(KindredTheme.card)
+
+                    if !suggestions.isEmpty {
+                        Section("Suggestions") {
+                            ForEach(suggestions, id: \.name) { suggestion in
+                                Button {
+                                    apply(suggestion)
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: suggestion.category.systemImage)
+                                            .foregroundStyle(KindredTheme.accent)
+                                            .frame(width: 24)
+                                        Text(suggestion.name)
+                                            .foregroundStyle(KindredTheme.text)
+                                        Spacer()
+                                        Text(suggestion.category.title)
+                                            .font(.caption)
+                                            .foregroundStyle(KindredTheme.faint)
+                                    }
+                                }
+                            }
+                        }
+                        .listRowBackground(KindredTheme.card)
+                    }
 
                     Section("Category") {
                         Picker("Category", selection: $category) {
@@ -59,6 +83,17 @@ struct IngredientEditor: View {
                 }
             }
         }
+    }
+
+    /// Live type-ahead matches for what's been typed so far.
+    private var suggestions: [FoodVocabulary.Match] {
+        FoodVocabulary.suggestions(for: name)
+    }
+
+    /// Fill in a tapped suggestion — name and its category.
+    private func apply(_ suggestion: FoodVocabulary.Match) {
+        name = suggestion.name
+        category = suggestion.category
     }
 
     private func save() {

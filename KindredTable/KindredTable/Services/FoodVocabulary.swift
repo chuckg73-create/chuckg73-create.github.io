@@ -37,6 +37,35 @@ enum FoodVocabulary {
         Match(name: name, category: category)
     }
 
+    /// Every known food, de-duplicated by display name and sorted — used to
+    /// power type-ahead suggestions in the ingredient editor.
+    static let allFoods: [Match] = {
+        var seen = Set<String>()
+        var result: [Match] = []
+        for match in table.values where seen.insert(match.name.lowercased()).inserted {
+            result.append(match)
+        }
+        return result.sorted { $0.name < $1.name }
+    }()
+
+    /// Type-ahead suggestions for a partially typed ingredient name. Prefix
+    /// matches rank above substring matches; exact matches are omitted so a
+    /// chosen suggestion disappears from the list.
+    static func suggestions(for query: String, limit: Int = 6) -> [Match] {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard q.count >= 2 else { return [] }
+        let matches = allFoods.filter { $0.name.lowercased() != q && $0.name.lowercased().contains(q) }
+        return Array(
+            matches.sorted { a, b in
+                let ap = a.name.lowercased().hasPrefix(q)
+                let bp = b.name.lowercased().hasPrefix(q)
+                if ap != bp { return ap }
+                return a.name < b.name
+            }
+            .prefix(limit)
+        )
+    }
+
     /// Curated food vocabulary. Not exhaustive — the editable ingredient list
     /// lets the user correct or add anything the classifier misses.
     static let table: [String: Match] = {
