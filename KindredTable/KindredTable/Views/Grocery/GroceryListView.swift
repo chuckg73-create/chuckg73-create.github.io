@@ -1,13 +1,36 @@
 import SwiftUI
+import UIKit
 
 /// The shopping list: add items by hand (auto-categorized), check them off as
 /// you shop, and move what you bought straight into your On Hand list.
 struct GroceryListView: View {
     @Environment(GroceryStore.self) private var grocery
     @Environment(PantryStore.self) private var pantry
+    @Environment(\.openURL) private var openURL
 
     @State private var newItem = ""
-    @State private var justMoved = false
+    @State private var showShopOptions = false
+
+    /// Retailers we can hand the list off to.
+    private enum Store {
+        case instacart, walmart
+        var url: URL {
+            switch self {
+            case .instacart: return URL(string: "https://www.instacart.com/store")!
+            case .walmart: return URL(string: "https://www.walmart.com/grocery")!
+            }
+        }
+    }
+
+    /// Unchecked items (what you still need), falling back to everything.
+    private var shoppableItems: [GroceryItem] {
+        let unchecked = grocery.items.filter { !$0.isChecked }
+        return unchecked.isEmpty ? grocery.items : unchecked
+    }
+
+    private var listText: String {
+        shoppableItems.map(\.name).joined(separator: "\n")
+    }
 
     var body: some View {
         NavigationStack {
@@ -25,8 +48,26 @@ struct GroceryListView: View {
             }
             .navigationTitle("Grocery")
             .safeAreaInset(edge: .top) { addBar }
+            .safeAreaInset(edge: .bottom) {
+                if !grocery.isEmpty {
+                    shopBar
+                }
+            }
+            .confirmationDialog("Shop this list", isPresented: $showShopOptions, titleVisibility: .visible) {
+                Button("Open Instacart") { shop(.instacart) }
+                Button("Open Walmart") { shop(.walmart) }
+                Button("Copy list") { UIPasteboard.general.string = listText }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Your list is copied to the clipboard so you can paste-search in the store.")
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { ProfileToolbarButton() }
+                if !grocery.isEmpty {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        ShareLink(item: listText) { Image(systemName: "square.and.arrow.up") }
+                    }
+                }
                 if grocery.checkedCount > 0 {
                     ToolbarItem(placement: .topBarTrailing) {
                         Menu {
@@ -82,6 +123,20 @@ struct GroceryListView: View {
         .background(.ultraThinMaterial)
     }
 
+    private var shopBar: some View {
+        VStack(spacing: 4) {
+            KindredButton(title: "Shop this list", systemImage: "bag.fill") {
+                showShopOptions = true
+            }
+            Text("Hands off to Instacart or Walmart")
+                .font(.caption2).foregroundStyle(KindredTheme.faint)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
+        .padding(.bottom, 6)
+        .background(.ultraThinMaterial)
+    }
+
     private func row(_ item: GroceryItem) -> some View {
         Button {
             grocery.toggle(item)
@@ -114,7 +169,12 @@ struct GroceryListView: View {
             pantry.add(Ingredient(name: item.name, category: item.category))
         }
         grocery.removeChecked()
-        justMoved = true
+    }
+
+    /// Copy the list and hand off to a retailer's app/site.
+    private func shop(_ store: Store) {
+        UIPasteboard.general.string = listText
+        openURL(store.url)
     }
 }
 
