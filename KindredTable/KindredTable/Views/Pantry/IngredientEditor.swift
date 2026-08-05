@@ -11,6 +11,9 @@ struct IngredientEditor: View {
     @State private var name: String
     @State private var category: IngredientCategory
     @State private var quantity: String
+    /// True once the user explicitly changes the category, so auto-categorization
+    /// stops overriding their choice.
+    @State private var userPickedCategory: Bool
 
     init(ingredient: Ingredient?, onSave: @escaping (Ingredient) -> Void) {
         self.ingredient = ingredient
@@ -18,6 +21,19 @@ struct IngredientEditor: View {
         _name = State(initialValue: ingredient?.name ?? "")
         _category = State(initialValue: ingredient?.category ?? .other)
         _quantity = State(initialValue: ingredient?.quantity ?? "")
+        // For an existing ingredient, respect its saved category as-is.
+        _userPickedCategory = State(initialValue: ingredient != nil)
+    }
+
+    /// Picker binding that records a manual category choice.
+    private var categoryBinding: Binding<IngredientCategory> {
+        Binding(
+            get: { category },
+            set: { newValue in
+                category = newValue
+                userPickedCategory = true
+            }
+        )
     }
 
     private var isEditing: Bool { ingredient != nil }
@@ -59,7 +75,7 @@ struct IngredientEditor: View {
                     }
 
                     Section("Category") {
-                        Picker("Category", selection: $category) {
+                        Picker("Category", selection: categoryBinding) {
                             ForEach(IngredientCategory.allCases) { cat in
                                 Label(cat.title, systemImage: cat.systemImage).tag(cat)
                             }
@@ -69,6 +85,12 @@ struct IngredientEditor: View {
                     .listRowBackground(KindredTheme.card)
                 }
                 .scrollContentBackground(.hidden)
+            }
+            .onChange(of: name) { _, newName in
+                // Auto-file the item as they type, until they pick a category.
+                guard !userPickedCategory else { return }
+                let inferred = FoodVocabulary.categorize(newName)
+                if inferred != .other { category = inferred }
             }
             .navigationTitle(isEditing ? "Edit ingredient" : "Add ingredient")
             .navigationBarTitleDisplayMode(.inline)
@@ -90,15 +112,21 @@ struct IngredientEditor: View {
         FoodVocabulary.suggestions(for: name)
     }
 
-    /// Fill in a tapped suggestion — name and its category.
+    /// Fill in a tapped suggestion — name and its category. Treated as an
+    /// explicit category choice so later typing won't override it.
     private func apply(_ suggestion: FoodVocabulary.Match) {
-        name = suggestion.name
+        userPickedCategory = true
         category = suggestion.category
+        name = suggestion.name
     }
 
     private func save() {
         var result = ingredient ?? Ingredient(name: name)
         result.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Final safety net: if it's still uncategorized, infer from the name.
+        if !userPickedCategory, category == .other {
+            category = FoodVocabulary.categorize(result.name)
+        }
         result.category = category
         let trimmedQty = quantity.trimmingCharacters(in: .whitespacesAndNewlines)
         result.quantity = trimmedQty.isEmpty ? nil : trimmedQty

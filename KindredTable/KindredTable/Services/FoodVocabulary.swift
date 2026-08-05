@@ -48,6 +48,73 @@ enum FoodVocabulary {
         return result.sorted { $0.name < $1.name }
     }()
 
+    /// Best-guess grocery category for a free-text ingredient name — used to
+    /// auto-file items the user types without picking a category.
+    static func categorize(_ rawName: String) -> IngredientCategory {
+        let name = rawName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return .other }
+
+        // 1. Curated vocabulary (handles most common foods, incl. substrings).
+        if let hit = match(name) { return hit.category }
+
+        // 2. Word-by-word against the vocabulary.
+        let words = name.split(whereSeparator: { $0 == " " || $0 == "-" }).map(String.init)
+        for word in words where table[word] != nil {
+            return table[word]!.category
+        }
+        for word in words {
+            for (key, value) in table where word == key || word.contains(key) {
+                return value.category
+            }
+        }
+
+        // 3. Broad keyword heuristics for the long tail of foods, ordered so
+        //    more specific terms win.
+        for (keyword, category) in heuristics where name.contains(keyword) {
+            return category
+        }
+        return .other
+    }
+
+    /// Ordered keyword → category hints for foods outside the core vocabulary.
+    private static let heuristics: [(String, IngredientCategory)] = [
+        // Protein / deli / seafood
+        ("salami", .protein), ("pepperoni", .protein), ("prosciutto", .protein),
+        ("chorizo", .protein), ("bologna", .protein), ("pastrami", .protein),
+        ("brisket", .protein), ("veal", .protein), ("venison", .protein),
+        ("hot dog", .protein), ("hotdog", .protein), ("jerky", .protein),
+        ("anchovy", .protein), ("sardine", .protein), ("scallop", .protein),
+        ("clam", .protein), ("mussel", .protein), ("oyster", .protein),
+        ("seitan", .protein), ("burger", .protein), ("patty", .protein),
+        // Grains / bakery
+        ("flour", .grain), ("bread", .grain), ("rice", .grain), ("pasta", .grain),
+        ("noodle", .grain), ("oat", .grain), ("cereal", .grain), ("cracker", .grain),
+        ("tortilla", .grain), ("bagel", .grain), ("bun", .grain),
+        ("cornmeal", .grain), ("grits", .grain), ("granola", .grain),
+        ("croissant", .grain), ("muffin", .grain), ("waffle", .grain),
+        ("pancake", .grain), ("biscuit", .grain), ("crouton", .grain),
+        // Dairy
+        ("milk", .dairy), ("cheese", .dairy), ("yogurt", .dairy), ("yoghurt", .dairy),
+        ("cream", .dairy), ("kefir", .dairy), ("custard", .dairy), ("ghee", .dairy),
+        // Condiments
+        ("sauce", .condiment), ("ketchup", .condiment), ("mustard", .condiment),
+        ("mayo", .condiment), ("dressing", .condiment), ("vinegar", .condiment),
+        ("syrup", .condiment), ("honey", .condiment), ("jam", .condiment),
+        ("jelly", .condiment), ("salsa", .condiment), ("relish", .condiment),
+        ("marinade", .condiment), ("nutella", .condiment),
+        // Spices / seasoning
+        ("salt", .spice), ("pepper", .spice), ("cumin", .spice), ("paprika", .spice),
+        ("cinnamon", .spice), ("oregano", .spice), ("thyme", .spice),
+        ("rosemary", .spice), ("curry", .spice), ("cayenne", .spice),
+        ("nutmeg", .spice), ("turmeric", .spice), ("vanilla", .spice),
+        ("seasoning", .spice), ("spice", .spice),
+        // Frozen
+        ("frozen", .frozen), ("ice cream", .frozen), ("popsicle", .frozen),
+        // Pantry staples
+        ("bean", .pantry), ("canned", .pantry), ("sugar", .pantry),
+        ("broth", .pantry), ("stock", .pantry),
+    ]
+
     /// Type-ahead suggestions for a partially typed ingredient name. Prefix
     /// matches rank above substring matches; exact matches are omitted so a
     /// chosen suggestion disappears from the list.

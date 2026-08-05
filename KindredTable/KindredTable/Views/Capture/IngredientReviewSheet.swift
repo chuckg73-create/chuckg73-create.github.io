@@ -122,7 +122,7 @@ struct IngredientReviewSheet: View {
     private func addManual() {
         let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        let ingredient = Ingredient(name: trimmed, category: .other)
+        let ingredient = Ingredient(name: trimmed, category: FoodVocabulary.categorize(trimmed))
         items.insert(ReviewItem(ingredient: ingredient, include: true), at: 0)
         newName = ""
     }
