@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXFileReference section */
+		1A2B3C4D5E6F708192A3B404 /* KindredTable.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KindredTable.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		1A2B3C4D5E6F708192A3B40F /* KindredTable */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
