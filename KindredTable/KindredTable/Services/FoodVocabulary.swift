@@ -24,13 +24,18 @@ enum FoodVocabulary {
                 return hit
             }
         }
-        // Fall back to substring hits for compound labels like "green bell pepper".
+        // Fall back to the longest (most specific) vocabulary key contained in a
+        // token, so "green beans" matches "green bean" (produce) rather than the
+        // shorter "beans" (dried legume / protein).
+        var best: (key: String, value: Match)?
         for token in candidates {
             for (key, value) in table where token.contains(key) {
-                return value
+                if best == nil || key.count > best!.key.count {
+                    best = (key, value)
+                }
             }
         }
-        return nil
+        return best?.value
     }
 
     private static func m(_ name: String, _ category: IngredientCategory) -> Match {
