@@ -31,7 +31,7 @@ struct CaptureView: View {
                     .padding(20)
                 }
             }
-            .navigationTitle("KindredTable")
+            .navigationTitle("KindredKitchen")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { ProfileToolbarButton() } }
             .fullScreenCover(isPresented: $showCamera) {

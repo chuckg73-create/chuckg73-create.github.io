@@ -29,7 +29,7 @@ struct OnboardingView: View {
                     .foregroundStyle(.white)
             }
             VStack(spacing: 10) {
-                Text("KindredTable").font(.largeTitle).fontWeight(.heavy)
+                Text("KindredKitchen").font(.largeTitle).fontWeight(.heavy)
                 Text("Photograph your fridge. Cook what matches you.")
                     .font(.title3)
                     .foregroundStyle(KindredTheme.subtext)
