@@ -109,8 +109,12 @@ struct GeminiRecipeService {
             generationConfig: .init(
                 temperature: 0.7,
                 topP: 0.95,
-                maxOutputTokens: 2048,
-                responseMimeType: "application/json"
+                maxOutputTokens: 8192,
+                responseMimeType: "application/json",
+                // Gemini 2.5 models "think" by default, which can consume the
+                // whole output budget before any JSON is written. Disable it so
+                // the full budget goes to the recipe payload.
+                thinkingConfig: .init(thinkingBudget: 0)
             )
         )
         request.httpBody = try JSONEncoder().encode(payload)
@@ -246,6 +250,10 @@ private struct GeminiRequest: Encodable {
         var topP: Double
         var maxOutputTokens: Int
         var responseMimeType: String
+        var thinkingConfig: ThinkingConfig?
+    }
+    struct ThinkingConfig: Encodable {
+        var thinkingBudget: Int
     }
     var contents: [Content]
     var generationConfig: GenerationConfig
