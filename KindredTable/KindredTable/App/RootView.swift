@@ -19,10 +19,11 @@ struct RootView: View {
 struct RootTabView: View {
     @Environment(PantryStore.self) private var pantry
     @Environment(SavedRecipeStore.self) private var saved
+    @Environment(GroceryStore.self) private var grocery
 
     @State private var selection: Tab = .capture
 
-    enum Tab: Hashable { case capture, pantry, recipes, saved }
+    enum Tab: Hashable { case capture, pantry, recipes, saved, grocery }
 
     var body: some View {
         TabView(selection: $selection) {
@@ -43,6 +44,11 @@ struct RootTabView: View {
                 .tabItem { Label("Saved", systemImage: "bookmark.fill") }
                 .badge(saved.saved.count)
                 .tag(Tab.saved)
+
+            GroceryListView()
+                .tabItem { Label("Grocery", systemImage: "cart.fill") }
+                .badge(grocery.items.count)
+                .tag(Tab.grocery)
         }
     }
 }
@@ -52,5 +58,6 @@ struct RootTabView: View {
         .environment(PantryStore(seed: SampleData.ingredients))
         .environment(SavedRecipeStore(seed: [SampleData.recipes[0]]))
         .environment(ProfileStore(seed: .starter))
+        .environment(GroceryStore())
         .preferredColorScheme(.dark)
 }

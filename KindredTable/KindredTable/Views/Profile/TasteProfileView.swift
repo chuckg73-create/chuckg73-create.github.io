@@ -46,6 +46,8 @@ struct TasteProfileView: View {
                 }
                 .listRowBackground(KindredTheme.card)
 
+                equipmentSection(store: store)
+
                 Section("Notes") {
                     TextField("Anything else? e.g. cooking for a toddler", text: $store.profile.notes, axis: .vertical)
                         .lineLimit(2...4)
@@ -84,6 +86,35 @@ struct TasteProfileView: View {
                     }
                 }
             }
+        }
+        .listRowBackground(KindredTheme.card)
+    }
+
+    private func equipmentSection(store storeRef: ProfileStore) -> some View {
+        @Bindable var store = storeRef
+        return Section {
+            // Quick-add chips for common appliances not already selected.
+            let unused = TasteProfile.commonEquipment.filter { item in
+                !store.profile.equipment.contains { $0.caseInsensitiveCompare(item) == .orderedSame }
+            }
+            if !unused.isEmpty {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 8, alignment: .leading)], alignment: .leading, spacing: 8) {
+                    ForEach(unused, id: \.self) { item in
+                        Button {
+                            store.profile.equipment.append(item)
+                        } label: {
+                            Chip(text: item, systemImage: "plus", tint: KindredTheme.blue)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            TokenEditor(tokens: $store.profile.equipment, placeholder: "e.g. Traeger", tint: KindredTheme.mint)
+        } header: {
+            Text("Kitchen equipment")
+        } footer: {
+            Text("Suggestions favor methods your gear enables — air-frying, smoking, sous vide, and so on.")
         }
         .listRowBackground(KindredTheme.card)
     }

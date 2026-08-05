@@ -4,6 +4,8 @@ import SwiftUI
 struct RecipeDetailView: View {
     var recipe: Recipe
     @Environment(SavedRecipeStore.self) private var saved
+    @Environment(GroceryStore.self) private var grocery
+    @State private var addedToList = false
 
     var body: some View {
         ZStack {
@@ -75,9 +77,22 @@ struct RecipeDetailView: View {
                     }
                 }
                 if !recipe.needsToBuy.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 10) {
                         SectionHeader(label: "You'll need to buy")
                         FlowChips(items: recipe.needsToBuy, tint: KindredTheme.amber, icon: "cart")
+                        Button {
+                            grocery.addMany(recipe.needsToBuy)
+                            withAnimation { addedToList = true }
+                        } label: {
+                            Label(
+                                addedToList ? "Added to grocery list" : "Add \(recipe.needsToBuy.count) to grocery list",
+                                systemImage: addedToList ? "checkmark.circle.fill" : "cart.badge.plus"
+                            )
+                            .font(.subheadline).fontWeight(.medium)
+                            .foregroundStyle(addedToList ? KindredTheme.mint : KindredTheme.accent)
+                        }
+                        .disabled(addedToList)
+                        .padding(.top, 2)
                     }
                 }
             }
@@ -127,6 +142,7 @@ struct FlowChips: View {
     NavigationStack {
         RecipeDetailView(recipe: SampleData.recipes[0])
             .environment(SavedRecipeStore())
+            .environment(GroceryStore())
     }
     .preferredColorScheme(.dark)
 }

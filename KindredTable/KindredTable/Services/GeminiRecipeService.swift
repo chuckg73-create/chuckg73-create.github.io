@@ -153,6 +153,9 @@ struct GeminiRecipeService {
         lines.append("- Spice preference: \(profile.spiceLevel.title)")
         lines.append("- Cooking skill: \(profile.skill.title)")
         lines.append("- Max cook time: \(profile.maxCookMinutes) minutes")
+        if !profile.equipment.isEmpty {
+            lines.append("- Available equipment: \(profile.equipment.joined(separator: ", "))")
+        }
         if !profile.notes.isEmpty {
             lines.append("- Notes: \(profile.notes)")
         }
@@ -164,6 +167,9 @@ struct GeminiRecipeService {
         lines.append("- 'needsToBuy' should list at most 4 common extra items.")
         lines.append("- 'matchScore' is an integer 0-100 reflecting fit to pantry AND taste.")
         lines.append("- 'whyYoullLikeIt' is one short sentence referencing the cook's taste.")
+        if !profile.equipment.isEmpty {
+            lines.append("- Favor methods the listed equipment enables and name the appliance in the steps where it helps (e.g. air fryer, pellet smoker, sous vide, griddle).")
+        }
         lines.append("")
         lines.append("Respond with ONLY a JSON object of this exact shape, no markdown:")
         lines.append("""
