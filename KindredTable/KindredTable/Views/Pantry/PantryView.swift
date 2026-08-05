@@ -30,7 +30,7 @@ struct PantryView: View {
                 if pantry.isEmpty {
                     EmptyState(
                         systemImage: "basket",
-                        title: "Your pantry is empty",
+                        title: "Nothing on hand yet",
                         message: "Snap a photo on the Capture tab, or add ingredients by hand to get started.",
                         actionTitle: "Add ingredient",
                         action: { activeSheet = .add }
@@ -39,7 +39,7 @@ struct PantryView: View {
                     list
                 }
             }
-            .navigationTitle("Pantry")
+            .navigationTitle("On Hand")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { activeSheet = .add } label: { Image(systemName: "plus") }

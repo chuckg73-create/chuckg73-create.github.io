@@ -31,7 +31,7 @@ struct RootTabView: View {
                 .tag(Tab.capture)
 
             PantryView(goToRecipes: { selection = .recipes })
-                .tabItem { Label("Kitchen", systemImage: "list.bullet.rectangle.portrait") }
+                .tabItem { Label("On Hand", systemImage: "list.bullet.rectangle.portrait") }
                 .badge(pantry.ingredients.count)
                 .tag(Tab.pantry)
 
