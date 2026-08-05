@@ -64,6 +64,7 @@
     .s-review { background: rgba(255,158,51,0.16); color: var(--amber); }
     .s-review::before { animation: pulse 1.6s infinite; }
     @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,158,51,0.5); } 70% { box-shadow: 0 0 0 6px rgba(255,158,51,0); } 100% { box-shadow: 0 0 0 0 rgba(255,158,51,0); } }
+    .s-build { background: rgba(120,102,250,0.16); color: var(--accent); }
     .s-concept { background: rgba(181,186,212,0.14); color: var(--subtext); }
     .app-link { font-size: 14px; font-weight: 700; color: var(--c); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
     .app-link:hover { gap: 10px; }
@@ -106,7 +107,8 @@
     <p>One personal taste profile. Four ways it works for you — where to go, what to watch, how to spend, and who to call. Kindred apps start with your DNA, not the algorithm's.</p>
     <div class="dna-row">
       <span class="dna-chip">🧭 Places</span>
-      <span class="dna-chip">🎬 Shows</span>
+      <span class="dna-chip">📺 Shows</span>
+      <span class="dna-chip">🍽️ Meals</span>
       <span class="dna-chip">💰 Money</span>
       <span class="dna-chip">📞 Errands</span>
     </div>
@@ -114,8 +116,8 @@
 
   <section id="apps">
     <div class="section-label">The Suite</div>
-    <h2 class="section-title">Four apps, one you</h2>
-    <p class="section-sub">Compass is live, Vault and Screen are in App Store review — each built around the same idea: it should feel like it already gets you.</p>
+    <h2 class="section-title">Five apps, one you</h2>
+    <p class="section-sub">Compass is live, Vault and Screen are in App Store review, and KitchenTable is in the works — each built around the same idea: it should feel like it already gets you.</p>
 
     <div class="apps">
 
@@ -167,6 +169,23 @@
         <div class="app-meta">
           <span class="status s-review">In App Store review</span>
           <span class="app-link" style="opacity:0.5; cursor:default;">Launching soon</span>
+        </div>
+      </div>
+
+      <!-- KitchenTable -->
+      <div class="app-card" style="--c: #F59E0B;">
+        <div class="app-glow"></div>
+        <div class="app-head">
+          <div class="app-icon" style="background: linear-gradient(135deg, #FBBF24, #F59E0B);">🍽️</div>
+          <div>
+            <div class="app-name">Kitchen<b>Table</b></div>
+            <div class="app-tagline">Dinner, sorted for your family</div>
+          </div>
+        </div>
+        <p class="app-desc">Meal planning that starts with your family's tastes. Recipes everyone will actually eat, weekly plans that build themselves, and a grocery list that writes itself — matched to your Kindred food DNA.</p>
+        <div class="app-meta">
+          <span class="status s-build">In development</span>
+          <span class="app-link" style="opacity:0.5; cursor:default;">In the kitchen</span>
         </div>
       </div>
 
