@@ -34,17 +34,20 @@ struct RecipeFeedView: View {
                         Image(systemName: "arrow.clockwise")
                     }
                     .disabled(model.isLoading || pantry.isEmpty)
+                    .accessibilityLabel("Refresh ideas")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showHousehold = true } label: {
                         Image(systemName: "person.2.fill")
                     }
+                    .accessibilityLabel("Cooking together")
                 }
                 ToolbarItem(placement: .topBarLeading) { ProfileToolbarButton() }
                 ToolbarItem(placement: .topBarLeading) {
                     Button { showCrave = true } label: {
                         Image(systemName: "magnifyingglass")
                     }
+                    .accessibilityLabel("Cook a craving")
                 }
             }
             .task {

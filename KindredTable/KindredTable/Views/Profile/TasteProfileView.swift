@@ -70,21 +70,19 @@ struct TasteProfileView: View {
     private func dietSection(store: ProfileStore) -> some View {
         Section("Diet") {
             ForEach(Diet.allCases) { diet in
+                let on = store.profile.diets.contains(diet)
                 Button {
-                    if store.profile.diets.contains(diet) {
-                        store.profile.diets.remove(diet)
-                    } else {
-                        store.profile.diets.insert(diet)
-                    }
+                    if on { store.profile.diets.remove(diet) }
+                    else { store.profile.diets.insert(diet) }
                 } label: {
-                    HStack {
+                    HStack(spacing: 12) {
+                        Image(systemName: on ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(on ? KindredTheme.accent : KindredTheme.faint)
                         Text(diet.title).foregroundStyle(KindredTheme.text)
                         Spacer()
-                        if store.profile.diets.contains(diet) {
-                            Image(systemName: "checkmark").foregroundStyle(KindredTheme.accent)
-                        }
                     }
                 }
+                .accessibilityAddTraits(on ? [.isSelected] : [])
             }
         }
         .listRowBackground(KindredTheme.card)

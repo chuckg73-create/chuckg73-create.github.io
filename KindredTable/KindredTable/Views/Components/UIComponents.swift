@@ -107,6 +107,8 @@ struct MatchBadge: View {
         .frame(width: 52, height: 52)
         .background(color.opacity(0.12), in: Circle())
         .overlay(Circle().stroke(color.opacity(0.4), lineWidth: 1.5))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(score) percent match")
     }
 }
 

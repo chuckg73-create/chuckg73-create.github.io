@@ -44,6 +44,7 @@ struct RecipeDetailView: View {
                     Image(systemName: saved.isSaved(recipe) ? "bookmark.fill" : "bookmark")
                         .foregroundStyle(saved.isSaved(recipe) ? KindredTheme.amber : KindredTheme.accent)
                 }
+                .accessibilityLabel(saved.isSaved(recipe) ? "Saved" : "Save recipe")
             }
         }
     }

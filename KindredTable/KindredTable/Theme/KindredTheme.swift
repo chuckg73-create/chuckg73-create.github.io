@@ -22,7 +22,7 @@ enum KindredTheme {
 
     static let text = Color(hex: 0xFFFFFF)
     static let subtext = Color(hex: 0xB5BAD4)
-    static let faint = Color(hex: 0x6B7299)
+    static let faint = Color(hex: 0x8C93BD)   // lightened for WCAG AA on card/bg (was 0x6B7299 ≈ 3.5:1)
 
     static let hairline = Color.white.opacity(0.07)
 

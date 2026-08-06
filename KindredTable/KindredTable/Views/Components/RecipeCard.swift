@@ -24,7 +24,19 @@ struct RecipeCard: View {
                                 Chip(text: item, systemImage: "checkmark", tint: KindredTheme.mint)
                             }
                         }
+                        .padding(.trailing, 2)
                     }
+                    .mask(
+                        LinearGradient(
+                            stops: [
+                                .init(color: .black, location: 0),
+                                .init(color: .black, location: 0.9),
+                                .init(color: .clear, location: 1.0)
+                            ],
+                            startPoint: .leading, endPoint: .trailing
+                        )
+                    )
+                    .accessibilityLabel("On hand: \(recipe.usesOnHand.joined(separator: ", "))")
                 }
             }
         }
@@ -47,6 +59,7 @@ struct RecipeCard: View {
                         .foregroundStyle(isSaved ? KindredTheme.amber : KindredTheme.faint)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(isSaved ? "Saved" : "Save recipe")
             }
         }
     }
