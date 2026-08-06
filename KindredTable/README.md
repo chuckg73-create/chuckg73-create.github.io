@@ -73,22 +73,26 @@ Requirements: **Xcode 16+**, **iOS 17+**.
 ### Adding a Gemini API key
 
 Without a key the app runs in an offline **sample mode** so every screen is
-explorable. To enable real, pantry-tailored suggestions, use either option:
+explorable. To enable real, pantry-tailored suggestions — in **one step**:
 
-**Quick (local testing):** In Xcode, **Product ▸ Scheme ▸ Edit Scheme ▸ Run ▸
-Arguments ▸ Environment Variables**, add `GEMINI_API_KEY` = your key. Leave the
-scheme **unshared** so the key is never committed.
+```bash
+cd KindredTable
+cp Secrets.example.xcconfig Secrets.xcconfig
+# edit Secrets.xcconfig →  GEMINI_API_KEY = AIza...your key...
+```
 
-**Build setting (xcconfig):**
-1. Copy `Secrets.example.xcconfig` to `Secrets.xcconfig` (already gitignored).
-2. Paste your [Gemini API key](https://aistudio.google.com/app/apikey) into it.
-3. In **Project ▸ Info ▸ Configurations**, set the base configuration for Debug
-   and Release to `Secrets.xcconfig`.
+That's it — build and run. No Xcode Configurations wiring required: the project's
+base config (`Config.xcconfig`, committed) already does `#include? "Secrets.xcconfig"`,
+so your key flows `Secrets.xcconfig → GEMINI_API_KEY → Info.plist →
+AppConfig.geminiAPIKey`. This works in Simulator, device, and TestFlight builds
+alike. `Secrets.xcconfig` is gitignored, so the key is never committed.
 
-Either way the key resolves via `AppConfig.geminiAPIKey` (environment variable
-first, then the Info.plist value fed by the build setting). Get a key from
-[Google AI Studio](https://aistudio.google.com/app/apikey) — it starts with
-`AIza`.
+Get a key from [Google AI Studio](https://aistudio.google.com/app/apikey) — it
+starts with `AIza`.
+
+> **Security:** this bakes the key into the app binary, which is fine for personal
+> and TestFlight builds but extractable by others. For a public App Store release,
+> proxy Gemini through a small backend instead of shipping the key.
 
 ## Grocery ordering
 

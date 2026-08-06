@@ -1,0 +1,15 @@
+// KindredKitchen base build configuration (committed).
+//
+// Your real Gemini API key does NOT go here. It goes in Secrets.xcconfig,
+// which is gitignored and optionally included below. To set your key:
+//
+//   1. cp Secrets.example.xcconfig Secrets.xcconfig
+//   2. Put your key in Secrets.xcconfig:  GEMINI_API_KEY = AIza...
+//   3. Build. That's it — no Xcode wiring needed.
+//
+// Default (no key → the app runs in offline sample mode):
+GEMINI_API_KEY =
+
+// Pull in the untracked secret if it exists. The "?" makes it optional, so
+// builds still succeed on a fresh clone with no Secrets.xcconfig.
+#include? "Secrets.xcconfig"
