@@ -12,6 +12,7 @@ struct RecipeFeedView: View {
     /// Meal-type filter. nil = show all types.
     @State private var selectedMealType: MealType?
     @State private var showHousehold = false
+    @State private var showCrave = false
 
     /// The profile Gemini cooks for: you blended with everyone at the table.
     private var effectiveProfile: TasteProfile {
@@ -40,6 +41,11 @@ struct RecipeFeedView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarLeading) { ProfileToolbarButton() }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { showCrave = true } label: {
+                        Image(systemName: "magnifyingglass")
+                    }
+                }
             }
             .task {
                 await model.loadIfNeeded(ingredients: pantry.ingredients, profile: effectiveProfile)
@@ -49,6 +55,7 @@ struct RecipeFeedView: View {
                 Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile) }
             }
             .sheet(isPresented: $showHousehold) { HouseholdView() }
+            .sheet(isPresented: $showCrave) { CraveSearchView() }
         }
     }
 

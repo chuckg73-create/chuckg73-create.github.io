@@ -17,6 +17,10 @@
 	     AppConfig.geminiAPIKey reads. -->
 	<key>GEMINI_API_KEY</key>
 	<string>$(GEMINI_API_KEY)</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Kindred Kitchen listens for cooking commands like "next step" so you can move through a recipe hands-free while cooking.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Kindred Kitchen uses speech recognition to understand hands-free cooking commands like "next step" and "repeat".</string>
 	<!-- Deep link for sharing taste cards by link/AirDrop: kindredkitchen://taste?c=… -->
 	<key>CFBundleURLTypes</key>
 	<array>

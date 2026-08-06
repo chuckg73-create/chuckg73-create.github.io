@@ -9,6 +9,7 @@ struct RecipeDetailView: View {
     @State private var addedToList = false
     /// Keeps the display awake while cooking (no auto-lock).
     @State private var keepAwake = false
+    @State private var showCookMode = false
 
     var body: some View {
         ZStack {
@@ -16,6 +17,7 @@ struct RecipeDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     header
+                    if !recipe.steps.isEmpty { cookModeButton }
                     if !recipe.whyYoullLikeIt.isEmpty { whyCard }
                     ingredientsCard
                     stepsCard
@@ -31,6 +33,9 @@ struct RecipeDetailView: View {
             UIApplication.shared.isIdleTimerDisabled = on
         }
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
+        .fullScreenCover(isPresented: $showCookMode) {
+            CookModeView(recipe: recipe)
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -66,6 +71,19 @@ struct RecipeDetailView: View {
                     .foregroundStyle(KindredTheme.faint)
             }
         }
+    }
+
+    private var cookModeButton: some View {
+        Button { showCookMode = true } label: {
+            Label("Cook Mode — hands-free", systemImage: "hands.sparkles.fill")
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 15)
+                .foregroundStyle(.white)
+                .background(KindredTheme.brandGradient, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .shadow(color: KindredTheme.accent.opacity(0.3), radius: 12, y: 5)
+        }
+        .buttonStyle(.plain)
     }
 
     private var whyCard: some View {

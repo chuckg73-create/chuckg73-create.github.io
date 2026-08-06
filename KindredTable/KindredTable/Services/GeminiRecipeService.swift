@@ -89,6 +89,35 @@ struct GeminiRecipeService {
             .sorted { $0.matchScore > $1.matchScore }
     }
 
+    /// Generate a specific dish the user asked for (e.g. "london broil"), tuned
+    /// to their taste, with a built-in shopping list (ingredients they lack are
+    /// marked haveIt=false).
+    func craveRecipes(
+        dish: String,
+        from ingredients: [Ingredient],
+        profile: TasteProfile,
+        count: Int = 2
+    ) async throws -> [Recipe] {
+        let wanted = dish.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !wanted.isEmpty else { throw RecipeServiceError.noRecipes }
+        guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
+
+        let prompt = Self.buildPrompt(ingredients: ingredients, profile: profile, count: count, craving: wanted)
+        let request = try makeRequest(prompt: prompt, apiKey: apiKey)
+
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw RecipeServiceError.badResponse(status: -1, body: "")
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            throw RecipeServiceError.badResponse(status: http.statusCode, body: String(data: data, encoding: .utf8) ?? "")
+        }
+        let text = try Self.extractText(from: data)
+        let recipes = try Self.decodeRecipes(from: text)
+        guard !recipes.isEmpty else { throw RecipeServiceError.noRecipes }
+        return recipes.sorted { $0.matchScore > $1.matchScore }
+    }
+
     /// Identify food ingredients in a photo using Gemini's vision capability.
     /// Far more accurate on cluttered fridge/pantry shots than the on-device
     /// classifier, at the cost of sending the image to the model.
@@ -187,7 +216,7 @@ struct GeminiRecipeService {
 
     // MARK: Prompt
 
-    static func buildPrompt(ingredients: [Ingredient], profile: TasteProfile, count: Int) -> String {
+    static func buildPrompt(ingredients: [Ingredient], profile: TasteProfile, count: Int, craving: String? = nil) -> String {
         let onHand = ingredients
             .map { item -> String in
                 if let q = item.quantity, !q.isEmpty { return "\(item.name) (\(q))" }
@@ -196,8 +225,14 @@ struct GeminiRecipeService {
             .joined(separator: ", ")
 
         var lines: [String] = []
-        lines.append("You are the recipe-matching engine for KindredTable, an app that suggests meals from what a home cook already has.")
-        lines.append("Suggest \(count) meal ideas that lean heavily on the ingredients on hand and fit the cook's taste profile.")
+        if let craving, !craving.trimmingCharacters(in: .whitespaces).isEmpty {
+            lines.append("You are the recipe engine for Kindred Kitchen. The home cook specifically wants to make: \(craving).")
+            lines.append("Create \(count) excellent version(s) of \(craving), tuned to the cook's taste profile below.")
+            lines.append("Mark ingredients they already have as haveIt=true; list everything else as haveIt=false so it forms their shopping list. It's fine if most ingredients must be bought.")
+        } else {
+            lines.append("You are the recipe-matching engine for Kindred Kitchen, an app that suggests meals from what a home cook already has.")
+            lines.append("Suggest \(count) meal ideas that lean heavily on the ingredients on hand and fit the cook's taste profile.")
+        }
         lines.append("")
         lines.append("INGREDIENTS ON HAND: \(onHand)")
         lines.append("")
