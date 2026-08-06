@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Full recipe view with ingredients, steps, and save-for-later.
 struct RecipeDetailView: View {
@@ -6,6 +7,8 @@ struct RecipeDetailView: View {
     @Environment(SavedRecipeStore.self) private var saved
     @Environment(GroceryStore.self) private var grocery
     @State private var addedToList = false
+    /// Keeps the display awake while cooking (no auto-lock).
+    @State private var keepAwake = false
 
     var body: some View {
         ZStack {
@@ -16,6 +19,7 @@ struct RecipeDetailView: View {
                     if !recipe.whyYoullLikeIt.isEmpty { whyCard }
                     ingredientsCard
                     stepsCard
+                    if !recipe.tips.isEmpty { tipsCard }
                     if !recipe.tags.isEmpty { tagRow }
                 }
                 .padding(20)
@@ -23,6 +27,10 @@ struct RecipeDetailView: View {
         }
         .navigationTitle(recipe.mealType.title)
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: keepAwake) { _, on in
+            UIApplication.shared.isIdleTimerDisabled = on
+        }
+        .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -46,12 +54,17 @@ struct RecipeDetailView: View {
             Text(recipe.summary)
                 .foregroundStyle(KindredTheme.subtext)
             HStack(spacing: 14) {
-                Label("\(recipe.cookMinutes) min", systemImage: "clock")
+                Label("Serves \(recipe.servings)", systemImage: "person.2.fill")
+                Label("\(recipe.totalMinutes) min", systemImage: "clock")
                 Label(recipe.difficulty.title, systemImage: "gauge.with.dots.needle.33percent")
-                Label(recipe.mealType.title, systemImage: recipe.mealType.systemImage)
             }
             .font(.caption)
             .foregroundStyle(KindredTheme.faint)
+            if recipe.prepMinutes > 0 || recipe.cookMinutes > 0 {
+                Text("Prep \(recipe.prepMinutes) min · Cook \(recipe.cookMinutes) min")
+                    .font(.caption2)
+                    .foregroundStyle(KindredTheme.faint)
+            }
         }
     }
 
@@ -69,32 +82,51 @@ struct RecipeDetailView: View {
 
     private var ingredientsCard: some View {
         KindredCard {
-            VStack(alignment: .leading, spacing: 14) {
-                if !recipe.usesOnHand.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        SectionHeader(label: "From your pantry")
-                        FlowChips(items: recipe.usesOnHand, tint: KindredTheme.mint, icon: "checkmark")
-                    }
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    SectionHeader(label: "Ingredients")
+                    Spacer()
+                    Text("Serves \(recipe.servings)")
+                        .font(.caption).foregroundStyle(KindredTheme.faint)
+                }
+                ForEach(recipe.ingredients, id: \.self) { ing in
+                    ingredientRow(ing)
                 }
                 if !recipe.needsToBuy.isEmpty {
-                    VStack(alignment: .leading, spacing: 10) {
-                        SectionHeader(label: "You'll need to buy")
-                        FlowChips(items: recipe.needsToBuy, tint: KindredTheme.amber, icon: "cart")
-                        Button {
-                            grocery.addMany(recipe.needsToBuy)
-                            withAnimation { addedToList = true }
-                        } label: {
-                            Label(
-                                addedToList ? "Added to grocery list" : "Add \(recipe.needsToBuy.count) to grocery list",
-                                systemImage: addedToList ? "checkmark.circle.fill" : "cart.badge.plus"
-                            )
-                            .font(.subheadline).fontWeight(.medium)
-                            .foregroundStyle(addedToList ? KindredTheme.mint : KindredTheme.accent)
-                        }
-                        .disabled(addedToList)
-                        .padding(.top, 2)
+                    Button {
+                        grocery.addMany(recipe.needsToBuy)
+                        withAnimation { addedToList = true }
+                    } label: {
+                        Label(
+                            addedToList ? "Added to grocery list" : "Add \(recipe.needsToBuy.count) to grocery list",
+                            systemImage: addedToList ? "checkmark.circle.fill" : "cart.badge.plus"
+                        )
+                        .font(.subheadline).fontWeight(.medium)
+                        .foregroundStyle(addedToList ? KindredTheme.mint : KindredTheme.accent)
                     }
+                    .disabled(addedToList)
+                    .padding(.top, 4)
                 }
+            }
+        }
+    }
+
+    private func ingredientRow(_ ing: RecipeIngredient) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: ing.haveIt ? "checkmark.circle.fill" : "cart.fill")
+                .font(.caption)
+                .foregroundStyle(ing.haveIt ? KindredTheme.mint : KindredTheme.amber)
+            if !ing.amount.isEmpty {
+                Text(ing.amount)
+                    .font(.subheadline).fontWeight(.semibold)
+                    .foregroundStyle(KindredTheme.text)
+            }
+            Text(ing.name)
+                .font(.subheadline)
+                .foregroundStyle(KindredTheme.subtext)
+            Spacer(minLength: 0)
+            if !ing.haveIt {
+                Text("buy").font(.caption2).foregroundStyle(KindredTheme.amber)
             }
         }
     }
@@ -102,7 +134,22 @@ struct RecipeDetailView: View {
     private var stepsCard: some View {
         KindredCard {
             VStack(alignment: .leading, spacing: 14) {
-                SectionHeader(label: "Method")
+                HStack {
+                    SectionHeader(label: "Method")
+                    Spacer()
+                    Button {
+                        keepAwake.toggle()
+                    } label: {
+                        Label(keepAwake ? "Screen on" : "Keep screen on",
+                              systemImage: keepAwake ? "sun.max.fill" : "sun.max")
+                            .font(.caption).fontWeight(.medium)
+                            .foregroundStyle(keepAwake ? KindredTheme.background : KindredTheme.amber)
+                            .padding(.horizontal, 10).padding(.vertical, 6)
+                            .background(keepAwake ? AnyShapeStyle(KindredTheme.amber) : AnyShapeStyle(KindredTheme.amber.opacity(0.15)),
+                                        in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
                 ForEach(Array(recipe.steps.enumerated()), id: \.offset) { index, step in
                     HStack(alignment: .top, spacing: 12) {
                         Text("\(index + 1)")
@@ -111,6 +158,22 @@ struct RecipeDetailView: View {
                             .frame(width: 26, height: 26)
                             .background(KindredTheme.brandGradient, in: Circle())
                         Text(step).font(.subheadline)
+                        Spacer(minLength: 0)
+                    }
+                }
+            }
+        }
+    }
+
+    private var tipsCard: some View {
+        KindredCard {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeader(label: "Tips & hints")
+                ForEach(recipe.tips, id: \.self) { tip in
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "lightbulb.fill")
+                            .font(.caption).foregroundStyle(KindredTheme.amber)
+                        Text(tip).font(.subheadline)
                         Spacer(minLength: 0)
                     }
                 }

@@ -228,12 +228,18 @@ struct GeminiRecipeService {
         lines.append("- Prioritise recipes that use the most on-hand ingredients and the fewest new purchases.")
         lines.append("- Never include any listed allergen. Respect all diet restrictions.")
         lines.append("- Keep cook time at or under the max where possible; if not, keep it close.")
-        lines.append("- 'needsToBuy' should list at most 4 common extra items.")
+        lines.append("- Every ingredient MUST have a specific amount scaled to the servings (e.g. \"2 cups\", \"1 lb\", \"3 cloves\", \"to taste\").")
+        lines.append("- Set haveIt=true for ingredients in the ON HAND list (and common staples: salt, pepper, oil, water, basic dried spices); otherwise haveIt=false. Keep haveIt=false items to at most 4 common extras.")
+        lines.append("- Include 'servings', 'prepMinutes' and 'cookMinutes'.")
+        lines.append("- Steps must be detailed, numbered and beginner-friendly: give temperatures, times, pan sizes and doneness cues (e.g. \"until golden\", \"until it reaches 165°F / 74°C\").")
+        if !profile.equipment.isEmpty {
+            lines.append("- IMPORTANT — write the steps for THIS cook's equipment, naming their appliances with exact settings and times. Examples: \"In your rice cooker, add 1 cup rice + 1½ cups water and cook until it switches to warm (~20 min)\"; \"Air-fry at 400°F/205°C for 12 min, shaking halfway\". If a component needs pre-cooking (rice, pasta, roasted veg), include that as its own step using their gear.")
+        } else {
+            lines.append("- Assume only a basic stovetop and oven; keep methods simple and clearly explained.")
+        }
+        lines.append("- Provide 2-4 short, practical 'tips' — make-ahead notes, easy swaps for the buy-list items, storage, or a way to level it up.")
         lines.append("- 'matchScore' is an integer 0-100 reflecting fit to pantry AND taste.")
         lines.append("- 'whyYoullLikeIt' is one short sentence referencing the cook's taste.")
-        if !profile.equipment.isEmpty {
-            lines.append("- Favor methods the listed equipment enables and name the appliance in the steps where it helps (e.g. air fryer, pellet smoker, sous vide, griddle).")
-        }
         lines.append("")
         lines.append("Respond with ONLY a JSON object of this exact shape, no markdown:")
         lines.append("""
@@ -243,10 +249,15 @@ struct GeminiRecipeService {
               "title": "string",
               "summary": "one-sentence description",
               "mealType": "breakfast|lunch|dinner|snack|dessert",
-              "usesOnHand": ["ingredient", ...],
-              "needsToBuy": ["ingredient", ...],
-              "steps": ["step 1", "step 2", ...],
+              "servings": 2,
+              "prepMinutes": 10,
               "cookMinutes": 20,
+              "ingredients": [
+                { "name": "rice", "amount": "1 cup (2 cups cooked)", "haveIt": true },
+                { "name": "soy sauce", "amount": "2 tbsp", "haveIt": false }
+              ],
+              "steps": ["Detailed step 1 (with appliance, temp, time)", "step 2", ...],
+              "tips": ["short practical tip", "another tip"],
               "difficulty": "easy|medium|involved",
               "tags": ["tag", ...],
               "matchScore": 0,
@@ -387,24 +398,44 @@ private struct RecipePayload: Decodable {
         var title: String
         var summary: String?
         var mealType: String?
-        var usesOnHand: [String]?
-        var needsToBuy: [String]?
-        var steps: [String]?
+        var servings: Int?
+        var prepMinutes: Int?
         var cookMinutes: Int?
+        var ingredients: [Ing]?
+        var steps: [String]?
+        var tips: [String]?
         var difficulty: String?
         var tags: [String]?
         var matchScore: Int?
         var whyYoullLikeIt: String?
+        // Legacy fields tolerated in case the model omits `ingredients`.
+        var usesOnHand: [String]?
+        var needsToBuy: [String]?
+
+        struct Ing: Decodable {
+            var name: String
+            var amount: String?
+            var haveIt: Bool?
+        }
 
         func toRecipe() -> Recipe {
-            Recipe(
+            let ings: [RecipeIngredient]
+            if let list = ingredients, !list.isEmpty {
+                ings = list.map { RecipeIngredient(name: $0.name, amount: $0.amount ?? "", haveIt: $0.haveIt ?? false) }
+            } else {
+                ings = (usesOnHand ?? []).map { RecipeIngredient(name: $0, amount: "", haveIt: true) }
+                     + (needsToBuy ?? []).map { RecipeIngredient(name: $0, amount: "", haveIt: false) }
+            }
+            return Recipe(
                 title: title,
                 summary: summary ?? "",
                 mealType: MealType(rawValue: (mealType ?? "dinner").lowercased()) ?? .dinner,
-                usesOnHand: usesOnHand ?? [],
-                needsToBuy: needsToBuy ?? [],
+                ingredients: ings,
                 steps: steps ?? [],
-                cookMinutes: cookMinutes ?? 20,
+                tips: tips ?? [],
+                servings: max(1, servings ?? 2),
+                prepMinutes: max(0, prepMinutes ?? 0),
+                cookMinutes: max(0, cookMinutes ?? 20),
                 difficulty: Difficulty(rawValue: (difficulty ?? "easy").lowercased()) ?? .easy,
                 tags: tags ?? [],
                 matchScore: min(100, max(0, matchScore ?? 0)),

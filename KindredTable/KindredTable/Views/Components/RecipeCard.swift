@@ -53,8 +53,8 @@ struct RecipeCard: View {
 
     private var metaRow: some View {
         HStack(spacing: 14) {
-            Label("\(recipe.cookMinutes) min", systemImage: "clock")
-            Label(recipe.difficulty.title, systemImage: "gauge.with.dots.needle.33percent")
+            Label("\(recipe.totalMinutes) min", systemImage: "clock")
+            Label("Serves \(recipe.servings)", systemImage: "person.2.fill")
             if !recipe.needsToBuy.isEmpty {
                 Label("+\(recipe.needsToBuy.count) to buy", systemImage: "cart")
             }
