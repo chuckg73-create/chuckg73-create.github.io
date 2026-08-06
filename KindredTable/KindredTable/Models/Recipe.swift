@@ -104,8 +104,8 @@ struct Recipe: Identifiable, Codable, Hashable {
         if let list = try c.decodeIfPresent([RecipeIngredient].self, forKey: .ingredients), !list.isEmpty {
             ingredients = list
         } else if let legacy = try? decoder.container(keyedBy: LegacyKeys.self) {
-            let have = (try? legacy.decodeIfPresent([String].self, forKey: .usesOnHand)) ?? [] ?? []
-            let buy = (try? legacy.decodeIfPresent([String].self, forKey: .needsToBuy)) ?? [] ?? []
+            let have = (try? legacy.decodeIfPresent([String].self, forKey: .usesOnHand)) ?? []
+            let buy = (try? legacy.decodeIfPresent([String].self, forKey: .needsToBuy)) ?? []
             ingredients = have.map { RecipeIngredient(name: $0, amount: "", haveIt: true) }
                         + buy.map { RecipeIngredient(name: $0, amount: "", haveIt: false) }
         } else {
