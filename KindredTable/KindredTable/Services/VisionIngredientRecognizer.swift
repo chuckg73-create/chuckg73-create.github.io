@@ -103,6 +103,14 @@ extension UIImage {
     var cgOrientation: CGImagePropertyOrientation {
         CGImagePropertyOrientation(imageOrientation)
     }
+
+    /// A downscaled JPEG suitable for uploading to a vision model.
+    func jpegForUpload(maxDimension: CGFloat = 1024, quality: CGFloat = 0.6) -> Data? {
+        if let cg = normalizedCGImage(maxDimension: maxDimension) {
+            return UIImage(cgImage: cg).jpegData(compressionQuality: quality)
+        }
+        return jpegData(compressionQuality: quality)
+    }
 }
 
 extension CGImagePropertyOrientation {

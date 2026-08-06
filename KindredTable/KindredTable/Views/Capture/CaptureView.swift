@@ -9,6 +9,7 @@ struct CaptureView: View {
     var goToPantry: () -> Void
 
     private let recognizer = VisionIngredientRecognizer()
+    private let geminiService = GeminiRecipeService()
 
     @State private var showCamera = false
     @State private var photoItem: PhotosPickerItem?
@@ -85,7 +86,7 @@ struct CaptureView: View {
             Text("What's in your kitchen?")
                 .font(.title2).fontWeight(.bold)
                 .multilineTextAlignment(.center)
-            Text("Snap your fridge or pantry. KindredTable spots the ingredients on your device, then suggests meals matched to your taste.")
+            Text("Snap your fridge or pantry. KindredKitchen identifies the ingredients, then suggests meals matched to your taste.")
                 .font(.subheadline)
                 .foregroundStyle(KindredTheme.subtext)
                 .multilineTextAlignment(.center)
@@ -119,10 +120,15 @@ struct CaptureView: View {
                         .background(KindredTheme.card, in: Capsule())
                         .overlay(Capsule().stroke(KindredTheme.hairline, lineWidth: 1))
                     }
-                    Label("Photos are analysed on-device and never uploaded.", systemImage: "lock.fill")
-                        .font(.caption)
-                        .foregroundStyle(KindredTheme.faint)
-                        .padding(.top, 2)
+                    Label(
+                        AppConfig.hasGeminiKey
+                            ? "Your photo is sent securely to identify ingredients."
+                            : "Photos are analysed on-device and never uploaded.",
+                        systemImage: AppConfig.hasGeminiKey ? "sparkles" : "lock.fill"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(KindredTheme.faint)
+                    .padding(.top, 2)
                 }
             }
         }
@@ -176,15 +182,17 @@ struct CaptureView: View {
         isRecognizing = true
         Task {
             do {
-                let found = try await recognizer.recognizeIngredients(in: image)
+                let found: [Ingredient]
+                if AppConfig.hasGeminiKey, let jpeg = image.jpegForUpload() {
+                    // Vision model reads the photo far more accurately.
+                    found = try await geminiService.identifyIngredients(in: jpeg)
+                } else {
+                    // Offline fallback: on-device Apple Vision classifier.
+                    found = try await recognizer.recognizeIngredients(in: image)
+                }
                 await MainActor.run {
                     isRecognizing = false
-                    if found.isEmpty {
-                        // Still let the user add items by hand from the review sheet.
-                        recognized = []
-                    } else {
-                        recognized = found
-                    }
+                    recognized = found      // may be empty; the sheet still allows manual add
                     showReview = true
                 }
             } catch {

@@ -89,7 +89,71 @@ struct GeminiRecipeService {
             .sorted { $0.matchScore > $1.matchScore }
     }
 
+    /// Identify food ingredients in a photo using Gemini's vision capability.
+    /// Far more accurate on cluttered fridge/pantry shots than the on-device
+    /// classifier, at the cost of sending the image to the model.
+    func identifyIngredients(in jpegData: Data) async throws -> [Ingredient] {
+        guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
+
+        let request = try makeVisionRequest(jpegData: jpegData, apiKey: apiKey)
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw RecipeServiceError.badResponse(status: -1, body: "")
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            throw RecipeServiceError.badResponse(status: http.statusCode, body: body)
+        }
+
+        let text = try Self.extractText(from: data)
+        let names = try Self.decodeIngredientNames(from: text)
+        return names.map {
+            Ingredient(name: $0, category: FoodVocabulary.categorize($0), confidence: 0.9)
+        }
+    }
+
     // MARK: Request construction
+
+    private func makeVisionRequest(jpegData: Data, apiKey: String) throws -> URLRequest {
+        var components = URLComponents(
+            string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent"
+        )!
+        components.queryItems = [URLQueryItem(name: "key", value: apiKey)]
+
+        var request = URLRequest(url: components.url!)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 45
+
+        let prompt = """
+        This is a photo of a fridge, freezer, or pantry. List every distinct food \
+        ingredient you can identify. Use simple grocery names (e.g. "eggs", \
+        "cheddar cheese", "spinach", "ground beef", "ketchup"). No brand names, no \
+        quantities, no packaging words, no duplicates. If you cannot identify any \
+        food, return an empty list.
+        Respond with ONLY this JSON: {"ingredients": ["name", ...]}
+        """
+
+        let payload = GeminiRequest(
+            contents: [
+                .init(role: "user", parts: [
+                    .init(text: prompt),
+                    .init(inlineData: .init(mimeType: "image/jpeg", data: jpegData.base64EncodedString())),
+                ])
+            ],
+            generationConfig: .init(
+                temperature: 0.2,
+                topP: 0.95,
+                maxOutputTokens: 1024,
+                responseMimeType: "application/json",
+                thinkingConfig: .init(thinkingBudget: 0)
+            )
+        )
+        request.httpBody = try JSONEncoder().encode(payload)
+        return request
+    }
+
+    // MARK: Request construction (recipes)
 
     private func makeRequest(prompt: String, apiKey: String) throws -> URLRequest {
         var components = URLComponents(
@@ -228,6 +292,29 @@ struct GeminiRecipeService {
         }
     }
 
+    /// Decode the `{"ingredients": [...]}` payload from a vision response,
+    /// trimming and de-duplicating names.
+    static func decodeIngredientNames(from text: String) throws -> [String] {
+        struct Payload: Decodable { var ingredients: [String] }
+        let json = sanitizedJSON(text)
+        guard let data = json.data(using: .utf8) else {
+            throw RecipeServiceError.decoding("not utf8")
+        }
+        do {
+            let payload = try JSONDecoder().decode(Payload.self, from: data)
+            var seen = Set<String>()
+            var result: [String] = []
+            for raw in payload.ingredients {
+                let name = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !name.isEmpty, seen.insert(name.lowercased()).inserted else { continue }
+                result.append(name)
+            }
+            return result
+        } catch {
+            throw RecipeServiceError.decoding("bad JSON near: \(String(json.prefix(80)))")
+        }
+    }
+
     /// Strip ```json fences and isolate the outermost JSON object if the model
     /// wrapped it in prose.
     static func sanitizedJSON(_ raw: String) -> String {
@@ -252,7 +339,12 @@ private struct GeminiRequest: Encodable {
         var parts: [Part]
     }
     struct Part: Encodable {
-        var text: String
+        var text: String? = nil
+        var inlineData: InlineData? = nil
+    }
+    struct InlineData: Encodable {
+        var mimeType: String
+        var data: String
     }
     struct GenerationConfig: Encodable {
         var temperature: Double
