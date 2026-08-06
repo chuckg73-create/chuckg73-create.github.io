@@ -134,7 +134,7 @@ struct TasteProfileView: View {
                 }
             }
         } footer: {
-            Text("Your profile stays on your device. Only ingredient names and preferences — never personal identifiers — are sent to generate recipes.")
+            Text("Your profile stays on your device. Your fridge photos and ingredient names go to Google Gemini to recognize food and build recipes — never your name or personal identifiers.")
         }
         .listRowBackground(KindredTheme.card)
     }
