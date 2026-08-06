@@ -13,7 +13,7 @@ enum RecipeServiceError: LocalizedError {
         case .emptyPantry:
             return "Add a few ingredients first — snap a photo of your fridge or add them by hand."
         case .missingAPIKey:
-            return "No Gemini API key is configured, so KindredTable is showing sample ideas. Add a key to get suggestions tailored to your pantry."
+            return "No Gemini API key is configured, so Kindred Kitchen is showing sample ideas. Add a key to get suggestions tailored to your pantry."
         case .badResponse(let status, let body):
             let detail = Self.humanReadableDetail(from: body)
             if detail.isEmpty {

@@ -29,14 +29,14 @@ struct OnboardingView: View {
                     .foregroundStyle(.white)
             }
             VStack(spacing: 10) {
-                Text("KindredKitchen").font(.largeTitle).fontWeight(.heavy)
+                Text("Kindred Kitchen").font(.largeTitle).fontWeight(.heavy)
                 Text("Photograph your fridge. Cook what matches you.")
                     .font(.title3)
                     .foregroundStyle(KindredTheme.subtext)
                     .multilineTextAlignment(.center)
             }
             VStack(alignment: .leading, spacing: 16) {
-                feature("camera.viewfinder", "Snap & identify", "Ingredients recognised privately, on your device.")
+                feature("camera.viewfinder", "Snap & identify", "AI vision reads your ingredients — even labels and packaged goods.")
                 feature("slider.horizontal.3", "Matched to you", "Meals tuned to your taste, diet, and time.")
                 feature("bookmark.fill", "Save for later", "Keep the recipes you love in one place.")
             }

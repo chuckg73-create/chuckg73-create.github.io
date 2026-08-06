@@ -3,6 +3,9 @@ import SwiftUI
 /// Top-level container: onboarding on first launch, then the main tab bar.
 struct RootView: View {
     @Environment(ProfileStore.self) private var profileStore
+    @Environment(HouseholdStore.self) private var household
+
+    @State private var importedName: String?
 
     var body: some View {
         Group {
@@ -11,6 +14,20 @@ struct RootView: View {
             } else {
                 OnboardingView()
             }
+        }
+        // A shared kindredkitchen://taste link (AirDrop, Messages, tapped link)
+        // adds that person to your table.
+        .onOpenURL { url in
+            guard let card = TasteCard.parse(url: url) else { return }
+            household.add(card)
+            importedName = card.name
+        }
+        .alert("Added \(importedName ?? "")", isPresented: Binding(
+            get: { importedName != nil }, set: { if !$0 { importedName = nil } }
+        )) {
+            Button("OK") { importedName = nil }
+        } message: {
+            Text("They're now at your table — recipes will blend their taste with yours.")
         }
     }
 }
@@ -59,5 +76,6 @@ struct RootTabView: View {
         .environment(SavedRecipeStore(seed: [SampleData.recipes[0]]))
         .environment(ProfileStore(seed: .starter))
         .environment(GroceryStore())
+        .environment(HouseholdStore())
         .preferredColorScheme(.dark)
 }

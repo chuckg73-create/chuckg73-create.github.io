@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Base Info.plist kept OUTSIDE the synchronized source folder so it is
+	     not auto-added to Copy Bundle Resources. GENERATE_INFOPLIST_FILE=YES
+	     merges the generated keys (display name, usage strings, versions,
+	     scene manifest, launch screen) on top of this.
+	     Present only to guarantee the TOP-LEVEL CFBundleIconName that
+	     Xcode 26's actool nests under CFBundlePrimaryIcon and doesn't emit at
+	     top level — required by App Store validation (error 90713). -->
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
+	<!-- Custom keys can't be injected via INFOPLIST_KEY_* (that only handles
+	     Apple's recognized keys), so the Gemini key is substituted here from the
+	     GEMINI_API_KEY build setting (fed by Secrets.xcconfig). This is what
+	     AppConfig.geminiAPIKey reads. -->
+	<key>GEMINI_API_KEY</key>
+	<string>$(GEMINI_API_KEY)</string>
+	<!-- Deep link for sharing taste cards by link/AirDrop: kindredkitchen://taste?c=… -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.kindred.KindredTable.taste</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>kindredkitchen</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
