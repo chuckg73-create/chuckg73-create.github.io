@@ -258,10 +258,22 @@ struct GeminiRecipeService {
         if !profile.notes.isEmpty {
             lines.append("- Notes: \(profile.notes)")
         }
+
+        if !profile.diets.isEmpty || !profile.allergens.isEmpty {
+            lines.append("")
+            lines.append("HARD DIETARY RULES — NON-NEGOTIABLE. EVERY recipe you return MUST fully comply. If an ingredient would break a rule, do not use it; if a dish cannot be made compliant, do not suggest it at all:")
+            for diet in profile.diets.sorted(by: { $0.title < $1.title }) {
+                lines.append("- \(diet.hardRule)")
+            }
+            if !profile.allergens.isEmpty {
+                lines.append("- ALLERGEN SAFETY: every recipe must be completely free of \(profile.allergens.joined(separator: ", ")) — including hidden sources, sauces, garnishes, stocks and cross-ingredients. Treat this as a health-and-safety requirement.")
+            }
+        }
+
         lines.append("")
         lines.append("RULES:")
         lines.append("- Prioritise recipes that use the most on-hand ingredients and the fewest new purchases.")
-        lines.append("- Never include any listed allergen. Respect all diet restrictions.")
+        lines.append("- The HARD DIETARY RULES and allergen safety above are absolute — obey them in every recipe, with no exceptions.")
         lines.append("- Keep cook time at or under the max where possible; if not, keep it close.")
         lines.append("- Every ingredient MUST have a specific amount scaled to the servings (e.g. \"2 cups\", \"1 lb\", \"3 cloves\", \"to taste\").")
         lines.append("- Set haveIt=true for ingredients in the ON HAND list (and common staples: salt, pepper, oil, water, basic dried spices); otherwise haveIt=false. Keep haveIt=false items to at most 4 common extras.")

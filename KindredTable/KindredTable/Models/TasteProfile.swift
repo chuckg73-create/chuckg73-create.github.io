@@ -99,6 +99,22 @@ enum Diet: String, Codable, CaseIterable, Identifiable, Hashable {
         case .highProtein: return "High-protein"
         }
     }
+
+    /// An explicit, non-negotiable instruction for the recipe model.
+    var hardRule: String {
+        switch self {
+        case .vegetarian:  return "VEGETARIAN: no meat, poultry, or fish/seafood (dairy and eggs are fine)."
+        case .vegan:       return "VEGAN: no animal products whatsoever — no meat, poultry, fish/seafood, dairy, eggs, honey, gelatin, or animal-based stock/broth."
+        case .pescatarian: return "PESCATARIAN: no meat or poultry; fish and seafood are allowed."
+        case .glutenFree:  return "GLUTEN-FREE: no wheat, barley, rye, or regular soy sauce; use certified gluten-free substitutes."
+        case .dairyFree:   return "DAIRY-FREE: no milk, butter, cheese, cream, yogurt, or whey; use plant-based substitutes."
+        case .keto:        return "KETO: very low carb — no sugar, grains, bread, pasta, rice, potatoes, or high-sugar fruit; keep net carbs low."
+        case .halal:       return "HALAL: no pork or pork-derived ingredients and no alcohol; any meat must be halal."
+        case .kosher:      return "KOSHER: no pork or shellfish, and never combine meat with dairy in the same dish."
+        case .lowCarb:     return "LOW-CARB: minimize sugar, grains, and starchy ingredients."
+        case .highProtein: return "HIGH-PROTEIN: make protein the centerpiece of every dish."
+        }
+    }
 }
 
 enum SpiceLevel: String, Codable, CaseIterable, Identifiable, Hashable {
