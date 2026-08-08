@@ -68,6 +68,13 @@ final class VoiceService {
         return english.max { rank($0) < rank($1) }
     }()
 
+    /// True when the best installed English voice is only default (robotic)
+    /// quality — i.e. the user hasn't downloaded an Enhanced/Premium voice yet.
+    /// Used to show a one-time "install a nicer voice" tip.
+    static var usingBasicVoice: Bool {
+        (preferredVoice?.quality ?? .default) == .default
+    }
+
     func stopSpeaking() { synthesizer.stopSpeaking(at: .immediate) }
 
     // MARK: Permissions

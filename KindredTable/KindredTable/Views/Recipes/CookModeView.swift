@@ -114,6 +114,15 @@ struct CookModeView: View {
                 .font(.caption2)
                 .foregroundStyle(KindredTheme.faint)
                 .multilineTextAlignment(.center)
+
+            if VoiceService.usingBasicVoice {
+                Label("For a more natural voice, download an Enhanced English voice in Settings ▸ Accessibility ▸ Spoken Content ▸ Voices.",
+                      systemImage: "waveform")
+                    .font(.caption2)
+                    .foregroundStyle(KindredTheme.accent)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 2)
+            }
         }
     }
 
