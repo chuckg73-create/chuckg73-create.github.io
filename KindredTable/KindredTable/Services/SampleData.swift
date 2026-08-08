@@ -108,7 +108,10 @@ enum SampleData {
     /// offline experience still feels connected to what the user has.
     static func sampleRecipes(for ingredients: [Ingredient], profile: TasteProfile, count: Int) -> [Recipe] {
         let onHand = Set(ingredients.map { $0.name.lowercased() })
-        return recipes
+        // The canned samples are conventional dishes; hold them to the same
+        // dietary/allergen backstop as real suggestions so an allergic or
+        // vegan user never sees a violating recipe presented as a match.
+        return profile.compliantRecipes(from: recipes)
             .map { recipe -> Recipe in
                 var r = recipe
                 // Re-flag which ingredients the user actually has, based on their pantry.

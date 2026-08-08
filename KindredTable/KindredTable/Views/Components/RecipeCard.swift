@@ -26,17 +26,8 @@ struct RecipeCard: View {
                         }
                         .padding(.trailing, 2)
                     }
-                    .mask(
-                        LinearGradient(
-                            stops: [
-                                .init(color: .black, location: 0),
-                                .init(color: .black, location: 0.9),
-                                .init(color: .clear, location: 1.0)
-                            ],
-                            startPoint: .leading, endPoint: .trailing
-                        )
-                    )
-                    .accessibilityLabel("On hand: \(recipe.usesOnHand.joined(separator: ", "))")
+                    .trailingChipFade()
+                    .accessibilityLabel("On hand: \(recipe.usesOnHand.prefix(6).joined(separator: ", "))")
                 }
             }
         }

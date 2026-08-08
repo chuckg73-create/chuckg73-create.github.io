@@ -80,6 +80,7 @@ struct OnboardingView: View {
                                     Chip(text: diet.title, tint: KindredTheme.accent, filled: on)
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityAddTraits(on ? [.isSelected] : [])
                             }
                         }
                     }

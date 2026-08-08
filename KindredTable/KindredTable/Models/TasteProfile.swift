@@ -117,6 +117,88 @@ enum Diet: String, Codable, CaseIterable, Identifiable, Hashable {
     }
 }
 
+// MARK: - Dietary compliance backstop
+
+/// Client-side safety net behind the prompt's HARD DIETARY RULES: the model is
+/// *asked* to comply, but a slip-up must never reach the screen. Matching is
+/// deliberately conservative (whole words, common synonym groups) — it can't
+/// judge macro-based diets like keto, which stay prompt-only.
+extension Diet {
+    /// Ingredient words this diet can never contain. Empty for macro-based
+    /// diets that aren't checkable from an ingredient list.
+    var forbiddenIngredientTerms: [String] {
+        switch self {
+        case .vegetarian:  return Self.meatTerms + Self.seafoodTerms
+        case .vegan:       return Self.meatTerms + Self.seafoodTerms + Self.dairyTerms
+                                + ["egg", "honey", "gelatin"]
+        case .pescatarian: return Self.meatTerms
+        case .glutenFree:  return Self.glutenTerms
+        case .dairyFree:   return Self.dairyTerms
+        case .halal:       return Self.porkTerms + ["wine", "beer", "alcohol", "rum", "brandy", "sake", "mirin"]
+        case .kosher:      return Self.porkTerms + Self.shellfishTerms
+        case .keto, .lowCarb, .highProtein: return []
+        }
+    }
+
+    private static let porkTerms = ["pork", "bacon", "ham", "prosciutto", "pancetta", "lard", "chorizo", "pepperoni", "salami"]
+    private static let meatTerms = porkTerms
+        + ["beef", "steak", "chicken", "turkey", "lamb", "veal", "duck", "sausage", "meatball", "brisket"]
+    private static let shellfishTerms = ["shrimp", "prawn", "crab", "lobster", "clam", "mussel", "oyster", "scallop"]
+    private static let seafoodTerms = shellfishTerms
+        + ["fish", "salmon", "tuna", "cod", "tilapia", "anchovy", "sardine", "halibut", "trout"]
+    private static let dairyTerms = ["milk", "butter", "cheese", "cream", "yogurt", "whey", "ghee", "cheddar", "parmesan", "mozzarella", "feta", "ricotta"]
+    private static let glutenTerms = ["wheat", "flour", "pasta", "bread", "barley", "rye", "couscous", "breadcrumb", "tortilla", "noodle", "cracker"]
+}
+
+extension TasteProfile {
+    /// Common allergen group names users type, expanded to concrete ingredient
+    /// words. Unrecognised allergens are matched literally.
+    private static let allergenGroups: [String: [String]] = [
+        "dairy": ["milk", "butter", "cheese", "cream", "yogurt", "whey", "ghee", "cheddar", "parmesan", "mozzarella", "feta", "ricotta"],
+        "gluten": ["wheat", "flour", "pasta", "bread", "barley", "rye", "couscous", "breadcrumb", "tortilla", "noodle", "cracker"],
+        "nuts": ["almond", "walnut", "cashew", "pecan", "pistachio", "hazelnut", "macadamia", "nut"],
+        "tree nuts": ["almond", "walnut", "cashew", "pecan", "pistachio", "hazelnut", "macadamia"],
+        "shellfish": ["shrimp", "prawn", "crab", "lobster", "clam", "mussel", "oyster", "scallop"],
+        "soy": ["soy", "tofu", "edamame", "tempeh"],
+        "fish": ["fish", "salmon", "tuna", "cod", "tilapia", "anchovy", "sardine", "halibut", "trout"],
+        "sesame": ["sesame", "tahini"],
+    ]
+
+    /// Ingredient names in `recipe` that violate this profile's allergens or
+    /// exclusion diets. Empty means the recipe passes the backstop check.
+    func violatingIngredients(in recipe: Recipe) -> [String] {
+        var terms: [String] = []
+        for allergen in allergens {
+            let key = allergen.lowercased().trimmingCharacters(in: .whitespaces)
+            terms.append(contentsOf: Self.allergenGroups[key] ?? [key])
+        }
+        for diet in diets {
+            terms.append(contentsOf: diet.forbiddenIngredientTerms)
+        }
+        guard !terms.isEmpty else { return [] }
+
+        return recipe.ingredients
+            .map(\.name)
+            .filter { name in terms.contains { Self.containsWord($0, in: name) } }
+    }
+
+    /// Drops recipes that fail the backstop check.
+    func compliantRecipes(from recipes: [Recipe]) -> [Recipe] {
+        recipes.filter { violatingIngredients(in: $0).isEmpty }
+    }
+
+    /// Whole-word, plural-tolerant match, so "egg" flags "eggs benedict" but
+    /// not "eggplant".
+    private static func containsWord(_ term: String, in text: String) -> Bool {
+        var base = term.lowercased()
+        if base.hasSuffix("es") { base = String(base.dropLast(2)) }
+        else if base.hasSuffix("s") { base = String(base.dropLast()) }
+        guard !base.isEmpty else { return false }
+        let pattern = "\\b\(NSRegularExpression.escapedPattern(for: base))(es|s)?\\b"
+        return text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+}
+
 enum SpiceLevel: String, Codable, CaseIterable, Identifiable, Hashable {
     case mild, medium, hot, fiery
 

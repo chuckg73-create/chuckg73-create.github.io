@@ -165,6 +165,7 @@ struct RecipeFeedView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
         }
+        .trailingChipFade()
     }
 
     private func typeChip(title: String, icon: String, isSelected: Bool,

@@ -82,9 +82,11 @@ struct CookModeView: View {
     private var controls: some View {
         VStack(spacing: 16) {
             HStack(spacing: 16) {
-                circleButton("chevron.left", disabled: session.isFirstStep) { retreat(speak: autoSpeak) }
+                circleButton("chevron.left", label: "Previous step", disabled: session.isFirstStep) { retreat(speak: autoSpeak) }
                 micButton
-                circleButton(session.isLastStep ? "checkmark" : "chevron.right", disabled: false) {
+                circleButton(session.isLastStep ? "checkmark" : "chevron.right",
+                             label: session.isLastStep ? "Finish" : "Next step",
+                             disabled: false) {
                     advance(speak: autoSpeak)
                 }
             }
@@ -130,7 +132,7 @@ struct CookModeView: View {
         }
     }
 
-    private func circleButton(_ icon: String, disabled: Bool, action: @escaping () -> Void) -> some View {
+    private func circleButton(_ icon: String, label: String, disabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon).font(.title2.bold())
                 .foregroundStyle(disabled ? KindredTheme.faint : KindredTheme.text)
@@ -138,6 +140,7 @@ struct CookModeView: View {
                 .background(KindredTheme.card, in: Circle())
         }
         .disabled(disabled)
+        .accessibilityLabel(label)
     }
 
     // MARK: Navigation

@@ -43,6 +43,7 @@ struct PantryView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { activeSheet = .add } label: { Image(systemName: "plus") }
+                        .accessibilityLabel("Add ingredient")
                 }
                 ToolbarItem(placement: .topBarLeading) { ProfileToolbarButton() }
             }

@@ -83,9 +83,12 @@ struct GeminiRecipeService {
 
         let text = try Self.extractText(from: data)
         let recipes = try Self.decodeRecipes(from: text)
-        guard !recipes.isEmpty else { throw RecipeServiceError.noRecipes }
+        // Safety backstop: never surface a recipe that slipped past the
+        // prompt's hard dietary/allergen rules.
+        let safe = profile.compliantRecipes(from: recipes)
+        guard !safe.isEmpty else { throw RecipeServiceError.noRecipes }
 
-        return recipes
+        return safe
             .sorted { $0.matchScore > $1.matchScore }
     }
 
@@ -114,8 +117,10 @@ struct GeminiRecipeService {
         }
         let text = try Self.extractText(from: data)
         let recipes = try Self.decodeRecipes(from: text)
-        guard !recipes.isEmpty else { throw RecipeServiceError.noRecipes }
-        return recipes.sorted { $0.matchScore > $1.matchScore }
+        // Same safety backstop as the feed: hard rules hold for cravings too.
+        let safe = profile.compliantRecipes(from: recipes)
+        guard !safe.isEmpty else { throw RecipeServiceError.noRecipes }
+        return safe.sorted { $0.matchScore > $1.matchScore }
     }
 
     /// Identify food ingredients in a photo using Gemini's vision capability.
@@ -237,17 +242,13 @@ struct GeminiRecipeService {
         lines.append("INGREDIENTS ON HAND: \(onHand)")
         lines.append("")
         lines.append("TASTE PROFILE:")
-        if !profile.diets.isEmpty {
-            lines.append("- Diets: \(profile.diets.map(\.title).sorted().joined(separator: ", "))")
-        }
+        // Diets and allergens are stated once, in the HARD DIETARY RULES block
+        // below, so the model gets a single authoritative version of each.
         if !profile.lovedCuisines.isEmpty {
             lines.append("- Loves cuisines: \(profile.lovedCuisines.joined(separator: ", "))")
         }
         if !profile.dislikedIngredients.isEmpty {
             lines.append("- Dislikes / avoid: \(profile.dislikedIngredients.joined(separator: ", "))")
-        }
-        if !profile.allergens.isEmpty {
-            lines.append("- ALLERGENS to strictly exclude: \(profile.allergens.joined(separator: ", "))")
         }
         lines.append("- Spice preference: \(profile.spiceLevel.title)")
         lines.append("- Cooking skill: \(profile.skill.title)")
@@ -273,7 +274,9 @@ struct GeminiRecipeService {
         lines.append("")
         lines.append("RULES:")
         lines.append("- Prioritise recipes that use the most on-hand ingredients and the fewest new purchases.")
-        lines.append("- The HARD DIETARY RULES and allergen safety above are absolute — obey them in every recipe, with no exceptions.")
+        if !profile.diets.isEmpty || !profile.allergens.isEmpty {
+            lines.append("- The HARD DIETARY RULES and allergen safety above are absolute — obey them in every recipe, with no exceptions.")
+        }
         lines.append("- Keep cook time at or under the max where possible; if not, keep it close.")
         lines.append("- Every ingredient MUST have a specific amount scaled to the servings (e.g. \"2 cups\", \"1 lb\", \"3 cloves\", \"to taste\").")
         lines.append("- Set haveIt=true for ingredients in the ON HAND list (and common staples: salt, pepper, oil, water, basic dried spices); otherwise haveIt=false. Keep haveIt=false items to at most 4 common extras.")

@@ -66,6 +66,7 @@ struct GroceryListView: View {
                 if !grocery.isEmpty {
                     ToolbarItem(placement: .topBarTrailing) {
                         ShareLink(item: listText) { Image(systemName: "square.and.arrow.up") }
+                            .accessibilityLabel("Share list")
                     }
                 }
                 if grocery.checkedCount > 0 {
@@ -84,6 +85,7 @@ struct GroceryListView: View {
                         } label: {
                             Image(systemName: "ellipsis.circle")
                         }
+                        .accessibilityLabel("Checked-item actions")
                     }
                 }
             }

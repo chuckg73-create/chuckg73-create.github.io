@@ -8,6 +8,7 @@ struct ProfileToolbarButton: View {
         Button { show = true } label: {
             Image(systemName: "person.crop.circle")
         }
+        .accessibilityLabel("Taste profile")
         .sheet(isPresented: $show) {
             NavigationStack { TasteProfileView() }
         }

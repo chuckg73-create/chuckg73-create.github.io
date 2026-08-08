@@ -73,6 +73,26 @@ struct Chip: View {
     }
 }
 
+// MARK: - Trailing fade for horizontal chip rows
+
+extension View {
+    /// Fades out the trailing edge of a horizontally scrolling row so overflow
+    /// reads as "more to the right" instead of a hard clip. Apply to the
+    /// `ScrollView(.horizontal)` itself.
+    func trailingChipFade() -> some View {
+        mask(
+            LinearGradient(
+                stops: [
+                    .init(color: .black, location: 0),
+                    .init(color: .black, location: 0.9),
+                    .init(color: .clear, location: 1.0)
+                ],
+                startPoint: .leading, endPoint: .trailing
+            )
+        )
+    }
+}
+
 // MARK: - Section header
 
 struct SectionHeader: View {
