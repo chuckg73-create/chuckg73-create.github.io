@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kindred Kitchen — Cook what's in your kitchen</title>
+<meta name="description" content="Snap your fridge and get dinners you'll actually love tonight — matched to your taste and built from what you already have.">
+<style>
+  :root{
+    --bg1:#0A0E28; --bg2:#0F1535; --card:#171E38; --hair:rgba(255,255,255,.08);
+    --text:#fff; --muted:#B5BAD4; --faint:#8C93BD;
+    --violet:#7866FA; --gold:#FFE1A0; --warm:#FFB25C; --coral:#FF7A54;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+    color:var(--text);background:linear-gradient(160deg,var(--bg1),var(--bg2));min-height:100vh;line-height:1.5}
+  a{color:var(--violet);text-decoration:none}
+  .wrap{max-width:960px;margin:0 auto;padding:0 20px}
+  nav{display:flex;align-items:center;justify-content:space-between;padding:20px 0}
+  nav .brand{font-weight:700}
+  nav a{color:var(--muted);margin-left:18px;font-size:.95rem}
+  .hero{text-align:center;padding:48px 0 24px}
+  .hero img.icon{width:112px;height:112px;border-radius:26px;box-shadow:0 16px 50px rgba(120,102,250,.35)}
+  .hero h1{font-size:2.6rem;margin:22px 0 6px;letter-spacing:-.02em}
+  .hero .tag{font-size:1.25rem;color:var(--muted)}
+  .hero .sub{color:var(--faint);margin-top:14px}
+  .badge{display:inline-block;margin-top:22px;padding:9px 18px;border:1px solid var(--hair);
+    border-radius:999px;color:var(--muted);font-size:.9rem}
+  .shots{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;padding:36px 0}
+  .shots img{width:220px;max-width:44vw;border-radius:22px;border:1px solid var(--hair)}
+  .features{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;padding:20px 0 40px}
+  .feature{background:var(--card);border:1px solid var(--hair);border-radius:18px;padding:22px}
+  .feature h3{font-size:1.1rem;margin-bottom:6px}
+  .feature p{color:var(--muted);font-size:.96rem}
+  .kicker{color:var(--warm);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:.78rem;margin-bottom:6px}
+  footer{border-top:1px solid var(--hair);margin-top:20px;padding:28px 0 48px;color:var(--faint);font-size:.9rem;text-align:center}
+  footer a{color:var(--muted);margin:0 10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <span class="brand">Kindred Kitchen</span>
+    <span><a href="support.html">Support</a><a href="privacy.html">Privacy</a></span>
+  </nav>
+
+  <header class="hero">
+    <img class="icon" src="img/icon.png" alt="Kindred Kitchen app icon">
+    <h1>Kindred Kitchen</h1>
+    <p class="tag">Cook what's in your kitchen.</p>
+    <p class="sub">Snap your fridge and get dinners you'll actually love tonight —<br>matched to your taste and built from what you already have.</p>
+    <span class="badge">Coming soon to the App Store</span>
+  </header>
+
+  <section class="shots">
+    <img src="img/02-recipes.png" alt="Recipe ideas matched to your taste">
+    <img src="img/03-detail.png" alt="A recipe with exact amounts and tips">
+    <img src="img/04-cookmode.png" alt="Hands-free Cook Mode">
+  </section>
+
+  <section class="features">
+    <div class="feature"><div class="kicker">Snap</div><h3>See what you've got</h3><p>Photograph your fridge or pantry and Kindred Kitchen identifies your ingredients — labels and all.</p></div>
+    <div class="feature"><div class="kicker">Match</div><h3>Meals that taste like you</h3><p>Recipes ranked by your palate, cuisines, spice level, time, and skill — not a generic list.</p></div>
+    <div class="feature"><div class="kicker">Cook</div><h3>Real, usable recipes</h3><p>Exact amounts, servings, prep and cook times, chef tips, and steps written for your equipment.</p></div>
+    <div class="feature"><div class="kicker">Hands-free</div><h3>Cook Mode</h3><p>One big step at a time, read aloud, screen stays awake. Say “next,” “back,” or “repeat” — or ask Siri.</p></div>
+    <div class="feature"><div class="kicker">Crave</div><h3>Cook a craving</h3><p>Type any dish and get a full recipe tuned to your taste, with a shopping list for what you're missing.</p></div>
+    <div class="feature"><div class="kicker">Together</div><h3>Cook for everyone</h3><p>Share your taste by QR — no accounts — and blend the whole table so a meal works for everyone.</p></div>
+    <div class="feature"><div class="kicker">Safe</div><h3>Diets &amp; allergens respected</h3><p>Set a diet or allergens and every recipe strictly honors them — nothing you can't or won't eat.</p></div>
+    <div class="feature"><div class="kicker">Organized</div><h3>Grocery &amp; saved</h3><p>Add missing items to a grocery list in one tap, and keep the recipes you love in one place.</p></div>
+  </section>
+
+  <footer>
+    <div><a href="support.html">Support</a><a href="privacy.html">Privacy</a></div>
+    <p style="margin-top:12px">© 2026 Chuck Gallagher. All rights reserved.</p>
+  </footer>
+</div>
+</body>
+</html>
