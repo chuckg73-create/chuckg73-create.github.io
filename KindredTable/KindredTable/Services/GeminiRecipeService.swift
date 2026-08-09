@@ -188,6 +188,76 @@ struct GeminiRecipeService {
         return recipe
     }
 
+    /// Polish an imported (handwritten / clipped) recipe WITHOUT rewriting it:
+    /// add practical chef tips tuned to the cook's kit, and flag gaps the
+    /// original left out (missing oven temp, vague "a pinch", an ingredient that
+    /// never appears in the steps). Returns the same recipe with `tips` and
+    /// `cooksNotes` filled — the title, ingredients and steps are untouched.
+    func enrich(_ recipe: Recipe, profile: TasteProfile) async throws -> Recipe {
+        guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
+
+        let prompt = Self.buildEnrichmentPrompt(recipe: recipe, profile: profile)
+        let request = try makeRequest(prompt: prompt, apiKey: apiKey)
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw RecipeServiceError.badResponse(status: -1, body: "")
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            throw RecipeServiceError.badResponse(status: http.statusCode, body: String(data: data, encoding: .utf8) ?? "")
+        }
+        let text = try Self.extractText(from: data)
+        let (tips, notes) = try Self.decodeEnrichment(from: text)
+
+        var polished = recipe
+        // Merge tips (dedupe, case-insensitive), keep any the card already had.
+        var seen = Set(recipe.tips.map { $0.lowercased() })
+        for tip in tips where seen.insert(tip.lowercased()).inserted {
+            polished.tips.append(tip)
+        }
+        polished.cooksNotes = notes
+        return polished
+    }
+
+    static func buildEnrichmentPrompt(recipe: Recipe, profile: TasteProfile) -> String {
+        var lines: [String] = []
+        lines.append("You are helping a home cook with a recipe they photographed from a handwritten card or clipping. Do NOT rewrite it, rename it, or change the ingredients or steps — the cook wants their family recipe preserved exactly. Your job is only to ADD help alongside it.")
+        lines.append("")
+        lines.append("RECIPE: \(recipe.title)")
+        lines.append("Serves \(recipe.servings).")
+        lines.append("Ingredients:")
+        for ing in recipe.ingredients {
+            lines.append("- \(ing.display)")
+        }
+        lines.append("Steps:")
+        for (i, step) in recipe.steps.enumerated() {
+            lines.append("\(i + 1). \(step)")
+        }
+        if !profile.equipment.isEmpty {
+            lines.append("")
+            lines.append("The cook's equipment: \(profile.equipment.joined(separator: ", ")). Tailor tips to this gear where relevant.")
+        }
+        lines.append("")
+        lines.append("Return TWO things as JSON:")
+        lines.append("- \"tips\": 3-5 short, practical chef tips/hints for making THIS dish well (doneness cues, make-ahead, easy swaps, storage, how to level it up). Reference the cook's equipment where it helps.")
+        lines.append("- \"notes\": things a handwritten recipe often leaves out or states vaguely — ONLY where genuinely missing or ambiguous. Each note names the gap and gives a sensible, clearly-marked suggestion. Examples: \"No oven temperature is written — banana bread is usually baked at 350°F/175°C.\", \"'A pinch of salt' is about 1/4 tsp.\", \"The steps mention butter but no amount is listed — try 1/2 cup.\" If nothing is missing, return an empty array. Do NOT invent problems.")
+        lines.append("Respond with ONLY this JSON, no markdown:")
+        lines.append("{ \"tips\": [\"...\"], \"notes\": [\"...\"] }")
+        return lines.joined(separator: "\n")
+    }
+
+    static func decodeEnrichment(from text: String) throws -> (tips: [String], notes: [String]) {
+        struct Payload: Decodable { var tips: [String]?; var notes: [String]? }
+        let json = sanitizedJSON(text)
+        guard let data = json.data(using: .utf8) else { throw RecipeServiceError.decoding("not utf8") }
+        do {
+            let p = try JSONDecoder().decode(Payload.self, from: data)
+            let clean: ([String]?) -> [String] = { ($0 ?? []).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty } }
+            return (clean(p.tips), clean(p.notes))
+        } catch {
+            throw RecipeServiceError.decoding("bad JSON near: \(String(json.prefix(80)))")
+        }
+    }
+
     /// Identify food ingredients in a photo using Gemini's vision capability.
     /// Far more accurate on cluttered fridge/pantry shots than the on-device
     /// classifier, at the cost of sending the image to the model.

@@ -45,6 +45,11 @@ struct Recipe: Identifiable, Codable, Hashable {
     var steps: [String]
     /// Short, practical chef tips / hints.
     var tips: [String]
+    /// For imported recipes only: notes Kindred Kitchen added when polishing —
+    /// gaps the handwriting left out (missing temp, vague "a pinch", an
+    /// ingredient never used in the steps). Kept separate from `tips` so the
+    /// original recipe and the app's help stay clearly distinct.
+    var cooksNotes: [String]
     var servings: Int
     var prepMinutes: Int
     var cookMinutes: Int
@@ -80,6 +85,7 @@ struct Recipe: Identifiable, Codable, Hashable {
         ingredients: [RecipeIngredient] = [],
         steps: [String] = [],
         tips: [String] = [],
+        cooksNotes: [String] = [],
         servings: Int = 2,
         prepMinutes: Int = 10,
         cookMinutes: Int = 20,
@@ -98,6 +104,7 @@ struct Recipe: Identifiable, Codable, Hashable {
         self.ingredients = ingredients
         self.steps = steps
         self.tips = tips
+        self.cooksNotes = cooksNotes
         self.servings = servings
         self.prepMinutes = prepMinutes
         self.cookMinutes = cookMinutes
@@ -109,7 +116,7 @@ struct Recipe: Identifiable, Codable, Hashable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, title, summary, mealType, source, sourceNote, ingredients, steps, tips
+        case id, title, summary, mealType, source, sourceNote, ingredients, steps, tips, cooksNotes
         case servings, prepMinutes, cookMinutes, difficulty, tags, matchScore, whyYoullLikeIt, timeline
     }
 
@@ -130,6 +137,7 @@ struct Recipe: Identifiable, Codable, Hashable {
         sourceNote = try c.decodeIfPresent(String.self, forKey: .sourceNote) ?? ""
         steps = try c.decodeIfPresent([String].self, forKey: .steps) ?? []
         tips = try c.decodeIfPresent([String].self, forKey: .tips) ?? []
+        cooksNotes = try c.decodeIfPresent([String].self, forKey: .cooksNotes) ?? []
         servings = try c.decodeIfPresent(Int.self, forKey: .servings) ?? 2
         prepMinutes = try c.decodeIfPresent(Int.self, forKey: .prepMinutes) ?? 0
         cookMinutes = try c.decodeIfPresent(Int.self, forKey: .cookMinutes) ?? 20

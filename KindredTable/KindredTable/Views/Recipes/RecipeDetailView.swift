@@ -3,8 +3,9 @@ import UIKit
 
 /// Full recipe view with ingredients, steps, and save-for-later.
 struct RecipeDetailView: View {
-    var recipe: Recipe
+    @State private var recipe: Recipe
     @Environment(SavedRecipeStore.self) private var saved
+    @Environment(ProfileStore.self) private var profileStore
     @Environment(GroceryStore.self) private var grocery
     @State private var addedToList = false
     /// Keeps the display awake while cooking (no auto-lock).
@@ -13,10 +14,19 @@ struct RecipeDetailView: View {
     @State private var showPlan = false
     /// Target servings for on-the-fly scaling; starts at the recipe's own yield.
     @State private var displayServings: Int
+    /// "Polish with Kindred Kitchen" state for imported recipes.
+    @State private var isPolishing = false
+    @State private var polished = false
+    @State private var polishError: String?
 
     init(recipe: Recipe) {
-        self.recipe = recipe
+        _recipe = State(initialValue: recipe)
         _displayServings = State(initialValue: max(1, recipe.servings))
+    }
+
+    /// Offer to polish an imported recipe only while it still looks un-enriched.
+    private var canPolish: Bool {
+        recipe.source.isImported && !polished && recipe.tips.isEmpty && recipe.cooksNotes.isEmpty
     }
 
     /// The recipe with amounts scaled to `displayServings` (identity when equal).
@@ -29,11 +39,13 @@ struct RecipeDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     header
+                    if canPolish || isPolishing { polishCard }
                     if !recipe.steps.isEmpty { cookModeButton }
                     if !recipe.steps.isEmpty { planButton }
                     if !recipe.whyYoullLikeIt.isEmpty { whyCard }
                     ingredientsCard
                     stepsCard
+                    if !recipe.cooksNotes.isEmpty { cooksNotesCard }
                     if !recipe.tips.isEmpty { tipsCard }
                     if !recipe.tags.isEmpty { tagRow }
                 }
@@ -272,6 +284,89 @@ struct RecipeDetailView: View {
         }
     }
 
+    /// Imported recipes: an opt-in offer to add tips and flag gaps, without
+    /// touching the original.
+    private var polishCard: some View {
+        KindredCard {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "wand.and.stars").foregroundStyle(KindredTheme.accent)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Polish with Kindred Kitchen")
+                            .font(.subheadline.weight(.semibold)).foregroundStyle(KindredTheme.text)
+                        Text("Add chef tips and spot anything the handwriting left out — like a missing oven temperature. Your original stays exactly as written.")
+                            .font(.caption).foregroundStyle(KindredTheme.subtext)
+                    }
+                }
+                if let polishError {
+                    Text(polishError).font(.caption).foregroundStyle(KindredTheme.amber)
+                }
+                Button { polish() } label: {
+                    HStack(spacing: 8) {
+                        if isPolishing {
+                            ProgressView().controlSize(.small).tint(.white)
+                            Text("Reading it over…")
+                        } else {
+                            Image(systemName: "wand.and.stars")
+                            Text("Add tips & check for gaps")
+                        }
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity).padding(.vertical, 12)
+                    .foregroundStyle(.white)
+                    .background(KindredTheme.brandGradient, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .disabled(isPolishing)
+            }
+        }
+    }
+
+    private var cooksNotesCard: some View {
+        KindredCard {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "sparkles").font(.caption).foregroundStyle(KindredTheme.accent)
+                    SectionHeader(label: "Kindred Kitchen's notes")
+                }
+                Text("Suggestions for what the original recipe didn't spell out:")
+                    .font(.caption).foregroundStyle(KindredTheme.faint)
+                ForEach(recipe.cooksNotes, id: \.self) { note in
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "info.circle.fill")
+                            .font(.caption).foregroundStyle(KindredTheme.blue)
+                        Text(note).font(.subheadline)
+                        Spacer(minLength: 0)
+                    }
+                }
+            }
+        }
+    }
+
+    private func polish() {
+        polishError = nil
+        isPolishing = true
+        Task {
+            do {
+                let service = GeminiRecipeService()
+                let enriched = try await service.enrich(recipe, profile: profileStore.profile)
+                await MainActor.run {
+                    withAnimation {
+                        recipe = enriched
+                        polished = true
+                        isPolishing = false
+                    }
+                    saved.update(enriched)   // persist if it's in the cookbook
+                }
+            } catch {
+                await MainActor.run {
+                    isPolishing = false
+                    polishError = (error as? RecipeServiceError)?.errorDescription ?? error.localizedDescription
+                }
+            }
+        }
+    }
+
     private var tipsCard: some View {
         KindredCard {
             VStack(alignment: .leading, spacing: 12) {
@@ -312,6 +407,7 @@ struct FlowChips: View {
     NavigationStack {
         RecipeDetailView(recipe: SampleData.recipes[0])
             .environment(SavedRecipeStore())
+            .environment(ProfileStore(seed: .starter))
             .environment(GroceryStore())
     }
     .preferredColorScheme(.dark)
