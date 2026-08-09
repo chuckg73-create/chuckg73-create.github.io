@@ -14,11 +14,12 @@ enum KindredTheme {
     static let card = Color(hex: 0x171E38)
     static let cardElevated = Color(hex: 0x1E2745)
 
-    static let accent = Color(hex: 0x7866FA)   // violet
+    static let accent = Color(hex: 0xFF8A3D)   // warm amber-orange (matches the icon)
     static let blue = Color(hex: 0x3B82F6)
     static let amber = Color(hex: 0xFF9E33)
     static let coral = Color(hex: 0xFF6B47)
     static let mint = Color(hex: 0x34D399)
+    static let violet = Color(hex: 0x7866FA)   // retained for the occasional cool accent
 
     static let text = Color(hex: 0xFFFFFF)
     static let subtext = Color(hex: 0xB5BAD4)
@@ -30,7 +31,7 @@ enum KindredTheme {
 
     static var brandGradient: LinearGradient {
         LinearGradient(
-            colors: [accent, blue],
+            colors: [amber, coral],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
