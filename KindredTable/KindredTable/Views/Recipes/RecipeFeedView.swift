@@ -29,7 +29,7 @@ struct RecipeFeedView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile) }
+                        Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings) }
                     } label: {
                         Image(systemName: "arrow.clockwise")
                     }
@@ -51,11 +51,11 @@ struct RecipeFeedView: View {
                 }
             }
             .task {
-                await model.loadIfNeeded(ingredients: pantry.ingredients, profile: effectiveProfile)
+                await model.loadIfNeeded(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings)
             }
             .onChange(of: household.signature(you: profileStore.profile)) {
                 guard !pantry.isEmpty else { return }
-                Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile) }
+                Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings) }
             }
             .sheet(isPresented: $showHousehold) { HouseholdView() }
             .sheet(isPresented: $showCrave) { CraveSearchView() }
@@ -79,7 +79,7 @@ struct RecipeFeedView: View {
                     title: "Couldn't load ideas",
                     message: message,
                     actionTitle: "Try again",
-                    action: { Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile) } }
+                    action: { Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings) } }
                 )
             case .loaded(let recipes):
                 feed(recipes)
@@ -106,6 +106,7 @@ struct RecipeFeedView: View {
 
         return VStack(spacing: 0) {
             cookingForBar
+            servesStepper
             mealTypeSelector(present: present, effective: effective)
             ScrollView {
                 LazyVStack(spacing: 16) {
@@ -126,7 +127,7 @@ struct RecipeFeedView: View {
                 .padding(20)
             }
             .refreshable {
-                await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile)
+                await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings)
             }
         }
     }
@@ -144,6 +145,53 @@ struct RecipeFeedView: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 12)
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Quick "how many are eating" control — the fast path from 2 (you + Leslie)
+    /// to 4 (boys home) without opening a sheet. Recipes rescale on change.
+    private var servesStepper: some View {
+        @Bindable var household = household
+        return HStack(spacing: 10) {
+            Image(systemName: "fork.knife").font(.caption).foregroundStyle(KindredTheme.amber)
+            Text("Serves").font(.subheadline).foregroundStyle(KindredTheme.subtext)
+            HStack(spacing: 14) {
+                stepButton(system: "minus") { household.servings = max(HouseholdStore.servingsRange.lowerBound, household.servings - 1) }
+                    .disabled(household.servings <= HouseholdStore.servingsRange.lowerBound)
+                Text("\(household.servings)")
+                    .font(.headline.monospacedDigit()).foregroundStyle(KindredTheme.text)
+                    .frame(minWidth: 20)
+                    .contentTransition(.numericText())
+                stepButton(system: "plus") { household.servings = min(HouseholdStore.servingsRange.upperBound, household.servings + 1) }
+                    .disabled(household.servings >= HouseholdStore.servingsRange.upperBound)
+            }
+            Spacer()
+            Text(household.servings == 2 ? "Just the two of you" : "\(household.servings) at the table")
+                .font(.caption2).foregroundStyle(KindredTheme.faint)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Serves \(household.servings)")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment: household.servings = min(HouseholdStore.servingsRange.upperBound, household.servings + 1)
+            case .decrement: household.servings = max(HouseholdStore.servingsRange.lowerBound, household.servings - 1)
+            default: break
+            }
+        }
+    }
+
+    private func stepButton(system: String, action: @escaping () -> Void) -> some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.15)) { action() }
+        } label: {
+            Image(systemName: system)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(KindredTheme.accent)
+                .frame(width: 30, height: 30)
+                .background(KindredTheme.accent.opacity(0.14), in: Circle())
         }
         .buttonStyle(.plain)
     }

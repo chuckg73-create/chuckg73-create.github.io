@@ -17,18 +17,26 @@ final class HouseholdStore {
 
     var myName: String { didSet { persist() } }
     var guests: [TasteMember] { didSet { persist() } }
+    /// How many people you're cooking for tonight — scales every recipe's
+    /// amounts (and the cook-by timeline). Defaults to 2; bump to 4 when the
+    /// boys are home. Clamped to a sensible 1…12.
+    var servings: Int { didSet { persist() } }
+
+    static let servingsRange = 1...12
 
     private let fileName = "household.json"
 
     private struct Snapshot: Codable {
         var myName: String
         var guests: [TasteMember]
+        var servings: Int?
     }
 
     init(seedGuests: [TasteMember] = []) {
         let snapshot = LocalStore.load(Snapshot.self, from: fileName)
         myName = snapshot?.myName ?? "Me"
         guests = snapshot?.guests ?? seedGuests
+        servings = snapshot?.servings.map { Swift.max(1, Swift.min(12, $0)) } ?? 2
     }
 
     var activeGuests: [TasteMember] { guests.filter(\.isActive) }
@@ -78,6 +86,7 @@ final class HouseholdStore {
     func signature(you: TasteProfile) -> Int {
         var hasher = Hasher()
         hasher.combine(you)
+        hasher.combine(servings)
         for guest in activeGuests {
             hasher.combine(guest.id)
             hasher.combine(guest.profile)
@@ -92,6 +101,6 @@ final class HouseholdStore {
     }
 
     private func persist() {
-        LocalStore.save(Snapshot(myName: myName, guests: guests), to: fileName)
+        LocalStore.save(Snapshot(myName: myName, guests: guests, servings: servings), to: fileName)
     }
 }

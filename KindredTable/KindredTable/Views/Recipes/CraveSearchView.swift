@@ -249,7 +249,8 @@ struct CraveSearchView: View {
                 let recipes = try await service.makeMeal(
                     request,
                     from: pantry.ingredients,
-                    profile: household.effectiveProfile(you: profileStore.profile)
+                    profile: household.effectiveProfile(you: profileStore.profile),
+                    servings: household.servings
                 )
                 phase = .results(recipes)
             } catch {

@@ -60,7 +60,8 @@ struct GeminiRecipeService {
     func suggestRecipes(
         from ingredients: [Ingredient],
         profile: TasteProfile,
-        count: Int = 6
+        count: Int = 6,
+        servings: Int? = nil
     ) async throws -> [Recipe] {
         guard !ingredients.isEmpty else { throw RecipeServiceError.emptyPantry }
 
@@ -69,7 +70,7 @@ struct GeminiRecipeService {
             return SampleData.sampleRecipes(for: ingredients, profile: profile, count: count)
         }
 
-        let prompt = Self.buildPrompt(ingredients: ingredients, profile: profile, count: count)
+        let prompt = Self.buildPrompt(ingredients: ingredients, profile: profile, count: count, servings: servings)
         let request = try makeRequest(prompt: prompt, apiKey: apiKey)
 
         let (data, response) = try await session.data(for: request)
@@ -99,13 +100,14 @@ struct GeminiRecipeService {
         dish: String,
         from ingredients: [Ingredient],
         profile: TasteProfile,
-        count: Int = 2
+        count: Int = 2,
+        servings: Int? = nil
     ) async throws -> [Recipe] {
         let wanted = dish.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !wanted.isEmpty else { throw RecipeServiceError.noRecipes }
         guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
 
-        let prompt = Self.buildPrompt(ingredients: ingredients, profile: profile, count: count, craving: wanted)
+        let prompt = Self.buildPrompt(ingredients: ingredients, profile: profile, count: count, craving: wanted, servings: servings)
         let request = try makeRequest(prompt: prompt, apiKey: apiKey)
 
         let (data, response) = try await session.data(for: request)
@@ -130,7 +132,8 @@ struct GeminiRecipeService {
         _ request: MealRequest,
         from ingredients: [Ingredient],
         profile: TasteProfile,
-        count: Int = 3
+        count: Int = 3,
+        servings: Int? = nil
     ) async throws -> [Recipe] {
         guard !request.isEmpty else { throw RecipeServiceError.noRecipes }
         guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
@@ -144,7 +147,8 @@ struct GeminiRecipeService {
             includeIngredients: request.includeIngredients,
             course: request.course.promptPhrase,
             useEquipment: request.equipment,
-            preferOnHand: request.preferOnHand
+            preferOnHand: request.preferOnHand,
+            servings: servings
         )
         let req = try makeRequest(prompt: prompt, apiKey: apiKey)
         let (data, response) = try await session.data(for: req)
@@ -266,7 +270,8 @@ struct GeminiRecipeService {
         includeIngredients: [String] = [],
         course: String? = nil,
         useEquipment: [String] = [],
-        preferOnHand: Bool = false
+        preferOnHand: Bool = false,
+        servings: Int? = nil
     ) -> String {
         let onHand = ingredients
             .map { item -> String in
@@ -283,6 +288,9 @@ struct GeminiRecipeService {
         } else {
             lines.append("You are the recipe-matching engine for Kindred Kitchen, an app that suggests meals from what a home cook already has.")
             lines.append("Suggest \(count) meal ideas that lean heavily on the ingredients on hand and fit the cook's taste profile.")
+        }
+        if let servings, servings > 0 {
+            lines.append("SERVINGS: cook for exactly \(servings) \(servings == 1 ? "person" : "people"). Set servings=\(servings) on every recipe and scale ALL ingredient amounts to feed \(servings) (do not default to 2 or 4). Portion the protein and sides accordingly.")
         }
         if !includeIngredients.isEmpty {
             lines.append("MUST USE: build the dish around these ingredients the cook chose — \(includeIngredients.joined(separator: ", ")). They should be central to the dish, not garnishes.")
