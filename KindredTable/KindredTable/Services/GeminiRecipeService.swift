@@ -123,6 +123,43 @@ struct GeminiRecipeService {
         return safe.sorted { $0.matchScore > $1.matchScore }
     }
 
+    /// Flexible recipe request: build around chosen ingredients, a course
+    /// (side, soup, salad…), and specific equipment, optionally leaning on the
+    /// pantry. Reuses the same rich schema + dietary hard rules.
+    func makeMeal(
+        _ request: MealRequest,
+        from ingredients: [Ingredient],
+        profile: TasteProfile,
+        count: Int = 3
+    ) async throws -> [Recipe] {
+        guard !request.isEmpty else { throw RecipeServiceError.noRecipes }
+        guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
+
+        let dish = request.dish.trimmingCharacters(in: .whitespacesAndNewlines)
+        let prompt = Self.buildPrompt(
+            ingredients: ingredients,
+            profile: profile,
+            count: count,
+            craving: dish.isEmpty ? nil : dish,
+            includeIngredients: request.includeIngredients,
+            course: request.course.promptPhrase,
+            useEquipment: request.equipment,
+            preferOnHand: request.preferOnHand
+        )
+        let req = try makeRequest(prompt: prompt, apiKey: apiKey)
+        let (data, response) = try await session.data(for: req)
+        guard let http = response as? HTTPURLResponse else {
+            throw RecipeServiceError.badResponse(status: -1, body: "")
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            throw RecipeServiceError.badResponse(status: http.statusCode, body: String(data: data, encoding: .utf8) ?? "")
+        }
+        let text = try Self.extractText(from: data)
+        let recipes = try Self.decodeRecipes(from: text)
+        guard !recipes.isEmpty else { throw RecipeServiceError.noRecipes }
+        return recipes.sorted { $0.matchScore > $1.matchScore }
+    }
+
     /// Identify food ingredients in a photo using Gemini's vision capability.
     /// Far more accurate on cluttered fridge/pantry shots than the on-device
     /// classifier, at the cost of sending the image to the model.
@@ -221,7 +258,16 @@ struct GeminiRecipeService {
 
     // MARK: Prompt
 
-    static func buildPrompt(ingredients: [Ingredient], profile: TasteProfile, count: Int, craving: String? = nil) -> String {
+    static func buildPrompt(
+        ingredients: [Ingredient],
+        profile: TasteProfile,
+        count: Int,
+        craving: String? = nil,
+        includeIngredients: [String] = [],
+        course: String? = nil,
+        useEquipment: [String] = [],
+        preferOnHand: Bool = false
+    ) -> String {
         let onHand = ingredients
             .map { item -> String in
                 if let q = item.quantity, !q.isEmpty { return "\(item.name) (\(q))" }
@@ -237,6 +283,18 @@ struct GeminiRecipeService {
         } else {
             lines.append("You are the recipe-matching engine for Kindred Kitchen, an app that suggests meals from what a home cook already has.")
             lines.append("Suggest \(count) meal ideas that lean heavily on the ingredients on hand and fit the cook's taste profile.")
+        }
+        if !includeIngredients.isEmpty {
+            lines.append("MUST USE: build the dish around these ingredients the cook chose — \(includeIngredients.joined(separator: ", ")). They should be central to the dish, not garnishes.")
+        }
+        if let course, !course.isEmpty {
+            lines.append("COURSE: every result must be \(course).")
+        }
+        if !useEquipment.isEmpty {
+            lines.append("EQUIPMENT: prepare it primarily using the cook's \(useEquipment.joined(separator: ", ")); write the steps for that equipment with exact settings and times.")
+        }
+        if preferOnHand {
+            lines.append("Lean heavily on the ON HAND ingredients and keep new purchases (haveIt=false) to a minimum.")
         }
         lines.append("")
         lines.append("INGREDIENTS ON HAND: \(onHand)")

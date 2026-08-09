@@ -47,7 +47,7 @@ struct RecipeFeedView: View {
                     Button { showCrave = true } label: {
                         Image(systemName: "magnifyingglass")
                     }
-                    .accessibilityLabel("Cook a craving")
+                    .accessibilityLabel("Make a meal")
                 }
             }
             .task {
