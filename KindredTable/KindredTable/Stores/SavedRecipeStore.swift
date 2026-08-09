@@ -32,6 +32,27 @@ final class SavedRecipeStore {
         }
     }
 
+    /// Add a recipe to the cookbook (used for photo imports). No-ops if already
+    /// present by id.
+    func add(_ recipe: Recipe) {
+        guard !saved.contains(where: { $0.id == recipe.id }) else { return }
+        saved.insert(recipe, at: 0)
+        persist()
+    }
+
+    /// Replace an existing recipe in place (e.g. after editing an import's
+    /// attribution), keeping its position.
+    func update(_ recipe: Recipe) {
+        guard let idx = saved.firstIndex(where: { $0.id == recipe.id }) else { return }
+        saved[idx] = recipe
+        persist()
+    }
+
+    /// Recipes the cook photographed in, newest first.
+    var imported: [Recipe] { saved.filter { $0.source.isImported } }
+    /// Recipes matched/made by the app.
+    var fromApp: [Recipe] { saved.filter { !$0.source.isImported } }
+
     func remove(_ recipe: Recipe) {
         saved.removeAll { $0.id == recipe.id || $0.title == recipe.title }
         persist()

@@ -32,7 +32,7 @@ struct RootView: View {
     }
 }
 
-/// The four core surfaces: capture, pantry, recipe feed, and saved.
+/// The five core surfaces: capture, pantry, recipe feed, cookbook, and grocery.
 struct RootTabView: View {
     @Environment(PantryStore.self) private var pantry
     @Environment(SavedRecipeStore.self) private var saved
@@ -40,7 +40,7 @@ struct RootTabView: View {
 
     @State private var selection: Tab = .capture
 
-    enum Tab: Hashable { case capture, pantry, recipes, saved, grocery }
+    enum Tab: Hashable { case capture, pantry, recipes, cookbook, grocery }
 
     var body: some View {
         TabView(selection: $selection) {
@@ -57,10 +57,10 @@ struct RootTabView: View {
                 .tabItem { Label("Recipes", systemImage: "fork.knife") }
                 .tag(Tab.recipes)
 
-            SavedRecipesView()
-                .tabItem { Label("Saved", systemImage: "bookmark.fill") }
+            CookbookView()
+                .tabItem { Label("Cookbook", systemImage: "books.vertical.fill") }
                 .badge(saved.saved.count)
-                .tag(Tab.saved)
+                .tag(Tab.cookbook)
 
             GroceryListView()
                 .tabItem { Label("Grocery", systemImage: "cart.fill") }

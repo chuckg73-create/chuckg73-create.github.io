@@ -11,6 +11,17 @@ struct RecipeDetailView: View {
     @State private var keepAwake = false
     @State private var showCookMode = false
     @State private var showPlan = false
+    /// Target servings for on-the-fly scaling; starts at the recipe's own yield.
+    @State private var displayServings: Int
+
+    init(recipe: Recipe) {
+        self.recipe = recipe
+        _displayServings = State(initialValue: max(1, recipe.servings))
+    }
+
+    /// The recipe with amounts scaled to `displayServings` (identity when equal).
+    private var displayed: Recipe { RecipeScaler.scaled(recipe, to: displayServings) }
+    private var isScaled: Bool { displayServings != max(1, recipe.servings) }
 
     var body: some View {
         ZStack {
@@ -60,12 +71,22 @@ struct RecipeDetailView: View {
                 Text(recipe.title)
                     .font(.title).fontWeight(.bold)
                 Spacer()
-                MatchBadge(score: recipe.matchScore)
+                if recipe.source.isImported {
+                    Image(systemName: "heart.text.square.fill")
+                        .font(.title2).foregroundStyle(KindredTheme.coral)
+                } else {
+                    MatchBadge(score: recipe.matchScore)
+                }
+            }
+            if recipe.source.isImported, !recipe.attribution.isEmpty {
+                Label(recipe.attribution, systemImage: "quote.opening")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(KindredTheme.coral)
             }
             Text(recipe.summary)
                 .foregroundStyle(KindredTheme.subtext)
             HStack(spacing: 14) {
-                Label("Serves \(recipe.servings)", systemImage: "person.2.fill")
+                Label("Serves \(displayed.servings)", systemImage: "person.2.fill")
                 Label("\(recipe.totalMinutes) min", systemImage: "clock")
                 Label(recipe.difficulty.title, systemImage: "gauge.with.dots.needle.33percent")
             }
@@ -119,22 +140,18 @@ struct RecipeDetailView: View {
     private var ingredientsCard: some View {
         KindredCard {
             VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    SectionHeader(label: "Ingredients")
-                    Spacer()
-                    Text("Serves \(recipe.servings)")
-                        .font(.caption).foregroundStyle(KindredTheme.faint)
-                }
-                ForEach(recipe.ingredients, id: \.self) { ing in
+                SectionHeader(label: "Ingredients")
+                scaleControl
+                ForEach(displayed.ingredients, id: \.self) { ing in
                     ingredientRow(ing)
                 }
-                if !recipe.needsToBuy.isEmpty {
+                if !displayed.needsToBuy.isEmpty {
                     Button {
-                        grocery.addMany(recipe.needsToBuy)
+                        grocery.addMany(displayed.needsToBuy)
                         withAnimation { addedToList = true }
                     } label: {
                         Label(
-                            addedToList ? "Added to grocery list" : "Add \(recipe.needsToBuy.count) to grocery list",
+                            addedToList ? "Added to grocery list" : "Add \(displayed.needsToBuy.count) to grocery list",
                             systemImage: addedToList ? "checkmark.circle.fill" : "cart.badge.plus"
                         )
                         .font(.subheadline).fontWeight(.medium)
@@ -145,6 +162,60 @@ struct RecipeDetailView: View {
                 }
             }
         }
+    }
+
+    /// Scale-to-servings control: amounts rescale live, on-device. The heart of
+    /// cooking Mom's 6-serving recipe for just the two of you.
+    private var scaleControl: some View {
+        HStack(spacing: 10) {
+            Label("Scale to", systemImage: "slider.horizontal.3")
+                .font(.subheadline).foregroundStyle(KindredTheme.subtext)
+            Spacer()
+            HStack(spacing: 14) {
+                scaleStep(system: "minus") {
+                    displayServings = max(1, displayServings - 1)
+                }
+                .disabled(displayServings <= 1)
+                Text("\(displayServings)")
+                    .font(.headline.monospacedDigit()).foregroundStyle(KindredTheme.text)
+                    .frame(minWidth: 20).contentTransition(.numericText())
+                scaleStep(system: "plus") {
+                    displayServings = min(24, displayServings + 1)
+                }
+                .disabled(displayServings >= 24)
+            }
+        }
+        .padding(.vertical, 10).padding(.horizontal, 12)
+        .background(KindredTheme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(alignment: .bottomLeading) {
+            if isScaled {
+                Text("Scaled from the original \(recipe.servings)")
+                    .font(.caption2).foregroundStyle(KindredTheme.faint)
+                    .padding(.leading, 12).padding(.bottom, -16)
+            }
+        }
+        .padding(.bottom, isScaled ? 16 : 0)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Scale to \(displayServings) servings")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment: displayServings = min(24, displayServings + 1)
+            case .decrement: displayServings = max(1, displayServings - 1)
+            default: break
+            }
+        }
+    }
+
+    private func scaleStep(system: String, action: @escaping () -> Void) -> some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.15)) { action() }
+        } label: {
+            Image(systemName: system)
+                .font(.subheadline.weight(.bold)).foregroundStyle(KindredTheme.accent)
+                .frame(width: 30, height: 30)
+                .background(KindredTheme.accent.opacity(0.14), in: Circle())
+        }
+        .buttonStyle(.plain)
     }
 
     private func ingredientRow(_ ing: RecipeIngredient) -> some View {

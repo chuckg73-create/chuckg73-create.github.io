@@ -164,6 +164,30 @@ struct GeminiRecipeService {
         return recipes.sorted { $0.matchScore > $1.matchScore }
     }
 
+    /// Read a photographed recipe (a handwritten card, a magazine clipping, a
+    /// printout) into a structured Recipe for the cook's cookbook. Transcribes
+    /// faithfully — it does not invent or substitute — and marks the result as
+    /// imported so it sits alongside the app's own finds.
+    func importRecipe(from jpegData: Data) async throws -> Recipe {
+        guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
+
+        let request = try makeRecipeVisionRequest(jpegData: jpegData, apiKey: apiKey)
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw RecipeServiceError.badResponse(status: -1, body: "")
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            throw RecipeServiceError.badResponse(status: http.statusCode, body: body)
+        }
+        let text = try Self.extractText(from: data)
+        let recipes = try Self.decodeRecipes(from: text)
+        guard var recipe = recipes.first else { throw RecipeServiceError.noRecipes }
+        recipe.source = .imported
+        recipe.matchScore = 0   // an imported recipe isn't scored against the pantry
+        return recipe
+    }
+
     /// Identify food ingredients in a photo using Gemini's vision capability.
     /// Far more accurate on cluttered fridge/pantry shots than the on-device
     /// classifier, at the cost of sending the image to the model.
@@ -220,6 +244,74 @@ struct GeminiRecipeService {
                 temperature: 0.2,
                 topP: 0.95,
                 maxOutputTokens: 1024,
+                responseMimeType: "application/json",
+                thinkingConfig: .init(thinkingBudget: 0)
+            )
+        )
+        request.httpBody = try JSONEncoder().encode(payload)
+        return request
+    }
+
+    private func makeRecipeVisionRequest(jpegData: Data, apiKey: String) throws -> URLRequest {
+        var components = URLComponents(
+            string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent"
+        )!
+        components.queryItems = [URLQueryItem(name: "key", value: apiKey)]
+
+        var request = URLRequest(url: components.url!)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 45
+
+        let prompt = """
+        This photo shows a recipe — it may be handwritten (a family recipe card), \
+        a magazine clipping, a cookbook page, or a printout. Transcribe it FAITHFULLY \
+        into structured JSON. Do NOT invent, substitute, or "improve" anything: use \
+        the exact ingredients, amounts, and steps as written. Rules:
+        - Keep every ingredient amount exactly as written ("1 1/2 cups", "1 stick", \
+        "to taste"). Put the amount in `amount` and the item in `name`.
+        - Set every ingredient's `haveIt` to false.
+        - Preserve the method as an ordered list of `steps`, lightly cleaned up for \
+        readability (expand obvious abbreviations like tsp/tbsp, keep temperatures and times).
+        - If a title is written, use it; otherwise create a short descriptive one.
+        - Read the servings/yield if stated; otherwise estimate a sensible integer.
+        - `tips` may capture any notes written on the card ("Grandma's note: …"); else [].
+        - `timeline` may be []. `matchScore` = 0. `mealType` = your best guess.
+        - If the image is not a readable recipe, return {"recipes": []}.
+        Respond with ONLY this JSON, no markdown:
+        {
+          "recipes": [
+            {
+              "title": "string",
+              "summary": "one-sentence description",
+              "mealType": "breakfast|lunch|dinner|snack|dessert",
+              "servings": 4,
+              "prepMinutes": 0,
+              "cookMinutes": 0,
+              "ingredients": [ { "name": "flour", "amount": "2 cups", "haveIt": false } ],
+              "steps": ["step 1", "step 2"],
+              "tips": [],
+              "difficulty": "easy|medium|involved",
+              "tags": ["tag"],
+              "matchScore": 0,
+              "whyYoullLikeIt": "",
+              "timeline": []
+            }
+          ]
+        }
+        """
+
+        let payload = GeminiRequest(
+            contents: [
+                .init(role: "user", parts: [
+                    .init(text: prompt),
+                    .init(inlineData: .init(mimeType: "image/jpeg", data: jpegData.base64EncodedString())),
+                ])
+            ],
+            generationConfig: .init(
+                temperature: 0.1,
+                topP: 0.95,
+                maxOutputTokens: 8192,
                 responseMimeType: "application/json",
                 thinkingConfig: .init(thinkingBudget: 0)
             )

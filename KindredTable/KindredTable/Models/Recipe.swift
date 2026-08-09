@@ -20,12 +20,25 @@ struct TimelineTask: Codable, Hashable {
     var minutesBeforeServing: Int
 }
 
+/// Where a recipe came from: matched by the app, or added by the cook from a
+/// photo of a recipe card (their mom's, a magazine clipping…).
+enum RecipeSource: String, Codable, Hashable {
+    case app        // suggested / craved / made by Kindred Kitchen
+    case imported   // photographed & parsed from the cook's own recipe
+
+    var isImported: Bool { self == .imported }
+}
+
 /// A meal suggestion produced by the recipe-matching model.
 struct Recipe: Identifiable, Codable, Hashable {
     var id: UUID
     var title: String
     var summary: String
     var mealType: MealType
+    /// How this recipe entered the cookbook.
+    var source: RecipeSource
+    /// Optional attribution for an imported recipe — "Mom's", "Grandma Rose".
+    var sourceNote: String
     /// Full ingredient list with amounts; `haveIt` marks pantry items.
     var ingredients: [RecipeIngredient]
     /// Numbered method steps — written for this cook's equipment where it helps.
@@ -50,11 +63,20 @@ struct Recipe: Identifiable, Codable, Hashable {
     var needsToBuy: [String] { ingredients.filter { !$0.haveIt }.map(\.name) }
     var totalMinutes: Int { max(0, prepMinutes) + max(0, cookMinutes) }
 
+    /// A friendly label for where it came from — used on cards and detail.
+    var attribution: String {
+        let note = sourceNote.trimmingCharacters(in: .whitespacesAndNewlines)
+        if source.isImported { return note.isEmpty ? "Your recipe" : "\(note) recipe" }
+        return ""
+    }
+
     init(
         id: UUID = UUID(),
         title: String,
         summary: String,
         mealType: MealType = .dinner,
+        source: RecipeSource = .app,
+        sourceNote: String = "",
         ingredients: [RecipeIngredient] = [],
         steps: [String] = [],
         tips: [String] = [],
@@ -71,6 +93,8 @@ struct Recipe: Identifiable, Codable, Hashable {
         self.title = title
         self.summary = summary
         self.mealType = mealType
+        self.source = source
+        self.sourceNote = sourceNote
         self.ingredients = ingredients
         self.steps = steps
         self.tips = tips
@@ -85,7 +109,7 @@ struct Recipe: Identifiable, Codable, Hashable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, title, summary, mealType, ingredients, steps, tips
+        case id, title, summary, mealType, source, sourceNote, ingredients, steps, tips
         case servings, prepMinutes, cookMinutes, difficulty, tags, matchScore, whyYoullLikeIt, timeline
     }
 
@@ -102,6 +126,8 @@ struct Recipe: Identifiable, Codable, Hashable {
         title = try c.decodeIfPresent(String.self, forKey: .title) ?? ""
         summary = try c.decodeIfPresent(String.self, forKey: .summary) ?? ""
         mealType = try c.decodeIfPresent(MealType.self, forKey: .mealType) ?? .dinner
+        source = try c.decodeIfPresent(RecipeSource.self, forKey: .source) ?? .app
+        sourceNote = try c.decodeIfPresent(String.self, forKey: .sourceNote) ?? ""
         steps = try c.decodeIfPresent([String].self, forKey: .steps) ?? []
         tips = try c.decodeIfPresent([String].self, forKey: .tips) ?? []
         servings = try c.decodeIfPresent(Int.self, forKey: .servings) ?? 2
