@@ -349,6 +349,7 @@ struct GeminiRecipeService {
         lines.append("- 'matchScore' is an integer 0-100 reflecting fit to pantry AND taste.")
         lines.append("- 'whyYoullLikeIt' is one short sentence referencing the cook's taste.")
         lines.append("")
+        lines.append("- 'timeline' is a back-timed cooking schedule: for EACH key task, give how many minutes BEFORE serving to start it, so that ALL components (main, sides, sauces) finish together at the same moment. Include long-lead tasks (marinate, smoke, preheat, thaw, rest) with larger values and account for prep. The app sorts them, so order doesn't matter.")
         lines.append("Respond with ONLY a JSON object of this exact shape, no markdown:")
         lines.append("""
         {
@@ -369,7 +370,12 @@ struct GeminiRecipeService {
               "difficulty": "easy|medium|involved",
               "tags": ["tag", ...],
               "matchScore": 0,
-              "whyYoullLikeIt": "string"
+              "whyYoullLikeIt": "string",
+              "timeline": [
+                { "task": "Sear the steak, then rest", "minutesBeforeServing": 15 },
+                { "task": "Start the grits", "minutesBeforeServing": 30 },
+                { "task": "Roast the asparagus", "minutesBeforeServing": 20 }
+              ]
             }
           ]
         }
@@ -516,6 +522,7 @@ private struct RecipePayload: Decodable {
         var tags: [String]?
         var matchScore: Int?
         var whyYoullLikeIt: String?
+        var timeline: [TL]?
         // Legacy fields tolerated in case the model omits `ingredients`.
         var usesOnHand: [String]?
         var needsToBuy: [String]?
@@ -524,6 +531,11 @@ private struct RecipePayload: Decodable {
             var name: String
             var amount: String?
             var haveIt: Bool?
+        }
+
+        struct TL: Decodable {
+            var task: String
+            var minutesBeforeServing: Int?
         }
 
         func toRecipe() -> Recipe {
@@ -547,7 +559,12 @@ private struct RecipePayload: Decodable {
                 difficulty: Difficulty(rawValue: (difficulty ?? "easy").lowercased()) ?? .easy,
                 tags: tags ?? [],
                 matchScore: min(100, max(0, matchScore ?? 0)),
-                whyYoullLikeIt: whyYoullLikeIt ?? ""
+                whyYoullLikeIt: whyYoullLikeIt ?? "",
+                timeline: (timeline ?? []).compactMap { t in
+                    t.task.trimmingCharacters(in: .whitespaces).isEmpty
+                        ? nil
+                        : TimelineTask(task: t.task, minutesBeforeServing: max(0, t.minutesBeforeServing ?? 0))
+                }
             )
         }
     }

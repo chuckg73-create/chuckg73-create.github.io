@@ -13,6 +13,13 @@ struct RecipeIngredient: Codable, Hashable {
     }
 }
 
+/// One entry in a recipe's back-timed cooking schedule: what to do and how many
+/// minutes before serving to do it (so "put the turkey in the smoker" can be 240).
+struct TimelineTask: Codable, Hashable {
+    var task: String
+    var minutesBeforeServing: Int
+}
+
 /// A meal suggestion produced by the recipe-matching model.
 struct Recipe: Identifiable, Codable, Hashable {
     var id: UUID
@@ -34,6 +41,8 @@ struct Recipe: Identifiable, Codable, Hashable {
     var matchScore: Int
     /// Short note explaining why this suits the user's taste profile.
     var whyYoullLikeIt: String
+    /// Optional back-timed cooking schedule for "cook by a time" reminders.
+    var timeline: [TimelineTask]
 
     /// Pantry item names — derived from `ingredients`.
     var usesOnHand: [String] { ingredients.filter(\.haveIt).map(\.name) }
@@ -55,7 +64,8 @@ struct Recipe: Identifiable, Codable, Hashable {
         difficulty: Difficulty = .easy,
         tags: [String] = [],
         matchScore: Int = 0,
-        whyYoullLikeIt: String = ""
+        whyYoullLikeIt: String = "",
+        timeline: [TimelineTask] = []
     ) {
         self.id = id
         self.title = title
@@ -71,11 +81,12 @@ struct Recipe: Identifiable, Codable, Hashable {
         self.tags = tags
         self.matchScore = matchScore
         self.whyYoullLikeIt = whyYoullLikeIt
+        self.timeline = timeline
     }
 
     enum CodingKeys: String, CodingKey {
         case id, title, summary, mealType, ingredients, steps, tips
-        case servings, prepMinutes, cookMinutes, difficulty, tags, matchScore, whyYoullLikeIt
+        case servings, prepMinutes, cookMinutes, difficulty, tags, matchScore, whyYoullLikeIt, timeline
     }
 
     private enum LegacyKeys: String, CodingKey {
@@ -100,6 +111,7 @@ struct Recipe: Identifiable, Codable, Hashable {
         tags = try c.decodeIfPresent([String].self, forKey: .tags) ?? []
         matchScore = try c.decodeIfPresent(Int.self, forKey: .matchScore) ?? 0
         whyYoullLikeIt = try c.decodeIfPresent(String.self, forKey: .whyYoullLikeIt) ?? ""
+        timeline = try c.decodeIfPresent([TimelineTask].self, forKey: .timeline) ?? []
 
         if let list = try c.decodeIfPresent([RecipeIngredient].self, forKey: .ingredients), !list.isEmpty {
             ingredients = list

@@ -10,6 +10,7 @@ struct RecipeDetailView: View {
     /// Keeps the display awake while cooking (no auto-lock).
     @State private var keepAwake = false
     @State private var showCookMode = false
+    @State private var showPlan = false
 
     var body: some View {
         ZStack {
@@ -18,6 +19,7 @@ struct RecipeDetailView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     header
                     if !recipe.steps.isEmpty { cookModeButton }
+                    if !recipe.steps.isEmpty { planButton }
                     if !recipe.whyYoullLikeIt.isEmpty { whyCard }
                     ingredientsCard
                     stepsCard
@@ -35,6 +37,9 @@ struct RecipeDetailView: View {
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
         .fullScreenCover(isPresented: $showCookMode) {
             CookModeView(recipe: recipe)
+        }
+        .sheet(isPresented: $showPlan) {
+            CookPlanView(recipe: recipe)
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -72,6 +77,18 @@ struct RecipeDetailView: View {
                     .foregroundStyle(KindredTheme.faint)
             }
         }
+    }
+
+    private var planButton: some View {
+        Button { showPlan = true } label: {
+            Label("Cook by a time — schedule reminders", systemImage: "bell.badge.fill")
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .foregroundStyle(KindredTheme.accent)
+                .background(KindredTheme.accent.opacity(0.14), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     private var cookModeButton: some View {
