@@ -5,6 +5,7 @@ import SwiftUI
 struct TasteProfileView: View {
     @Environment(ProfileStore.self) private var profileStore
     @Environment(\.dismiss) private var dismiss
+    @State private var showEquipmentScan = false
 
     var body: some View {
         @Bindable var store = profileStore
@@ -65,6 +66,7 @@ struct TasteProfileView: View {
                 Button("Done") { dismiss() }.fontWeight(.semibold)
             }
         }
+        .sheet(isPresented: $showEquipmentScan) { EquipmentScanView() }
     }
 
     private func dietSection(store: ProfileStore) -> some View {
@@ -91,6 +93,22 @@ struct TasteProfileView: View {
     private func equipmentSection(store storeRef: ProfileStore) -> some View {
         @Bindable var store = storeRef
         return Section {
+            Button {
+                showEquipmentScan = true
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "camera.viewfinder")
+                        .foregroundStyle(KindredTheme.accent)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Scan my kitchen").foregroundStyle(KindredTheme.text)
+                            .font(.subheadline.weight(.semibold))
+                        Text("Snap a photo — we'll spot your appliances")
+                            .font(.caption).foregroundStyle(KindredTheme.subtext)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.caption).foregroundStyle(KindredTheme.faint)
+                }
+            }
             // Quick-add chips for common appliances not already selected.
             let unused = TasteProfile.commonEquipment.filter { item in
                 !store.profile.equipment.contains { $0.caseInsensitiveCompare(item) == .orderedSame }

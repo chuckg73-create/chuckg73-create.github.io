@@ -264,7 +264,45 @@ struct GeminiRecipeService {
     func identifyIngredients(in jpegData: Data) async throws -> [Ingredient] {
         guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
 
-        let request = try makeVisionRequest(jpegData: jpegData, apiKey: apiKey)
+        let prompt = """
+        This is a photo of a fridge, freezer, or pantry. List every distinct food \
+        ingredient you can identify. Use simple grocery names (e.g. "eggs", \
+        "cheddar cheese", "spinach", "ground beef", "ketchup"). No brand names, no \
+        quantities, no packaging words, no duplicates. If you cannot identify any \
+        food, return an empty list.
+        Respond with ONLY this JSON: {"items": ["name", ...]}
+        """
+        let names = try await runVision(prompt: prompt, jpegData: jpegData, apiKey: apiKey)
+        return names.map {
+            Ingredient(name: $0, category: FoodVocabulary.categorize($0), confidence: 0.9)
+        }
+    }
+
+    /// Identify cooking equipment/appliances in a photo of the cook's kitchen —
+    /// so recipe steps can be written for exactly what they own (their rice
+    /// cooker, air fryer, smoker) instead of a hand-typed list.
+    func identifyEquipment(in jpegData: Data) async throws -> [String] {
+        guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
+
+        let prompt = """
+        This is a photo of a kitchen. List the distinct COOKING EQUIPMENT and \
+        APPLIANCES you can identify that affect how food is cooked — e.g. "Oven", \
+        "Stovetop", "Air fryer", "Instant Pot", "Slow cooker", "Rice cooker", \
+        "Stand mixer", "Blender", "Food processor", "Cast iron skillet", \
+        "Grill", "Smoker", "Sous vide", "Toaster oven", "Microwave", "Dutch oven", \
+        "Wok". Use short generic names (no brands — say "Pressure cooker" not \
+        "Instant Pot Duo"; "Grill" or "Smoker" not "Traeger"). Only list what you \
+        can actually see. No cookware that doesn't change method (plates, cups), no \
+        duplicates. If you can't identify any, return an empty list.
+        Respond with ONLY this JSON: {"items": ["name", ...]}
+        """
+        return try await runVision(prompt: prompt, jpegData: jpegData, apiKey: apiKey)
+    }
+
+    /// Shared vision round-trip: POST a prompt + image, decode a `{"items":[…]}`
+    /// string list (trimmed, de-duplicated).
+    private func runVision(prompt: String, jpegData: Data, apiKey: String) async throws -> [String] {
+        let request = try makeVisionRequest(jpegData: jpegData, apiKey: apiKey, prompt: prompt)
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else {
             throw RecipeServiceError.badResponse(status: -1, body: "")
@@ -273,17 +311,13 @@ struct GeminiRecipeService {
             let body = String(data: data, encoding: .utf8) ?? ""
             throw RecipeServiceError.badResponse(status: http.statusCode, body: body)
         }
-
         let text = try Self.extractText(from: data)
-        let names = try Self.decodeIngredientNames(from: text)
-        return names.map {
-            Ingredient(name: $0, category: FoodVocabulary.categorize($0), confidence: 0.9)
-        }
+        return try Self.decodeStringList(from: text)
     }
 
     // MARK: Request construction
 
-    private func makeVisionRequest(jpegData: Data, apiKey: String) throws -> URLRequest {
+    private func makeVisionRequest(jpegData: Data, apiKey: String, prompt: String) throws -> URLRequest {
         var components = URLComponents(
             string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent"
         )!
@@ -293,15 +327,6 @@ struct GeminiRecipeService {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 45
-
-        let prompt = """
-        This is a photo of a fridge, freezer, or pantry. List every distinct food \
-        ingredient you can identify. Use simple grocery names (e.g. "eggs", \
-        "cheddar cheese", "spinach", "ground beef", "ketchup"). No brand names, no \
-        quantities, no packaging words, no duplicates. If you cannot identify any \
-        food, return an empty list.
-        Respond with ONLY this JSON: {"ingredients": ["name", ...]}
-        """
 
         let payload = GeminiRequest(
             contents: [
@@ -587,10 +612,10 @@ struct GeminiRecipeService {
         }
     }
 
-    /// Decode the `{"ingredients": [...]}` payload from a vision response,
-    /// trimming and de-duplicating names.
-    static func decodeIngredientNames(from text: String) throws -> [String] {
-        struct Payload: Decodable { var ingredients: [String] }
+    /// Decode a `{"items": [...]}` (or legacy `{"ingredients": [...]}`) string
+    /// list from a vision response, trimming and de-duplicating.
+    static func decodeStringList(from text: String) throws -> [String] {
+        struct Payload: Decodable { var items: [String]?; var ingredients: [String]? }
         let json = sanitizedJSON(text)
         guard let data = json.data(using: .utf8) else {
             throw RecipeServiceError.decoding("not utf8")
@@ -599,7 +624,7 @@ struct GeminiRecipeService {
             let payload = try JSONDecoder().decode(Payload.self, from: data)
             var seen = Set<String>()
             var result: [String] = []
-            for raw in payload.ingredients {
+            for raw in (payload.items ?? payload.ingredients ?? []) {
                 let name = raw.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !name.isEmpty, seen.insert(name.lowercased()).inserted else { continue }
                 result.append(name)
