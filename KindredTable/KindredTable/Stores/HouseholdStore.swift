@@ -21,6 +21,9 @@ final class HouseholdStore {
     /// amounts (and the cook-by timeline). Defaults to 2; bump to 4 when the
     /// boys are home. Clamped to a sensible 1…12.
     var servings: Int { didSet { persist() } }
+    /// "Make it special" — biases suggestions toward a date-night-worthy dinner
+    /// (a nicer main, an elegant plate, a dessert + a drink pairing).
+    var specialOccasion: Bool { didSet { persist() } }
 
     static let servingsRange = 1...12
 
@@ -30,6 +33,7 @@ final class HouseholdStore {
         var myName: String
         var guests: [TasteMember]
         var servings: Int?
+        var specialOccasion: Bool?
     }
 
     init(seedGuests: [TasteMember] = []) {
@@ -37,6 +41,7 @@ final class HouseholdStore {
         myName = snapshot?.myName ?? "Me"
         guests = snapshot?.guests ?? seedGuests
         servings = snapshot?.servings.map { Swift.max(1, Swift.min(12, $0)) } ?? 2
+        specialOccasion = snapshot?.specialOccasion ?? false
     }
 
     var activeGuests: [TasteMember] { guests.filter(\.isActive) }
@@ -87,6 +92,7 @@ final class HouseholdStore {
         var hasher = Hasher()
         hasher.combine(you)
         hasher.combine(servings)
+        hasher.combine(specialOccasion)
         for guest in activeGuests {
             hasher.combine(guest.id)
             hasher.combine(guest.profile)
@@ -101,6 +107,6 @@ final class HouseholdStore {
     }
 
     private func persist() {
-        LocalStore.save(Snapshot(myName: myName, guests: guests, servings: servings), to: fileName)
+        LocalStore.save(Snapshot(myName: myName, guests: guests, servings: servings, specialOccasion: specialOccasion), to: fileName)
     }
 }

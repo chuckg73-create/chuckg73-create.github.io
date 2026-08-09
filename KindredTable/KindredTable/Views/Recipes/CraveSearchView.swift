@@ -250,7 +250,8 @@ struct CraveSearchView: View {
                     request,
                     from: pantry.ingredients,
                     profile: household.effectiveProfile(you: profileStore.profile),
-                    servings: household.servings
+                    servings: household.servings,
+                    special: household.specialOccasion
                 )
                 phase = .results(recipes)
             } catch {

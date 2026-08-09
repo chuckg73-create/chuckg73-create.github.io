@@ -61,7 +61,8 @@ struct GeminiRecipeService {
         from ingredients: [Ingredient],
         profile: TasteProfile,
         count: Int = 6,
-        servings: Int? = nil
+        servings: Int? = nil,
+        special: Bool = false
     ) async throws -> [Recipe] {
         guard !ingredients.isEmpty else { throw RecipeServiceError.emptyPantry }
 
@@ -70,7 +71,7 @@ struct GeminiRecipeService {
             return SampleData.sampleRecipes(for: ingredients, profile: profile, count: count)
         }
 
-        let prompt = Self.buildPrompt(ingredients: ingredients, profile: profile, count: count, servings: servings)
+        let prompt = Self.buildPrompt(ingredients: ingredients, profile: profile, count: count, servings: servings, special: special)
         let request = try makeRequest(prompt: prompt, apiKey: apiKey)
 
         let (data, response) = try await session.data(for: request)
@@ -133,7 +134,8 @@ struct GeminiRecipeService {
         from ingredients: [Ingredient],
         profile: TasteProfile,
         count: Int = 3,
-        servings: Int? = nil
+        servings: Int? = nil,
+        special: Bool = false
     ) async throws -> [Recipe] {
         guard !request.isEmpty else { throw RecipeServiceError.noRecipes }
         guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
@@ -148,7 +150,8 @@ struct GeminiRecipeService {
             course: request.course.promptPhrase,
             useEquipment: request.equipment,
             preferOnHand: request.preferOnHand,
-            servings: servings
+            servings: servings,
+            special: special
         )
         let req = try makeRequest(prompt: prompt, apiKey: apiKey)
         let (data, response) = try await session.data(for: req)
@@ -458,7 +461,8 @@ struct GeminiRecipeService {
         course: String? = nil,
         useEquipment: [String] = [],
         preferOnHand: Bool = false,
-        servings: Int? = nil
+        servings: Int? = nil,
+        special: Bool = false
     ) -> String {
         let onHand = ingredients
             .map { item -> String in
@@ -478,6 +482,9 @@ struct GeminiRecipeService {
         }
         if let servings, servings > 0 {
             lines.append("SERVINGS: cook for exactly \(servings) \(servings == 1 ? "person" : "people"). Set servings=\(servings) on every recipe and scale ALL ingredient amounts to feed \(servings) (do not default to 2 or 4). Portion the protein and sides accordingly.")
+        }
+        if special {
+            lines.append("SPECIAL OCCASION — this is a date-night dinner. Make it feel restaurant-special, not everyday: choose an impressive but achievable main (a nicer cut or protein), an elegant plate, and a little wow factor. In 'tips', include a simple dessert idea and a drink or wine pairing. Keep it romantic and memorable while still respecting the taste profile and hard dietary rules.")
         }
         if !includeIngredients.isEmpty {
             lines.append("MUST USE: build the dish around these ingredients the cook chose — \(includeIngredients.joined(separator: ", ")). They should be central to the dish, not garnishes.")

@@ -29,7 +29,7 @@ struct RecipeFeedView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings) }
+                        Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion) }
                     } label: {
                         Image(systemName: "arrow.clockwise")
                     }
@@ -51,11 +51,11 @@ struct RecipeFeedView: View {
                 }
             }
             .task {
-                await model.loadIfNeeded(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings)
+                await model.loadIfNeeded(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion)
             }
             .onChange(of: household.signature(you: profileStore.profile)) {
                 guard !pantry.isEmpty else { return }
-                Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings) }
+                Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion) }
             }
             .sheet(isPresented: $showHousehold) { HouseholdView() }
             .sheet(isPresented: $showCrave) { CraveSearchView() }
@@ -79,7 +79,7 @@ struct RecipeFeedView: View {
                     title: "Couldn't load ideas",
                     message: message,
                     actionTitle: "Try again",
-                    action: { Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings) } }
+                    action: { Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion) } }
                 )
             case .loaded(let recipes):
                 feed(recipes)
@@ -107,6 +107,7 @@ struct RecipeFeedView: View {
         return VStack(spacing: 0) {
             cookingForBar
             servesStepper
+            if household.servings <= 2 { specialToggle }
             mealTypeSelector(present: present, effective: effective)
             ScrollView {
                 LazyVStack(spacing: 16) {
@@ -127,7 +128,7 @@ struct RecipeFeedView: View {
                 .padding(20)
             }
             .refreshable {
-                await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings)
+                await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion)
             }
         }
     }
@@ -181,6 +182,27 @@ struct RecipeFeedView: View {
             default: break
             }
         }
+    }
+
+    /// "Make it special" — a date-night bias offered only when cooking for one
+    /// or two. Toggling regenerates the feed (folded into the household signature).
+    private var specialToggle: some View {
+        @Bindable var household = household
+        return Toggle(isOn: $household.specialOccasion) {
+            HStack(spacing: 8) {
+                Image(systemName: "sparkles")
+                    .font(.caption).foregroundStyle(household.specialOccasion ? KindredTheme.amber : KindredTheme.faint)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Make it special").font(.subheadline.weight(.semibold))
+                        .foregroundStyle(KindredTheme.text)
+                    Text("Date-night dinner — a nicer main, dessert & a pairing")
+                        .font(.caption2).foregroundStyle(KindredTheme.faint)
+                }
+            }
+        }
+        .tint(KindredTheme.accent)
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
     }
 
     private func stepButton(system: String, action: @escaping () -> Void) -> some View {
