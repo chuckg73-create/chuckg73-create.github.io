@@ -125,9 +125,7 @@ struct EquipmentScanView: View {
                               alignment: .leading, spacing: 8) {
                         ForEach(found, id: \.self) { item in
                             let isOn = selected.contains(item)
-                            let alreadyHave = profileStore.profile.equipment.contains {
-                                $0.caseInsensitiveCompare(item) == .orderedSame
-                            }
+                            let alreadyHave = EquipmentMatcher.contains(profileStore.profile.equipment, item)
                             Button {
                                 if isOn { selected.remove(item) } else { selected.insert(item) }
                             } label: {
@@ -202,10 +200,9 @@ struct EquipmentScanView: View {
             do {
                 let found = try await service.identifyEquipment(in: jpeg)
                 await MainActor.run {
-                    // Pre-select everything the cook doesn't already have.
-                    selected = Set(found.filter { item in
-                        !profileStore.profile.equipment.contains { $0.caseInsensitiveCompare(item) == .orderedSame }
-                    })
+                    // Pre-select everything the cook doesn't already have
+                    // (brand/synonym-aware, so "Smoker" ≠ new if they have "Traeger").
+                    selected = Set(found.filter { !EquipmentMatcher.contains(profileStore.profile.equipment, $0) })
                     phase = .review(found)
                 }
             } catch {
@@ -216,9 +213,8 @@ struct EquipmentScanView: View {
     }
 
     private func addSelected() {
-        for item in selected {
-            let exists = profileStore.profile.equipment.contains { $0.caseInsensitiveCompare(item) == .orderedSame }
-            if !exists { profileStore.profile.equipment.append(item) }
+        for item in selected where !EquipmentMatcher.contains(profileStore.profile.equipment, item) {
+            profileStore.profile.equipment.append(item)
         }
         dismiss()
     }

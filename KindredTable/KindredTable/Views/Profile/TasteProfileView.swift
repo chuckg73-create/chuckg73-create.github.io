@@ -111,7 +111,7 @@ struct TasteProfileView: View {
             }
             // Quick-add chips for common appliances not already selected.
             let unused = TasteProfile.commonEquipment.filter { item in
-                !store.profile.equipment.contains { $0.caseInsensitiveCompare(item) == .orderedSame }
+                !EquipmentMatcher.contains(store.profile.equipment, item)
             }
             if !unused.isEmpty {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 8, alignment: .leading)], alignment: .leading, spacing: 8) {
