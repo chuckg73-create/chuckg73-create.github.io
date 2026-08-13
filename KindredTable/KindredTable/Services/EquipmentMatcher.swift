@@ -33,58 +33,49 @@ enum EquipmentMatcher {
         return synonyms[s] ?? s
     }
 
-    /// Brand / synonym → generic canonical name. Keys are already normalised
-    /// (lower-case, single-spaced, no hyphens). Only high-confidence pairs — we'd
-    /// rather miss a merge than wrongly collapse two different tools.
+    /// Brand / synonym → generic canonical name.
+    ///
+    /// DELIBERATELY CONSERVATIVE. We only collapse two names when they're the
+    /// SAME TOOL with the same cooking capability — a genericized trademark
+    /// (Crock-Pot = slow cooker) or a wording variant (air-fryer = air fryer).
+    /// We do NOT flatten a brand that unlocks capabilities the generic lacks:
+    /// a Vitamix (hot soup, nut butter, milling) is not a "blender", a KitchenAid
+    /// with attachments is not just a "stand mixer" — those stay their own entry
+    /// so recipe steps can use what they can really do. When in doubt, keep them
+    /// distinct: a missed merge is a harmless extra chip; a wrong merge hides a
+    /// capability. Keys are already normalised (lower-case, single-spaced, no hyphens).
     private static let synonyms: [String: String] = [
-        // Smoker / pellet grill
+        // Slow cooker — "Crock-Pot" is the genericized trademark.
+        "crockpot": "slow cooker",
+        "crock pot": "slow cooker",
+        // Pressure cooker — pressure cooking is the defining function.
+        "instant pot": "pressure cooker",
+        "instapot": "pressure cooker",
+        "insta pot": "pressure cooker",
+        "multi cooker": "pressure cooker",
+        // Smoker — pellet smokers/grills; "smoker" keeps the smoking capability
+        // (unlike collapsing to a plain "grill").
         "traeger": "smoker",
         "pit boss": "smoker",
         "pellet smoker": "smoker",
         "pellet grill": "smoker",
         "smoker grill": "smoker",
-        // Pressure cooker / multi-cooker
-        "instant pot": "pressure cooker",
-        "instapot": "pressure cooker",
-        "insta pot": "pressure cooker",
-        "multi cooker": "pressure cooker",
-        // Slow cooker
-        "crockpot": "slow cooker",
-        "crock pot": "slow cooker",
-        // Blender
-        "vitamix": "blender",
-        "nutribullet": "blender",
-        "magic bullet": "blender",
-        "ninja blender": "blender",
-        // Stand mixer
-        "kitchenaid": "stand mixer",
-        "kitchen aid": "stand mixer",
-        "kitchenaid mixer": "stand mixer",
-        // Air fryer
+        // Air fryer — wording / single-purpose brand.
         "airfryer": "air fryer",
         "instant vortex": "air fryer",
-        // Sous vide
+        // Sous vide — single-purpose immersion circulators, no capability delta.
         "anova": "sous vide",
         "joule": "sous vide",
         "sous vide machine": "sous vide",
         "sous vide cooker": "sous vide",
         "immersion circulator": "sous vide",
-        // Dutch oven
-        "le creuset": "dutch oven",
-        // Cast iron
-        "cast iron skillet": "cast iron",
-        "cast iron pan": "cast iron",
-        "cast iron pot": "cast iron",
-        "cast iron": "cast iron",
-        // Griddle
-        "blackstone": "griddle",
-        "flat top": "griddle",
-        // Microwave
+        // Pure wording variants.
         "microwave oven": "microwave",
-        // Espresso
-        "nespresso": "espresso machine",
+        "flat top": "griddle",
         "espresso maker": "espresso machine",
-        // Rice cooker
         "rice maker": "rice cooker",
+        // NOTE: intentionally NOT merged — capability-bearing, keep distinct:
+        // Vitamix / Blendtec (≠ blender), KitchenAid (≠ stand mixer),
+        // Le Creuset (≠ generic dutch oven), Ninja/NutriBullet (own quirks).
     ]
 }
