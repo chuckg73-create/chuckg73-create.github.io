@@ -167,6 +167,70 @@ struct GeminiRecipeService {
         return recipes.sorted { $0.matchScore > $1.matchScore }
     }
 
+    /// Import a recipe from a web page's reduced text (JSON-LD + visible text).
+    /// Transcribes the single main recipe faithfully, ignores nav/ads/comments,
+    /// and marks it imported with the site as attribution.
+    func importRecipe(fromWebText pageText: String, sourceLabel: String) async throws -> Recipe {
+        guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
+
+        let prompt = Self.buildWebImportPrompt(pageText: pageText)
+        let request = try makeRequest(prompt: prompt, apiKey: apiKey)
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw RecipeServiceError.badResponse(status: -1, body: "")
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            throw RecipeServiceError.badResponse(status: http.statusCode, body: String(data: data, encoding: .utf8) ?? "")
+        }
+        let text = try Self.extractText(from: data)
+        let recipes = try Self.decodeRecipes(from: text)
+        guard var recipe = recipes.first else { throw RecipeServiceError.noRecipes }
+        recipe.source = .imported
+        recipe.matchScore = 0
+        if recipe.sourceNote.trimmingCharacters(in: .whitespaces).isEmpty {
+            recipe.sourceNote = sourceLabel
+        }
+        return recipe
+    }
+
+    static func buildWebImportPrompt(pageText: String) -> String {
+        var lines: [String] = []
+        lines.append("Below is text scraped from a recipe web page — it may include schema.org JSON-LD structured data, plus navigation, ads, and comments. Extract the SINGLE main recipe and return it as JSON. Rules:")
+        lines.append("- If schema.org/Recipe JSON-LD is present, PREFER it for the title, ingredients, steps, yield and times.")
+        lines.append("- Transcribe faithfully: keep ingredient amounts as written, don't invent or substitute. Ignore ads, related-recipe lists, comments, and navigation.")
+        lines.append("- Put each ingredient's amount in `amount` and the item in `name`; set every `haveIt` to false.")
+        lines.append("- Preserve the method as ordered `steps` (expand tsp/tbsp, keep temps and times). `tips` may capture author notes; else [].")
+        lines.append("- Read servings/yield if stated, else estimate an integer. `timeline`: []. `matchScore`: 0. `mealType`: best guess.")
+        lines.append("- If there is no real recipe on the page, return {\"recipes\": []}.")
+        lines.append("Respond with ONLY this JSON, no markdown:")
+        lines.append("""
+        {
+          "recipes": [
+            {
+              "title": "string",
+              "summary": "one-sentence description",
+              "mealType": "breakfast|lunch|dinner|snack|dessert",
+              "servings": 4,
+              "prepMinutes": 0,
+              "cookMinutes": 0,
+              "ingredients": [ { "name": "flour", "amount": "2 cups", "haveIt": false } ],
+              "steps": ["step 1", "step 2"],
+              "tips": [],
+              "difficulty": "easy|medium|involved",
+              "tags": ["tag"],
+              "matchScore": 0,
+              "whyYoullLikeIt": "",
+              "timeline": []
+            }
+          ]
+        }
+        """)
+        lines.append("")
+        lines.append("PAGE CONTENT:")
+        lines.append(pageText)
+        return lines.joined(separator: "\n")
+    }
+
     /// Read a photographed recipe (a handwritten card, a magazine clipping, a
     /// printout) into a structured Recipe for the cook's cookbook. Transcribes
     /// faithfully — it does not invent or substitute — and marks the result as

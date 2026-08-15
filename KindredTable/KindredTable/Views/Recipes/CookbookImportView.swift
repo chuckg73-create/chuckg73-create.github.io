@@ -23,6 +23,8 @@ struct CookbookImportView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var attribution = ""
     @State private var titleDraft = ""
+    @State private var urlText = ""
+    @FocusState private var urlFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -68,7 +70,7 @@ struct CookbookImportView: View {
                 .padding(.top, 8)
                 Text("Bring your recipes in")
                     .font(.title2).fontWeight(.bold).multilineTextAlignment(.center)
-                Text("Snap a photo of Mom's recipe card, a magazine clipping, or a printout. Kindred Kitchen reads it in — ingredients, steps and all — so you can cook and scale it like any other.")
+                Text("Snap a photo of Mom's recipe card or a clipping, or paste a link from any recipe site. Kindred Kitchen reads it in — ingredients, steps and all — so you can cook and scale it like any other.")
                     .font(.subheadline).foregroundStyle(KindredTheme.subtext)
                     .multilineTextAlignment(.center)
             }
@@ -89,6 +91,42 @@ struct CookbookImportView: View {
                     Label("Works best on a flat, well-lit recipe with the whole card in frame.",
                           systemImage: "lightbulb.fill")
                         .font(.caption).foregroundStyle(KindredTheme.faint)
+
+                    HStack(spacing: 10) {
+                        Rectangle().fill(KindredTheme.hairline).frame(height: 1)
+                        Text("or").font(.caption).foregroundStyle(KindredTheme.faint)
+                        Rectangle().fill(KindredTheme.hairline).frame(height: 1)
+                    }
+                    .padding(.vertical, 2)
+
+                    VStack(spacing: 10) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "link").foregroundStyle(KindredTheme.accent)
+                            TextField("Paste a recipe link", text: $urlText)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                .keyboardType(.URL)
+                                .submitLabel(.go)
+                                .focused($urlFocused)
+                                .onSubmit(importFromLink)
+                                .foregroundStyle(KindredTheme.text)
+                        }
+                        .padding(.horizontal, 14).padding(.vertical, 12)
+                        .background(KindredTheme.card, in: Capsule())
+                        .overlay(Capsule().stroke(KindredTheme.hairline, lineWidth: 1))
+
+                        Button(action: importFromLink) {
+                            Text("Import from link").fontWeight(.semibold)
+                                .frame(maxWidth: .infinity).padding(.vertical, 13)
+                                .foregroundStyle(.white)
+                                .background(urlText.trimmingCharacters(in: .whitespaces).isEmpty
+                                            ? AnyShapeStyle(KindredTheme.card)
+                                            : AnyShapeStyle(KindredTheme.brandGradient),
+                                            in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(urlText.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
                 }
             }
         }
@@ -188,6 +226,32 @@ struct CookbookImportView: View {
             }
         } catch {
             await MainActor.run { phase = .failed(error.localizedDescription) }
+        }
+    }
+
+    private func importFromLink() {
+        let trimmed = urlText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard let url = WebRecipeFetcher.normalize(trimmed) else {
+            phase = .failed(WebRecipeFetcher.FetchError.badURL.errorDescription ?? "Invalid link.")
+            return
+        }
+        urlFocused = false
+        phase = .reading
+        Task {
+            do {
+                let pageText = try await WebRecipeFetcher.fetchReadableText(from: url)
+                let recipe = try await service.importRecipe(fromWebText: pageText,
+                                                            sourceLabel: WebRecipeFetcher.sourceLabel(for: url))
+                await MainActor.run {
+                    titleDraft = recipe.title
+                    attribution = recipe.sourceNote   // prefilled with the site; editable
+                    phase = .review(recipe)
+                }
+            } catch {
+                let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                await MainActor.run { phase = .failed(message) }
+            }
         }
     }
 
