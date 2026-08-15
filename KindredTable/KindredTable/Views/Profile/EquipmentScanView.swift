@@ -2,7 +2,7 @@ import SwiftUI
 import PhotosUI
 import UIKit
 
-/// Scan the kitchen: photograph your counter or cabinet and Kindred Kitchen
+/// Scan the kitchen: photograph your counter or cabinet and KindredTable
 /// identifies the appliances you own, so recipe steps get written for your exact
 /// gear (your rice cooker, air fryer, smoker) instead of a hand-typed list.
 struct EquipmentScanView: View {
@@ -65,7 +65,7 @@ struct EquipmentScanView: View {
                 .padding(.top, 8)
                 Text("What's in your kitchen?")
                     .font(.title2).fontWeight(.bold).multilineTextAlignment(.center)
-                Text("Snap your counter or open a cabinet. Kindred Kitchen spots your appliances so every recipe's steps are written for the gear you actually own.")
+                Text("Snap your counter or open a cabinet. KindredTable spots your appliances so every recipe's steps are written for the gear you actually own.")
                     .font(.subheadline).foregroundStyle(KindredTheme.subtext)
                     .multilineTextAlignment(.center)
             }

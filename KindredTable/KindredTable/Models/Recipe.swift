@@ -23,7 +23,7 @@ struct TimelineTask: Codable, Hashable {
 /// Where a recipe came from: matched by the app, or added by the cook from a
 /// photo of a recipe card (their mom's, a magazine clipping…).
 enum RecipeSource: String, Codable, Hashable {
-    case app        // suggested / craved / made by Kindred Kitchen
+    case app        // suggested / craved / made by KindredTable
     case imported   // photographed & parsed from the cook's own recipe
 
     var isImported: Bool { self == .imported }
@@ -59,7 +59,7 @@ struct Recipe: Identifiable, Codable, Hashable {
     var steps: [String]
     /// Short, practical chef tips / hints.
     var tips: [String]
-    /// For imported recipes only: notes Kindred Kitchen added when polishing —
+    /// For imported recipes only: notes KindredTable added when polishing —
     /// gaps the handwriting left out (missing temp, vague "a pinch", an
     /// ingredient never used in the steps). Kept separate from `tips` so the
     /// original recipe and the app's help stay clearly distinct.

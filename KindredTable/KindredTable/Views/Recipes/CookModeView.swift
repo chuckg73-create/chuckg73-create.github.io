@@ -110,7 +110,7 @@ struct CookModeView: View {
                 Text("“\(voice.lastHeard)”")
                     .font(.caption).foregroundStyle(KindredTheme.faint).lineLimit(1)
             }
-            Text("Say \"next\", \"back\", or \"repeat\" — or ask Siri \"next step in Kindred Kitchen.\"")
+            Text("Say \"next\", \"back\", or \"repeat\" — or ask Siri \"next step in KindredTable.\"")
                 .font(.caption2)
                 .foregroundStyle(KindredTheme.faint)
                 .multilineTextAlignment(.center)

@@ -140,7 +140,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BaseInfo.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Kindred Kitchen";
+				INFOPLIST_KEY_CFBundleDisplayName = "KindredTable";
 				INFOPLIST_KEY_GEMINI_API_KEY = "$(GEMINI_API_KEY)";
 				INFOPLIST_KEY_NSCameraUsageDescription = "KindredTable uses the camera to photograph your fridge and pantry so it can identify your ingredients privately, on your device.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "KindredTable reads photos you choose so it can identify ingredients from pictures of your fridge and pantry.";
@@ -176,7 +176,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BaseInfo.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Kindred Kitchen";
+				INFOPLIST_KEY_CFBundleDisplayName = "KindredTable";
 				INFOPLIST_KEY_GEMINI_API_KEY = "$(GEMINI_API_KEY)";
 				INFOPLIST_KEY_NSCameraUsageDescription = "KindredTable uses the camera to photograph your fridge and pantry so it can identify your ingredients privately, on your device.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "KindredTable reads photos you choose so it can identify ingredients from pictures of your fridge and pantry.";

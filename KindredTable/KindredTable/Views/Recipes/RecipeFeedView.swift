@@ -76,7 +76,7 @@ struct RecipeFeedView: View {
             EmptyState(
                 systemImage: "sparkles",
                 title: "Add ingredients first",
-                message: "Once your pantry has a few items, Kindred Kitchen will suggest meals you can make right now."
+                message: "Once your pantry has a few items, KindredTable will suggest meals you can make right now."
             )
         } else {
             switch model.phase {

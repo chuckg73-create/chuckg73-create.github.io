@@ -32,7 +32,7 @@ struct CaptureView: View {
                     .padding(20)
                 }
             }
-            .navigationTitle("Kindred Kitchen")
+            .navigationTitle("KindredTable")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { ProfileToolbarButton() } }
             .fullScreenCover(isPresented: $showCamera) {
@@ -86,7 +86,7 @@ struct CaptureView: View {
             Text("What's in your kitchen?")
                 .font(.title2).fontWeight(.bold)
                 .multilineTextAlignment(.center)
-            Text("Snap your fridge or pantry. Kindred Kitchen identifies the ingredients, then suggests meals matched to your taste.")
+            Text("Snap your fridge or pantry. KindredTable identifies the ingredients, then suggests meals matched to your taste.")
                 .font(.subheadline)
                 .foregroundStyle(KindredTheme.subtext)
                 .multilineTextAlignment(.center)

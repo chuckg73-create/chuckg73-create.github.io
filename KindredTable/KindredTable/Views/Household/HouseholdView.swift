@@ -42,7 +42,7 @@ struct HouseholdView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Cook for everyone")
                 .font(.title2).fontWeight(.bold)
-            Text("Add the people at your table and Kindred Kitchen blends your tastes — combining what you all love and never suggesting anything someone dislikes or is allergic to.")
+            Text("Add the people at your table and KindredTable blends your tastes — combining what you all love and never suggesting anything someone dislikes or is allergic to.")
                 .font(.subheadline)
                 .foregroundStyle(KindredTheme.subtext)
         }
@@ -164,7 +164,7 @@ private struct ShareTasteSheet: View {
 
                         qr
 
-                        Text("Have a family member scan this in their Kindred Kitchen, or send them the link.")
+                        Text("Have a family member scan this in their KindredTable, or send them the link.")
                             .font(.subheadline)
                             .foregroundStyle(KindredTheme.subtext)
                             .multilineTextAlignment(.center)
@@ -239,7 +239,7 @@ private struct AddMemberSheet: View {
                 QRScannerView { code in handle(code) }
                     .ignoresSafeArea()
                 VStack(spacing: 10) {
-                    Text("Point at a family member's Kindred Kitchen code")
+                    Text("Point at a family member's KindredTable code")
                         .font(.subheadline).foregroundStyle(.white)
                         .padding(.horizontal, 16).padding(.vertical, 10)
                         .background(.black.opacity(0.5), in: Capsule())
@@ -285,7 +285,7 @@ private struct AddMemberSheet: View {
 
     private func handle(_ raw: String) {
         guard let card = TasteCard.parse(raw) else {
-            error = "That doesn't look like a Kindred Kitchen code."
+            error = "That doesn't look like a KindredTable code."
             return
         }
         household.add(card)

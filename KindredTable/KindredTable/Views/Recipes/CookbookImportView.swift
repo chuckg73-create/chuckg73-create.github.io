@@ -70,7 +70,7 @@ struct CookbookImportView: View {
                 .padding(.top, 8)
                 Text("Bring your recipes in")
                     .font(.title2).fontWeight(.bold).multilineTextAlignment(.center)
-                Text("Snap a photo of Mom's recipe card or a clipping, or paste a link from any recipe site. Kindred Kitchen reads it in — ingredients, steps and all — so you can cook and scale it like any other.")
+                Text("Snap a photo of Mom's recipe card or a clipping, or paste a link from any recipe site. KindredTable reads it in — ingredients, steps and all — so you can cook and scale it like any other.")
                     .font(.subheadline).foregroundStyle(KindredTheme.subtext)
                     .multilineTextAlignment(.center)
             }

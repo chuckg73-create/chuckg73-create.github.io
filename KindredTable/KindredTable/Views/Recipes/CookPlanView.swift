@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// "Cook by a time" — pick when you want to eat and Kindred Kitchen back-times
+/// "Cook by a time" — pick when you want to eat and KindredTable back-times
 /// each task, then schedules reminders so every component finishes together.
 struct CookPlanView: View {
     let recipe: Recipe

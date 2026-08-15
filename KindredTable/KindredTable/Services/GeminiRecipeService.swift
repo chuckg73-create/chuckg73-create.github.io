@@ -13,7 +13,7 @@ enum RecipeServiceError: LocalizedError {
         case .emptyPantry:
             return "Add a few ingredients first — snap a photo of your fridge or add them by hand."
         case .missingAPIKey:
-            return "No Gemini API key is configured, so Kindred Kitchen is showing sample ideas. Add a key to get suggestions tailored to your pantry."
+            return "No Gemini API key is configured, so KindredTable is showing sample ideas. Add a key to get suggestions tailored to your pantry."
         case .badResponse(let status, let body):
             let detail = Self.humanReadableDetail(from: body)
             if detail.isEmpty {
@@ -540,11 +540,11 @@ struct GeminiRecipeService {
 
         var lines: [String] = []
         if let craving, !craving.trimmingCharacters(in: .whitespaces).isEmpty {
-            lines.append("You are the recipe engine for Kindred Kitchen. The home cook specifically wants to make: \(craving).")
+            lines.append("You are the recipe engine for KindredTable. The home cook specifically wants to make: \(craving).")
             lines.append("Create \(count) excellent version(s) of \(craving), tuned to the cook's taste profile below.")
             lines.append("Mark ingredients they already have as haveIt=true; list everything else as haveIt=false so it forms their shopping list. It's fine if most ingredients must be bought.")
         } else {
-            lines.append("You are the recipe-matching engine for Kindred Kitchen, an app that suggests meals from what a home cook already has.")
+            lines.append("You are the recipe-matching engine for KindredTable, an app that suggests meals from what a home cook already has.")
             lines.append("Suggest \(count) meal ideas that lean heavily on the ingredients on hand and fit the cook's taste profile.")
         }
         if let servings, servings > 0 {

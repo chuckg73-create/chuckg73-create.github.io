@@ -2,7 +2,7 @@ import Foundation
 
 /// Formats a recipe as clean, plain text for the iOS share sheet — so it can go
 /// to anyone, in any app (Messages, Mail, WhatsApp, Notes, print), whether or
-/// not they have Kindred Kitchen. Shares whatever is on screen, including the
+/// not they have KindredTable. Shares whatever is on screen, including the
 /// current serving scale.
 enum RecipeShare {
 
@@ -50,7 +50,7 @@ enum RecipeShare {
         }
 
         lines.append("")
-        lines.append("— Shared from Kindred Kitchen 🍳")
+        lines.append("— Shared from KindredTable 🍳")
 
         return lines.joined(separator: "\n")
     }

@@ -16,7 +16,7 @@ struct RecipeDetailView: View {
     @State private var showPlan = false
     /// Target servings for on-the-fly scaling; starts at the recipe's own yield.
     @State private var displayServings: Int
-    /// "Polish with Kindred Kitchen" state for imported recipes.
+    /// "Polish with KindredTable" state for imported recipes.
     @State private var isPolishing = false
     @State private var polished = false
     @State private var polishError: String?
@@ -356,7 +356,7 @@ struct RecipeDetailView: View {
                 HStack(alignment: .top, spacing: 12) {
                     Image(systemName: "wand.and.stars").foregroundStyle(KindredTheme.accent)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Polish with Kindred Kitchen")
+                        Text("Polish with KindredTable")
                             .font(.subheadline.weight(.semibold)).foregroundStyle(KindredTheme.text)
                         Text("Add chef tips and spot anything the handwriting left out — like a missing oven temperature. Your original stays exactly as written.")
                             .font(.caption).foregroundStyle(KindredTheme.subtext)
@@ -391,7 +391,7 @@ struct RecipeDetailView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
                     Image(systemName: "sparkles").font(.caption).foregroundStyle(KindredTheme.accent)
-                    SectionHeader(label: "Kindred Kitchen's notes")
+                    SectionHeader(label: "KindredTable's notes")
                 }
                 Text("Suggestions for what the original recipe didn't spell out:")
                     .font(.caption).foregroundStyle(KindredTheme.faint)
