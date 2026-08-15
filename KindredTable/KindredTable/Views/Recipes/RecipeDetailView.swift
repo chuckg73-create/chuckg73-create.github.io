@@ -66,6 +66,15 @@ struct RecipeDetailView: View {
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
+                ShareLink(item: RecipeShare.text(for: displayed),
+                          subject: Text(recipe.title),
+                          preview: SharePreview(recipe.title)) {
+                    Image(systemName: "square.and.arrow.up")
+                        .foregroundStyle(KindredTheme.accent)
+                }
+                .accessibilityLabel("Share recipe")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     saved.toggle(recipe)
                 } label: {
