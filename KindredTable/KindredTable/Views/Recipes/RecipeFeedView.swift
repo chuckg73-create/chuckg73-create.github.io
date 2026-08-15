@@ -7,12 +7,14 @@ struct RecipeFeedView: View {
     @Environment(ProfileStore.self) private var profileStore
     @Environment(SavedRecipeStore.self) private var saved
     @Environment(HouseholdStore.self) private var household
+    @Environment(MealPlanStore.self) private var mealPlan
 
     @State private var model = RecipeFeedModel()
     /// Meal-type filter. nil = show all types.
     @State private var selectedMealType: MealType?
     @State private var showHousehold = false
     @State private var showCrave = false
+    @State private var showPlan = false
 
     /// The profile Gemini cooks for: you blended with everyone at the table.
     private var effectiveProfile: TasteProfile {
@@ -37,6 +39,12 @@ struct RecipeFeedView: View {
                     .accessibilityLabel("Refresh ideas")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button { showPlan = true } label: {
+                        Image(systemName: "calendar")
+                    }
+                    .accessibilityLabel("Meal plan")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Button { showHousehold = true } label: {
                         Image(systemName: "person.2.fill")
                     }
@@ -59,6 +67,7 @@ struct RecipeFeedView: View {
             }
             .sheet(isPresented: $showHousehold) { HouseholdView() }
             .sheet(isPresented: $showCrave) { CraveSearchView() }
+            .sheet(isPresented: $showPlan) { MealPlanView() }
         }
     }
 
@@ -278,5 +287,6 @@ struct RecipeFeedView: View {
         .environment(ProfileStore(seed: .starter))
         .environment(SavedRecipeStore())
         .environment(HouseholdStore())
+        .environment(MealPlanStore())
         .preferredColorScheme(.dark)
 }

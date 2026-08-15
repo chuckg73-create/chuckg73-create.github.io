@@ -8,6 +8,7 @@ struct KindredTableApp: App {
     @State private var profileStore = ProfileStore()
     @State private var grocery = GroceryStore()
     @State private var household = HouseholdStore()
+    @State private var mealPlan = MealPlanStore()
 
     var body: some Scene {
         WindowGroup {
@@ -17,6 +18,8 @@ struct KindredTableApp: App {
                 .environment(profileStore)
                 .environment(grocery)
                 .environment(household)
+                .environment(mealPlan)
+                .onAppear { mealPlan.prunePast() }
                 .preferredColorScheme(.dark)
                 .tint(KindredTheme.accent)
         }

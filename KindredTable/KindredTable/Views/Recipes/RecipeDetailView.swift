@@ -7,6 +7,8 @@ struct RecipeDetailView: View {
     @Environment(SavedRecipeStore.self) private var saved
     @Environment(ProfileStore.self) private var profileStore
     @Environment(GroceryStore.self) private var grocery
+    @Environment(MealPlanStore.self) private var mealPlan
+    @State private var plannedDay: Date?
     @State private var addedToList = false
     /// Keeps the display awake while cooking (no auto-lock).
     @State private var keepAwake = false
@@ -43,6 +45,7 @@ struct RecipeDetailView: View {
                     header
                     if canPolish || isPolishing { polishCard }
                     if !recipe.steps.isEmpty { cookModeButton }
+                    addToPlanButton
                     if !recipe.steps.isEmpty { planButton }
                     if !recipe.whyYoullLikeIt.isEmpty { whyCard }
                     if let n = recipe.nutrition, n.hasAny { nutritionCard(n) }
@@ -121,6 +124,26 @@ struct RecipeDetailView: View {
                     .font(.caption2)
                     .foregroundStyle(KindredTheme.faint)
             }
+        }
+    }
+
+    private var addToPlanButton: some View {
+        Menu {
+            ForEach(mealPlan.upcomingDays(), id: \.self) { day in
+                Button(MealPlanView.dayLabel(day)) {
+                    mealPlan.add(recipe, to: day)
+                    withAnimation { plannedDay = day }
+                }
+            }
+        } label: {
+            Label(plannedDay == nil ? "Add to meal plan" : "Added to \(MealPlanView.dayLabel(plannedDay!))",
+                  systemImage: plannedDay == nil ? "calendar.badge.plus" : "checkmark.circle.fill")
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .foregroundStyle(plannedDay == nil ? KindredTheme.accent : KindredTheme.mint)
+                .background((plannedDay == nil ? KindredTheme.accent : KindredTheme.mint).opacity(0.14),
+                           in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
     }
 
@@ -450,6 +473,7 @@ struct FlowChips: View {
             .environment(SavedRecipeStore())
             .environment(ProfileStore(seed: .starter))
             .environment(GroceryStore())
+            .environment(MealPlanStore())
     }
     .preferredColorScheme(.dark)
 }
