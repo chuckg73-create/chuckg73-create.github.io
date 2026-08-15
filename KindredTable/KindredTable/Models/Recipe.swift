@@ -39,6 +39,9 @@ struct Recipe: Identifiable, Codable, Hashable {
     var source: RecipeSource
     /// Optional attribution for an imported recipe — "Mom's", "Grandma Rose".
     var sourceNote: String
+    /// Optional hero image URL (e.g. a web recipe's photo). Empty = show the
+    /// designed placeholder hero instead.
+    var imageURL: String
     /// Full ingredient list with amounts; `haveIt` marks pantry items.
     var ingredients: [RecipeIngredient]
     /// Numbered method steps — written for this cook's equipment where it helps.
@@ -82,6 +85,7 @@ struct Recipe: Identifiable, Codable, Hashable {
         mealType: MealType = .dinner,
         source: RecipeSource = .app,
         sourceNote: String = "",
+        imageURL: String = "",
         ingredients: [RecipeIngredient] = [],
         steps: [String] = [],
         tips: [String] = [],
@@ -101,6 +105,7 @@ struct Recipe: Identifiable, Codable, Hashable {
         self.mealType = mealType
         self.source = source
         self.sourceNote = sourceNote
+        self.imageURL = imageURL
         self.ingredients = ingredients
         self.steps = steps
         self.tips = tips
@@ -116,7 +121,7 @@ struct Recipe: Identifiable, Codable, Hashable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, title, summary, mealType, source, sourceNote, ingredients, steps, tips, cooksNotes
+        case id, title, summary, mealType, source, sourceNote, imageURL, ingredients, steps, tips, cooksNotes
         case servings, prepMinutes, cookMinutes, difficulty, tags, matchScore, whyYoullLikeIt, timeline
     }
 
@@ -135,6 +140,7 @@ struct Recipe: Identifiable, Codable, Hashable {
         mealType = try c.decodeIfPresent(MealType.self, forKey: .mealType) ?? .dinner
         source = try c.decodeIfPresent(RecipeSource.self, forKey: .source) ?? .app
         sourceNote = try c.decodeIfPresent(String.self, forKey: .sourceNote) ?? ""
+        imageURL = try c.decodeIfPresent(String.self, forKey: .imageURL) ?? ""
         steps = try c.decodeIfPresent([String].self, forKey: .steps) ?? []
         tips = try c.decodeIfPresent([String].self, forKey: .tips) ?? []
         cooksNotes = try c.decodeIfPresent([String].self, forKey: .cooksNotes) ?? []

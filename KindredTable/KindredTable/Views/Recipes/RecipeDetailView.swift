@@ -38,6 +38,8 @@ struct RecipeDetailView: View {
             KindredBackground()
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    RecipeHeroImage(recipe: recipe, height: 210, glyphSize: 76)
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                     header
                     if canPolish || isPolishing { polishCard }
                     if !recipe.steps.isEmpty { cookModeButton }

@@ -7,7 +7,8 @@ struct RecipeCard: View {
     var onSave: () -> Void
 
     var body: some View {
-        KindredCard {
+        VStack(spacing: 0) {
+            RecipeHeroImage(recipe: recipe, height: 148)
             VStack(alignment: .leading, spacing: 12) {
                 header
                 Text(recipe.summary)
@@ -30,7 +31,14 @@ struct RecipeCard: View {
                     .accessibilityLabel("On hand: \(recipe.usesOnHand.prefix(6).joined(separator: ", "))")
                 }
             }
+            .padding(16)
         }
+        .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: KindredTheme.cardCorner, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: KindredTheme.cardCorner, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: KindredTheme.cardCorner, style: .continuous)
+                .stroke(KindredTheme.hairline, lineWidth: 1)
+        )
     }
 
     private var header: some View {

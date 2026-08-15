@@ -35,8 +35,14 @@ enum WebRecipeFetcher {
         (url.host ?? "").replacingOccurrences(of: "www.", with: "")
     }
 
-    /// Fetch and reduce the page to model-ready text (capped).
-    static func fetchReadableText(from url: URL, session: URLSession = .shared) async throws -> String {
+    /// The useful bits of a fetched recipe page.
+    struct Fetched {
+        var text: String
+        var imageURL: String   // og:image / JSON-LD image, "" if none
+    }
+
+    /// Fetch and reduce the page to model-ready text (capped) plus a hero image.
+    static func fetch(from url: URL, session: URLSession = .shared) async throws -> Fetched {
         var request = URLRequest(url: url)
         // Some sites gate on a browser-ish UA.
         request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
@@ -50,7 +56,28 @@ enum WebRecipeFetcher {
         let html = String(data: data, encoding: .utf8) ?? String(decoding: data, as: UTF8.self)
         let text = reduce(html)
         guard !text.isEmpty else { throw FetchError.empty }
-        return text
+        return Fetched(text: text, imageURL: heroImage(in: html, base: url))
+    }
+
+    /// Best hero image for a recipe page: og:image, else twitter:image, else the
+    /// first JSON-LD image. Returns an absolute URL string or "".
+    static func heroImage(in html: String, base: URL) -> String {
+        let candidates =
+            firstMatch(in: html, pattern: "<meta[^>]+property=[\"']og:image[\"'][^>]+content=[\"']([^\"']+)[\"']")
+            ?? firstMatch(in: html, pattern: "<meta[^>]+content=[\"']([^\"']+)[\"'][^>]+property=[\"']og:image[\"']")
+            ?? firstMatch(in: html, pattern: "<meta[^>]+name=[\"']twitter:image[\"'][^>]+content=[\"']([^\"']+)[\"']")
+            ?? firstMatch(in: html, pattern: "\"image\"\\s*:\\s*\"(https?://[^\"]+)\"")
+        guard let found = candidates?.trimmingCharacters(in: .whitespacesAndNewlines), !found.isEmpty else { return "" }
+        // Decode HTML entities (e.g. &amp; in query strings would break the URL).
+        let raw = decodeEntities(found)
+        // Resolve protocol-relative / relative URLs against the page.
+        if raw.hasPrefix("//") { return "https:" + raw }
+        if raw.hasPrefix("http") { return raw }
+        return URL(string: raw, relativeTo: base)?.absoluteString ?? ""
+    }
+
+    private static func firstMatch(in text: String, pattern: String) -> String? {
+        matches(in: text, pattern: pattern).first
     }
 
     /// Pull JSON-LD blocks + stripped visible text, capped to a sane length.

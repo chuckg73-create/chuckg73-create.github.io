@@ -240,9 +240,10 @@ struct CookbookImportView: View {
         phase = .reading
         Task {
             do {
-                let pageText = try await WebRecipeFetcher.fetchReadableText(from: url)
-                let recipe = try await service.importRecipe(fromWebText: pageText,
+                let page = try await WebRecipeFetcher.fetch(from: url)
+                var recipe = try await service.importRecipe(fromWebText: page.text,
                                                             sourceLabel: WebRecipeFetcher.sourceLabel(for: url))
+                recipe.imageURL = page.imageURL
                 await MainActor.run {
                     titleDraft = recipe.title
                     attribution = recipe.sourceNote   // prefilled with the site; editable
