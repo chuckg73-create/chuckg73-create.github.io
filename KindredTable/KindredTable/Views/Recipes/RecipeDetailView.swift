@@ -45,6 +45,7 @@ struct RecipeDetailView: View {
                     if !recipe.steps.isEmpty { cookModeButton }
                     if !recipe.steps.isEmpty { planButton }
                     if !recipe.whyYoullLikeIt.isEmpty { whyCard }
+                    if let n = recipe.nutrition, n.hasAny { nutritionCard(n) }
                     ingredientsCard
                     stepsCard
                     if !recipe.cooksNotes.isEmpty { cooksNotesCard }
@@ -146,6 +147,35 @@ struct RecipeDetailView: View {
                 .shadow(color: KindredTheme.accent.opacity(0.3), radius: 12, y: 5)
         }
         .buttonStyle(.plain)
+    }
+
+    private func nutritionCard(_ n: NutritionInfo) -> some View {
+        KindredCard {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    SectionHeader(label: "Nutrition")
+                    Spacer()
+                    Text("Per serving · estimated")
+                        .font(.caption2).foregroundStyle(KindredTheme.faint)
+                }
+                HStack(spacing: 10) {
+                    nutrientStat("\(n.calories)", "cal", KindredTheme.amber)
+                    nutrientStat("\(n.protein)g", "protein", KindredTheme.mint)
+                    nutrientStat("\(n.carbs)g", "carbs", KindredTheme.blue)
+                    nutrientStat("\(n.fat)g", "fat", KindredTheme.coral)
+                }
+            }
+        }
+    }
+
+    private func nutrientStat(_ value: String, _ label: String, _ tint: Color) -> some View {
+        VStack(spacing: 3) {
+            Text(value).font(.headline).foregroundStyle(KindredTheme.text)
+            Text(label).font(.caption2).foregroundStyle(KindredTheme.faint)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private var whyCard: some View {

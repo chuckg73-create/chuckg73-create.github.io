@@ -29,6 +29,17 @@ enum RecipeSource: String, Codable, Hashable {
     var isImported: Bool { self == .imported }
 }
 
+/// Rough per-serving nutrition, as estimated by the model. All values are
+/// per single serving, so they don't change when the recipe is scaled.
+struct NutritionInfo: Codable, Hashable {
+    var calories: Int
+    var protein: Int   // grams
+    var carbs: Int     // grams
+    var fat: Int       // grams
+
+    var hasAny: Bool { calories > 0 || protein > 0 || carbs > 0 || fat > 0 }
+}
+
 /// A meal suggestion produced by the recipe-matching model.
 struct Recipe: Identifiable, Codable, Hashable {
     var id: UUID
@@ -64,6 +75,8 @@ struct Recipe: Identifiable, Codable, Hashable {
     var whyYoullLikeIt: String
     /// Optional back-timed cooking schedule for "cook by a time" reminders.
     var timeline: [TimelineTask]
+    /// Optional per-serving nutrition estimate.
+    var nutrition: NutritionInfo?
 
     /// Pantry item names — derived from `ingredients`.
     var usesOnHand: [String] { ingredients.filter(\.haveIt).map(\.name) }
@@ -97,7 +110,8 @@ struct Recipe: Identifiable, Codable, Hashable {
         tags: [String] = [],
         matchScore: Int = 0,
         whyYoullLikeIt: String = "",
-        timeline: [TimelineTask] = []
+        timeline: [TimelineTask] = [],
+        nutrition: NutritionInfo? = nil
     ) {
         self.id = id
         self.title = title
@@ -118,11 +132,12 @@ struct Recipe: Identifiable, Codable, Hashable {
         self.matchScore = matchScore
         self.whyYoullLikeIt = whyYoullLikeIt
         self.timeline = timeline
+        self.nutrition = nutrition
     }
 
     enum CodingKeys: String, CodingKey {
         case id, title, summary, mealType, source, sourceNote, imageURL, ingredients, steps, tips, cooksNotes
-        case servings, prepMinutes, cookMinutes, difficulty, tags, matchScore, whyYoullLikeIt, timeline
+        case servings, prepMinutes, cookMinutes, difficulty, tags, matchScore, whyYoullLikeIt, timeline, nutrition
     }
 
     private enum LegacyKeys: String, CodingKey {
@@ -152,6 +167,7 @@ struct Recipe: Identifiable, Codable, Hashable {
         matchScore = try c.decodeIfPresent(Int.self, forKey: .matchScore) ?? 0
         whyYoullLikeIt = try c.decodeIfPresent(String.self, forKey: .whyYoullLikeIt) ?? ""
         timeline = try c.decodeIfPresent([TimelineTask].self, forKey: .timeline) ?? []
+        nutrition = try c.decodeIfPresent(NutritionInfo.self, forKey: .nutrition)
 
         if let list = try c.decodeIfPresent([RecipeIngredient].self, forKey: .ingredients), !list.isEmpty {
             ingredients = list

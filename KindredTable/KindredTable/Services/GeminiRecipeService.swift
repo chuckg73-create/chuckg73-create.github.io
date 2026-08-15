@@ -614,6 +614,7 @@ struct GeminiRecipeService {
         lines.append("- Provide 2-4 short, practical 'tips' — make-ahead notes, easy swaps for the buy-list items, storage, or a way to level it up.")
         lines.append("- 'matchScore' is an integer 0-100 reflecting fit to pantry AND taste.")
         lines.append("- 'whyYoullLikeIt' is one short sentence referencing the cook's taste.")
+        lines.append("- 'nutrition' is a rough PER-SERVING estimate: integer calories plus protein, carbs and fat in grams.")
         lines.append("")
         lines.append("- 'timeline' is a back-timed cooking schedule: for EACH key task, give how many minutes BEFORE serving to start it, so that ALL components (main, sides, sauces) finish together at the same moment. Include long-lead tasks (marinate, smoke, preheat, thaw, rest) with larger values and account for prep. The app sorts them, so order doesn't matter.")
         lines.append("Respond with ONLY a JSON object of this exact shape, no markdown:")
@@ -641,7 +642,8 @@ struct GeminiRecipeService {
                 { "task": "Sear the steak, then rest", "minutesBeforeServing": 15 },
                 { "task": "Start the grits", "minutesBeforeServing": 30 },
                 { "task": "Roast the asparagus", "minutesBeforeServing": 20 }
-              ]
+              ],
+              "nutrition": { "calories": 520, "protein": 32, "carbs": 45, "fat": 22 }
             }
           ]
         }
@@ -789,6 +791,7 @@ private struct RecipePayload: Decodable {
         var matchScore: Int?
         var whyYoullLikeIt: String?
         var timeline: [TL]?
+        var nutrition: Nutri?
         // Legacy fields tolerated in case the model omits `ingredients`.
         var usesOnHand: [String]?
         var needsToBuy: [String]?
@@ -802,6 +805,13 @@ private struct RecipePayload: Decodable {
         struct TL: Decodable {
             var task: String
             var minutesBeforeServing: Int?
+        }
+
+        struct Nutri: Decodable {
+            var calories: Int?
+            var protein: Int?
+            var carbs: Int?
+            var fat: Int?
         }
 
         func toRecipe() -> Recipe {
@@ -830,7 +840,13 @@ private struct RecipePayload: Decodable {
                     t.task.trimmingCharacters(in: .whitespaces).isEmpty
                         ? nil
                         : TimelineTask(task: t.task, minutesBeforeServing: max(0, t.minutesBeforeServing ?? 0))
-                }
+                },
+                nutrition: nutrition.map {
+                    NutritionInfo(calories: max(0, $0.calories ?? 0),
+                                  protein: max(0, $0.protein ?? 0),
+                                  carbs: max(0, $0.carbs ?? 0),
+                                  fat: max(0, $0.fat ?? 0))
+                }.flatMap { $0.hasAny ? $0 : nil }
             )
         }
     }
