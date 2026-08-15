@@ -502,7 +502,10 @@ struct GeminiRecipeService {
             generationConfig: .init(
                 temperature: 0.7,
                 topP: 0.95,
-                maxOutputTokens: 8192,
+                // Six rich recipes (detailed steps + tips + timeline + nutrition)
+                // land right at the old 8192 cap and truncated intermittently
+                // (finishReason MAX_TOKENS → invalid JSON). Give ample headroom.
+                maxOutputTokens: 20000,
                 responseMimeType: "application/json",
                 // Gemini 2.5 models "think" by default, which can consume the
                 // whole output budget before any JSON is written. Disable it so
