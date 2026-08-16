@@ -8,7 +8,10 @@ struct RecipeDetailView: View {
     @Environment(ProfileStore.self) private var profileStore
     @Environment(GroceryStore.self) private var grocery
     @Environment(MealPlanStore.self) private var mealPlan
+    @Environment(HouseholdStore.self) private var household
     @State private var plannedDay: Date?
+    /// The ingredient the cook is swapping (drives the substitute sheet).
+    @State private var substituteTarget: RecipeIngredient?
     @State private var addedToList = false
     /// Keeps the display awake while cooking (no auto-lock).
     @State private var keepAwake = false
@@ -69,6 +72,13 @@ struct RecipeDetailView: View {
         }
         .sheet(isPresented: $showPlan) {
             CookPlanView(recipe: recipe)
+        }
+        .sheet(item: $substituteTarget) { ing in
+            SubstituteSheet(recipe: recipe, ingredient: ing,
+                            profile: household.effectiveProfile(you: profileStore.profile)) { updated in
+                withAnimation { recipe = updated; displayServings = max(1, updated.servings) }
+                if saved.isSaved(updated) { saved.update(updated) }
+            }
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -216,10 +226,15 @@ struct RecipeDetailView: View {
     private var ingredientsCard: some View {
         KindredCard {
             VStack(alignment: .leading, spacing: 12) {
-                SectionHeader(label: "Ingredients")
+                HStack {
+                    SectionHeader(label: "Ingredients")
+                    Spacer()
+                    Label("Tap to swap", systemImage: "arrow.left.arrow.right")
+                        .font(.caption2).foregroundStyle(KindredTheme.faint)
+                }
                 scaleControl
-                ForEach(displayed.ingredients, id: \.self) { ing in
-                    ingredientRow(ing)
+                ForEach(Array(displayed.ingredients.enumerated()), id: \.offset) { idx, ing in
+                    ingredientRow(ing, base: idx < recipe.ingredients.count ? recipe.ingredients[idx] : ing)
                 }
                 if !displayed.needsToBuy.isEmpty {
                     Button {
@@ -294,24 +309,30 @@ struct RecipeDetailView: View {
         .buttonStyle(.plain)
     }
 
-    private func ingredientRow(_ ing: RecipeIngredient) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Image(systemName: ing.haveIt ? "checkmark.circle.fill" : "cart.fill")
-                .font(.caption)
-                .foregroundStyle(ing.haveIt ? KindredTheme.mint : KindredTheme.amber)
-            if !ing.amount.isEmpty {
-                Text(ing.amount)
-                    .font(.subheadline).fontWeight(.semibold)
-                    .foregroundStyle(KindredTheme.text)
+    private func ingredientRow(_ ing: RecipeIngredient, base: RecipeIngredient) -> some View {
+        Button { substituteTarget = base } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Image(systemName: ing.haveIt ? "checkmark.circle.fill" : "cart.fill")
+                    .font(.caption)
+                    .foregroundStyle(ing.haveIt ? KindredTheme.mint : KindredTheme.amber)
+                if !ing.amount.isEmpty {
+                    Text(ing.amount)
+                        .font(.subheadline).fontWeight(.semibold)
+                        .foregroundStyle(KindredTheme.text)
+                }
+                Text(ing.name)
+                    .font(.subheadline)
+                    .foregroundStyle(KindredTheme.subtext)
+                Spacer(minLength: 0)
+                if !ing.haveIt {
+                    Text("buy").font(.caption2).foregroundStyle(KindredTheme.amber)
+                }
+                Image(systemName: "arrow.left.arrow.right")
+                    .font(.caption2).foregroundStyle(KindredTheme.faint)
             }
-            Text(ing.name)
-                .font(.subheadline)
-                .foregroundStyle(KindredTheme.subtext)
-            Spacer(minLength: 0)
-            if !ing.haveIt {
-                Text("buy").font(.caption2).foregroundStyle(KindredTheme.amber)
-            }
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
     }
 
     private var stepsCard: some View {
@@ -474,6 +495,7 @@ struct FlowChips: View {
             .environment(ProfileStore(seed: .starter))
             .environment(GroceryStore())
             .environment(MealPlanStore())
+            .environment(HouseholdStore())
     }
     .preferredColorScheme(.dark)
 }

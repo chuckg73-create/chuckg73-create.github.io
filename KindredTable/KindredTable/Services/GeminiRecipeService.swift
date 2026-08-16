@@ -193,6 +193,132 @@ struct GeminiRecipeService {
         return recipe
     }
 
+    // MARK: Ingredient substitution
+
+    /// Suggest `count` realistic swaps for one ingredient in a recipe, honoring
+    /// the cook's diets/allergens/dislikes and the given reason.
+    func suggestSubstitutions(
+        for ingredient: RecipeIngredient,
+        in recipe: Recipe,
+        reason: String,
+        profile: TasteProfile,
+        count: Int = 3
+    ) async throws -> [SubstitutionOption] {
+        guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
+
+        var lines: [String] = []
+        lines.append("In the recipe \"\(recipe.title)\" (\(recipe.summary)), the cook wants to replace this ingredient: \"\(ingredient.display)\".")
+        if !reason.trimmingCharacters(in: .whitespaces).isEmpty {
+            lines.append("Reason: \(reason).")
+        }
+        lines.append("Suggest \(count) realistic substitutes that work in THIS dish. For each: the item name, an amount appropriate to the recipe (serves \(recipe.servings)), and one short reason it works.")
+        lines.append(Self.dietaryConstraintLine(profile))
+        lines.append("Do NOT suggest anything that breaks those rules or that the cook dislikes.")
+        lines.append("Respond with ONLY this JSON: {\"options\":[{\"name\":\"black beans\",\"amount\":\"1 can, drained\",\"note\":\"hearty and vegetarian\"}]}")
+
+        let request = try makeRequest(prompt: lines.joined(separator: "\n"), apiKey: apiKey)
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw RecipeServiceError.badResponse(status: (response as? HTTPURLResponse)?.statusCode ?? -1,
+                                                 body: String(data: data, encoding: .utf8) ?? "")
+        }
+        let text = try Self.extractText(from: data)
+        return try Self.decodeSubstitutions(from: text)
+    }
+
+    /// Apply a swap (or removal) and return the updated recipe with steps/tips
+    /// rewritten to match. Pass `replacement == nil` to remove the ingredient.
+    func applySubstitution(
+        in recipe: Recipe,
+        replacing original: RecipeIngredient,
+        with replacement: SubstitutionOption?,
+        reason: String,
+        profile: TasteProfile
+    ) async throws -> Recipe {
+        guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
+
+        var lines: [String] = []
+        if let replacement {
+            lines.append("Update this recipe by replacing \"\(original.display)\" with \"\(replacement.amount) \(replacement.name)\".")
+        } else {
+            lines.append("Update this recipe by REMOVING \"\(original.display)\" entirely.")
+        }
+        if !reason.trimmingCharacters(in: .whitespaces).isEmpty { lines.append("Reason: \(reason).") }
+        lines.append("Rewrite the ingredients AND the method steps (and tips) so they reflect the change — remove or adjust any step that referenced the old ingredient. Keep everything else the same: title, servings=\(recipe.servings), style. Re-estimate nutrition.")
+        lines.append(Self.dietaryConstraintLine(profile))
+        lines.append("")
+        lines.append("CURRENT RECIPE:")
+        lines.append("Title: \(recipe.title)")
+        lines.append("Summary: \(recipe.summary)")
+        lines.append("Ingredients:")
+        for ing in recipe.ingredients { lines.append("- \(ing.display)") }
+        lines.append("Steps:")
+        for (i, s) in recipe.steps.enumerated() { lines.append("\(i + 1). \(s)") }
+        if !recipe.tips.isEmpty {
+            lines.append("Tips:")
+            for t in recipe.tips { lines.append("- \(t)") }
+        }
+        lines.append("")
+        lines.append("Respond with ONLY the full updated recipe as JSON of this shape, no markdown:")
+        lines.append("""
+        {
+          "title": "string",
+          "summary": "one sentence",
+          "mealType": "breakfast|lunch|dinner|snack|dessert",
+          "servings": \(recipe.servings),
+          "prepMinutes": 0, "cookMinutes": 0,
+          "ingredients": [ { "name": "", "amount": "", "haveIt": false } ],
+          "steps": ["step"], "tips": ["tip"],
+          "difficulty": "easy|medium|involved", "tags": ["tag"],
+          "matchScore": 0, "whyYoullLikeIt": "",
+          "timeline": [],
+          "nutrition": { "calories": 0, "protein": 0, "carbs": 0, "fat": 0 }
+        }
+        """)
+
+        let request = try makeRequest(prompt: lines.joined(separator: "\n"), apiKey: apiKey)
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw RecipeServiceError.badResponse(status: (response as? HTTPURLResponse)?.statusCode ?? -1,
+                                                 body: String(data: data, encoding: .utf8) ?? "")
+        }
+        let text = try Self.extractText(from: data)
+        guard var updated = try Self.decodeRecipes(from: text).first else { throw RecipeServiceError.noRecipes }
+        // Carry over identity + provenance the model doesn't know about.
+        updated.id = recipe.id
+        updated.source = recipe.source
+        updated.sourceNote = recipe.sourceNote
+        updated.imageURL = recipe.imageURL
+        return updated
+    }
+
+    /// One line stating the cook's hard dietary rules for substitution prompts.
+    static func dietaryConstraintLine(_ profile: TasteProfile) -> String {
+        var parts: [String] = []
+        if !profile.diets.isEmpty { parts.append("diets: " + profile.diets.map(\.title).joined(separator: ", ")) }
+        if !profile.allergens.isEmpty { parts.append("allergens to avoid entirely: " + profile.allergens.joined(separator: ", ")) }
+        if !profile.dislikedIngredients.isEmpty { parts.append("dislikes: " + profile.dislikedIngredients.joined(separator: ", ")) }
+        return parts.isEmpty ? "The cook has no strict dietary restrictions." : "HARD RULES — " + parts.joined(separator: "; ") + "."
+    }
+
+    static func decodeSubstitutions(from text: String) throws -> [SubstitutionOption] {
+        struct Payload: Decodable { struct Opt: Decodable { var name: String; var amount: String?; var note: String? }; var options: [Opt]? }
+        let json = sanitizedJSON(text)
+        guard let data = json.data(using: .utf8) else { throw RecipeServiceError.decoding("not utf8") }
+        do {
+            let p = try JSONDecoder().decode(Payload.self, from: data)
+            return (p.options ?? []).compactMap { o in
+                let name = o.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !name.isEmpty else { return nil }
+                return SubstitutionOption(name: name,
+                                          amount: (o.amount ?? "").trimmingCharacters(in: .whitespaces),
+                                          note: (o.note ?? "").trimmingCharacters(in: .whitespaces))
+            }
+        } catch {
+            throw RecipeServiceError.decoding("bad JSON near: \(String(json.prefix(80)))")
+        }
+    }
+
     static func buildWebImportPrompt(pageText: String) -> String {
         var lines: [String] = []
         lines.append("Below is text scraped from a recipe web page — it may include schema.org JSON-LD structured data, plus navigation, ads, and comments. Extract the SINGLE main recipe and return it as JSON. Rules:")
