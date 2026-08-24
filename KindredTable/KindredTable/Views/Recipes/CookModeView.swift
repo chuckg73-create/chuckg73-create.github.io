@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import AudioToolbox
 
 /// Full-screen, hands-free cooking view: one big step at a time, reads steps
 /// aloud, listens for "next / back / repeat", keeps the screen awake, and stays
@@ -13,6 +14,11 @@ struct CookModeView: View {
     @State private var autoSpeak = true
     @State private var micOn = false
     @State private var showPermissionAlert = false
+    /// Per-step timer (seconds left; nil = not started).
+    @State private var timerRemaining: Int?
+    @State private var timerRunning = false
+
+    private var stepSeconds: Int? { StepDuration.seconds(in: session.currentStep) }
 
     var body: some View {
         ZStack {
@@ -22,6 +28,7 @@ struct CookModeView: View {
                 Spacer(minLength: 8)
                 counter
                 stepText
+                timerChip
                 Spacer(minLength: 8)
                 controls
             }
@@ -37,6 +44,7 @@ struct CookModeView: View {
             voice.stopListening()
             voice.stopSpeaking()
         }
+        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in tick() }
         .alert("Microphone access needed", isPresented: $showPermissionAlert) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -77,6 +85,71 @@ struct CookModeView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, 6)
         }
+    }
+
+    @ViewBuilder private var timerChip: some View {
+        if let total = stepSeconds {
+            HStack(spacing: 12) {
+                Image(systemName: "timer")
+                    .foregroundStyle(timerRemaining == 0 ? KindredTheme.coral : KindredTheme.amber)
+                if let r = timerRemaining {
+                    Text(StepDuration.clock(r))
+                        .font(.title2.monospacedDigit().weight(.bold))
+                        .foregroundStyle(r == 0 ? KindredTheme.coral : KindredTheme.text)
+                    Spacer()
+                    if r == 0 {
+                        Text("Time's up").font(.subheadline.weight(.semibold)).foregroundStyle(KindredTheme.coral)
+                        Button { resetTimer() } label: { Image(systemName: "arrow.counterclockwise") }
+                            .foregroundStyle(KindredTheme.accent)
+                    } else {
+                        Button { timerRunning.toggle() } label: {
+                            Image(systemName: timerRunning ? "pause.fill" : "play.fill").font(.title3)
+                                .foregroundStyle(KindredTheme.accent)
+                        }
+                        Button { resetTimer() } label: {
+                            Image(systemName: "xmark.circle.fill").foregroundStyle(KindredTheme.faint)
+                        }
+                    }
+                } else {
+                    Text("Timer for this step").font(.subheadline).foregroundStyle(KindredTheme.subtext)
+                    Spacer()
+                    Button { timerRemaining = total; timerRunning = true } label: {
+                        Label("Start \(StepDuration.clock(total))", systemImage: "play.fill")
+                            .font(.subheadline.weight(.semibold))
+                            .padding(.horizontal, 14).padding(.vertical, 8)
+                            .foregroundStyle(.white)
+                            .background(KindredTheme.warmGradient, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(KindredTheme.hairline, lineWidth: 1))
+            .padding(.horizontal, 6)
+        }
+    }
+
+    private func tick() {
+        guard timerRunning, let r = timerRemaining else { return }
+        if r <= 1 {
+            timerRemaining = 0
+            timerRunning = false
+            timerFinished()
+        } else {
+            timerRemaining = r - 1
+        }
+    }
+
+    private func timerFinished() {
+        AudioServicesPlaySystemSound(1005)
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        voice.speak("Time's up for this step.")
+    }
+
+    private func resetTimer() {
+        timerRunning = false
+        timerRemaining = nil
     }
 
     private var controls: some View {
@@ -160,11 +233,13 @@ struct CookModeView: View {
             return
         }
         _ = session.next()
+        resetTimer()
         if speak { voice.speak(session.spokenCurrent) }
     }
 
     private func retreat(speak: Bool) {
         _ = session.previous()
+        resetTimer()
         if speak { voice.speak(session.spokenCurrent) }
     }
 
