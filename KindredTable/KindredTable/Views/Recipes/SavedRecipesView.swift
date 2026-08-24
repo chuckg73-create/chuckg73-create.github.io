@@ -5,6 +5,9 @@ import SwiftUI
 struct CookbookView: View {
     @Environment(SavedRecipeStore.self) private var cookbook
     @State private var showImport = false
+    @State private var query = ""
+
+    private var trimmedQuery: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     var body: some View {
         NavigationStack {
@@ -16,13 +19,17 @@ struct CookbookView: View {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 16) {
                             addRecipeButton
-                            if !cookbook.imported.isEmpty {
-                                section(title: "Your recipes", icon: "heart.text.square.fill",
-                                        recipes: cookbook.imported)
-                            }
-                            if !cookbook.fromApp.isEmpty {
-                                section(title: "From the app", icon: "sparkles",
-                                        recipes: cookbook.fromApp)
+                            if trimmedQuery.isEmpty {
+                                if !cookbook.imported.isEmpty {
+                                    section(title: "Your recipes", icon: "heart.text.square.fill",
+                                            recipes: cookbook.imported)
+                                }
+                                if !cookbook.fromApp.isEmpty {
+                                    section(title: "From the app", icon: "sparkles",
+                                            recipes: cookbook.fromApp)
+                                }
+                            } else {
+                                searchResultsSection
                             }
                         }
                         .padding(20)
@@ -30,9 +37,39 @@ struct CookbookView: View {
                 }
             }
             .navigationTitle("Cookbook")
+            .searchable(text: $query, prompt: "Search recipes & ingredients")
             .toolbar { ToolbarItem(placement: .topBarLeading) { ProfileToolbarButton() } }
             .sheet(isPresented: $showImport) { CookbookImportView() }
         }
+    }
+
+    private var searchResultsSection: some View {
+        let results = cookbook.saved.filter { Self.matches($0, trimmedQuery) }
+        return Group {
+            if results.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass").font(.title2).foregroundStyle(KindredTheme.faint)
+                    Text("No recipes match “\(trimmedQuery)”")
+                        .font(.subheadline).foregroundStyle(KindredTheme.subtext)
+                }
+                .frame(maxWidth: .infinity).padding(.vertical, 40)
+            } else {
+                section(title: "\(results.count) result\(results.count == 1 ? "" : "s")",
+                        icon: "magnifyingglass", recipes: results)
+            }
+        }
+    }
+
+    /// Case-insensitive match across title, attribution, summary, tags and
+    /// ingredient names.
+    static func matches(_ r: Recipe, _ q: String) -> Bool {
+        let n = q.lowercased()
+        if r.title.lowercased().contains(n) { return true }
+        if r.sourceNote.lowercased().contains(n) { return true }
+        if r.summary.lowercased().contains(n) { return true }
+        if r.tags.contains(where: { $0.lowercased().contains(n) }) { return true }
+        if r.ingredients.contains(where: { $0.name.lowercased().contains(n) }) { return true }
+        return false
     }
 
     private var emptyState: some View {
