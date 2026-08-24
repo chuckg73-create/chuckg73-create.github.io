@@ -16,6 +16,8 @@ struct RecipeFeedView: View {
     @State private var showHousehold = false
     @State private var showCrave = false
     @State private var showPlan = false
+    /// Filter to recipes that need nothing bought.
+    @State private var onHandOnly = false
 
     /// The profile Gemini cooks for: you blended with everyone at the table.
     private var effectiveProfile: TasteProfile {
@@ -112,13 +114,15 @@ struct RecipeFeedView: View {
         // back to "All".
         let present = MealType.allCases.filter { type in recipes.contains { $0.mealType == type } }
         let effective = (selectedMealType.map(present.contains) ?? false) ? selectedMealType : nil
-        let shown = effective == nil ? recipes : recipes.filter { $0.mealType == effective }
+        let hasOnHandOnly = recipes.contains { $0.needsToBuy.isEmpty }
+        var shown = effective == nil ? recipes : recipes.filter { $0.mealType == effective }
+        if onHandOnly { shown = shown.filter { $0.needsToBuy.isEmpty } }
 
         return VStack(spacing: 0) {
             cookingForBar
             servesStepper
             if household.servings <= 2 { specialToggle }
-            mealTypeSelector(present: present, effective: effective)
+            mealTypeSelector(present: present, effective: effective, hasOnHandOnly: hasOnHandOnly)
             ScrollView {
                 LazyVStack(spacing: 16) {
                     if model.usingSamples { sampleBanner }
@@ -230,11 +234,15 @@ struct RecipeFeedView: View {
 
     /// Pinned horizontal meal-type filter so a breakfast (or any type) is one
     /// tap away instead of a scroll.
-    private func mealTypeSelector(present: [MealType], effective: MealType?) -> some View {
+    private func mealTypeSelector(present: [MealType], effective: MealType?, hasOnHandOnly: Bool) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 typeChip(title: "All", icon: "square.grid.2x2",
                          isSelected: effective == nil) { selectedMealType = nil }
+                if hasOnHandOnly {
+                    typeChip(title: "No shopping", icon: "checkmark.circle",
+                             isSelected: onHandOnly) { onHandOnly.toggle() }
+                }
                 ForEach(present) { type in
                     typeChip(title: type.title, icon: type.systemImage,
                              isSelected: effective == type) {
