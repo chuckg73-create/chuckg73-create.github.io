@@ -28,8 +28,19 @@ struct GroceryListView: View {
         return unchecked.isEmpty ? grocery.items : unchecked
     }
 
+    /// Aisle-grouped plain text — nice to hand a partner or paste into a store.
     private var listText: String {
-        shoppableItems.map(\.name).joined(separator: "\n")
+        var lines: [String] = ["🛒 Grocery list · KindredTable", ""]
+        for group in grocery.grouped {
+            let items = group.items.filter { !$0.isChecked }
+            guard !items.isEmpty else { continue }
+            lines.append(group.category.title.uppercased())
+            for item in items { lines.append("• \(item.name)") }
+            lines.append("")
+        }
+        let body = lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        // Fall back to a flat list if nothing is unchecked.
+        return body.contains("•") ? body : shoppableItems.map { "• \($0.name)" }.joined(separator: "\n")
     }
 
     var body: some View {
