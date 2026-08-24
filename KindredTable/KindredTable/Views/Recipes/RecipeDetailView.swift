@@ -9,6 +9,7 @@ struct RecipeDetailView: View {
     @Environment(GroceryStore.self) private var grocery
     @Environment(MealPlanStore.self) private var mealPlan
     @Environment(HouseholdStore.self) private var household
+    @Environment(TasteFeedbackStore.self) private var feedback
     @State private var plannedDay: Date?
     /// The ingredient the cook is swapping (drives the substitute sheet).
     @State private var substituteTarget: RecipeIngredient?
@@ -54,6 +55,7 @@ struct RecipeDetailView: View {
                     if let n = recipe.nutrition, n.hasAny { nutritionCard(n) }
                     ingredientsCard
                     stepsCard
+                    ratingCard
                     if !recipe.cooksNotes.isEmpty { cooksNotesCard }
                     if !recipe.tips.isEmpty { tipsCard }
                     if !recipe.tags.isEmpty { tagRow }
@@ -452,6 +454,56 @@ struct RecipeDetailView: View {
         }
     }
 
+    /// The taste flywheel: rate a dish you made and KindredTable learns from it.
+    private var ratingCard: some View {
+        let current = feedback.verdict(for: recipe)
+        return KindredCard {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeader(label: current == nil ? "Made it? Rate it" : "You rated this")
+                Text(current == nil
+                     ? "Tell KindredTable how it turned out — it learns your taste and matches better next time."
+                     : "Thanks — this sharpens your future ideas. Tap to change.")
+                    .font(.caption).foregroundStyle(KindredTheme.subtext)
+                HStack(spacing: 10) {
+                    ForEach(RecipeVerdict.allCases) { v in
+                        Button {
+                            withAnimation {
+                                if current == v { feedback.clear(recipe) }
+                                else {
+                                    feedback.record(recipe, verdict: v)
+                                    if v == .loved, !saved.isSaved(recipe) { saved.toggle(recipe) }
+                                }
+                            }
+                        } label: {
+                            VStack(spacing: 6) {
+                                Image(systemName: v.systemImage).font(.title3)
+                                Text(v.title).font(.caption2)
+                            }
+                            .frame(maxWidth: .infinity).padding(.vertical, 12)
+                            .foregroundStyle(current == v ? Color.white : Self.verdictTint(v))
+                            .background(current == v ? AnyShapeStyle(Self.verdictTint(v))
+                                                    : AnyShapeStyle(Self.verdictTint(v).opacity(0.12)),
+                                        in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                if current == .loved {
+                    Label("Saved to your cookbook", systemImage: "bookmark.fill")
+                        .font(.caption2).foregroundStyle(KindredTheme.mint)
+                }
+            }
+        }
+    }
+
+    private static func verdictTint(_ v: RecipeVerdict) -> Color {
+        switch v {
+        case .loved: return KindredTheme.coral
+        case .liked: return KindredTheme.mint
+        case .disliked: return KindredTheme.faint
+        }
+    }
+
     private var tipsCard: some View {
         KindredCard {
             VStack(alignment: .leading, spacing: 12) {
@@ -496,6 +548,7 @@ struct FlowChips: View {
             .environment(GroceryStore())
             .environment(MealPlanStore())
             .environment(HouseholdStore())
+            .environment(TasteFeedbackStore())
     }
     .preferredColorScheme(.dark)
 }

@@ -78,5 +78,6 @@ struct RootTabView: View {
         .environment(GroceryStore())
         .environment(HouseholdStore())
         .environment(MealPlanStore())
+        .environment(TasteFeedbackStore())
         .preferredColorScheme(.dark)
 }

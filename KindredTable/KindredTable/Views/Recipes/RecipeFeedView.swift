@@ -8,6 +8,7 @@ struct RecipeFeedView: View {
     @Environment(SavedRecipeStore.self) private var saved
     @Environment(HouseholdStore.self) private var household
     @Environment(MealPlanStore.self) private var mealPlan
+    @Environment(TasteFeedbackStore.self) private var feedback
 
     @State private var model = RecipeFeedModel()
     /// Meal-type filter. nil = show all types.
@@ -31,7 +32,7 @@ struct RecipeFeedView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion) }
+                        Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: feedback.promptSummary()) }
                     } label: {
                         Image(systemName: "arrow.clockwise")
                     }
@@ -59,11 +60,11 @@ struct RecipeFeedView: View {
                 }
             }
             .task {
-                await model.loadIfNeeded(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion)
+                await model.loadIfNeeded(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: feedback.promptSummary())
             }
             .onChange(of: household.signature(you: profileStore.profile)) {
                 guard !pantry.isEmpty else { return }
-                Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion) }
+                Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: feedback.promptSummary()) }
             }
             .sheet(isPresented: $showHousehold) { HouseholdView() }
             .sheet(isPresented: $showCrave) { CraveSearchView() }
@@ -88,7 +89,7 @@ struct RecipeFeedView: View {
                     title: "Couldn't load ideas",
                     message: message,
                     actionTitle: "Try again",
-                    action: { Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion) } }
+                    action: { Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: feedback.promptSummary()) } }
                 )
             case .loaded(let recipes):
                 feed(recipes)
@@ -137,7 +138,7 @@ struct RecipeFeedView: View {
                 .padding(20)
             }
             .refreshable {
-                await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion)
+                await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: feedback.promptSummary())
             }
         }
     }
@@ -288,5 +289,6 @@ struct RecipeFeedView: View {
         .environment(SavedRecipeStore())
         .environment(HouseholdStore())
         .environment(MealPlanStore())
+        .environment(TasteFeedbackStore())
         .preferredColorScheme(.dark)
 }

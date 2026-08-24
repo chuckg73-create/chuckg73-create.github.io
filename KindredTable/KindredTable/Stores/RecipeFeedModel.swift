@@ -32,16 +32,16 @@ final class RecipeFeedModel {
 
     var isLoading: Bool { phase == .loading }
 
-    func loadIfNeeded(ingredients: [Ingredient], profile: TasteProfile, servings: Int? = nil, special: Bool = false) async {
+    func loadIfNeeded(ingredients: [Ingredient], profile: TasteProfile, servings: Int? = nil, special: Bool = false, tasteFeedback: String? = nil) async {
         if case .loaded = phase { return }
-        await refresh(ingredients: ingredients, profile: profile, servings: servings, special: special)
+        await refresh(ingredients: ingredients, profile: profile, servings: servings, special: special, tasteFeedback: tasteFeedback)
     }
 
-    func refresh(ingredients: [Ingredient], profile: TasteProfile, servings: Int? = nil, special: Bool = false) async {
+    func refresh(ingredients: [Ingredient], profile: TasteProfile, servings: Int? = nil, special: Bool = false, tasteFeedback: String? = nil) async {
         phase = .loading
         usingSamples = !AppConfig.hasGeminiKey
         do {
-            let recipes = try await service.suggestRecipes(from: ingredients, profile: profile, servings: servings, special: special)
+            let recipes = try await service.suggestRecipes(from: ingredients, profile: profile, servings: servings, special: special, tasteFeedback: tasteFeedback)
             lastUpdated = nowStamp()
             phase = .loaded(recipes)
         } catch let error as RecipeServiceError {
