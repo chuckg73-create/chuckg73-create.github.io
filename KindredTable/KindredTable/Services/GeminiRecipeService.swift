@@ -623,7 +623,8 @@ struct GeminiRecipeService {
         var request = URLRequest(url: components.url!)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 30
+        // Generous — a full-week auto-plan asks for up to 7 rich recipes at once.
+        request.timeoutInterval = 90
 
         let payload = GeminiRequest(
             contents: [

@@ -90,12 +90,16 @@ struct MealPlanView: View {
         isPlanning = true
         Task {
             do {
+                // Fold a variety instruction into the taste-feedback slot so a
+                // week's plan doesn't come back as the same protein seven times.
+                let variety = "VARIETY: this is a full week's plan — vary the proteins, cuisines and cooking methods across the recipes so no two dinners feel too similar."
+                let planNote = [feedback.promptSummary(), variety].compactMap { $0 }.joined(separator: "\n")
                 let recipes = try await service.suggestRecipes(
                     from: pantry.ingredients,
                     profile: household.effectiveProfile(you: profileStore.profile),
                     count: targets.count,
                     servings: household.servings,
-                    tasteFeedback: feedback.promptSummary(),
+                    tasteFeedback: planNote,
                     useUpItems: pantry.useUpNames()
                 )
                 await MainActor.run {
