@@ -63,7 +63,8 @@ struct GeminiRecipeService {
         count: Int = 6,
         servings: Int? = nil,
         special: Bool = false,
-        tasteFeedback: String? = nil
+        tasteFeedback: String? = nil,
+        useUpItems: [String] = []
     ) async throws -> [Recipe] {
         guard !ingredients.isEmpty else { throw RecipeServiceError.emptyPantry }
 
@@ -72,7 +73,7 @@ struct GeminiRecipeService {
             return SampleData.sampleRecipes(for: ingredients, profile: profile, count: count)
         }
 
-        let prompt = Self.buildPrompt(ingredients: ingredients, profile: profile, count: count, servings: servings, special: special, tasteFeedback: tasteFeedback)
+        let prompt = Self.buildPrompt(ingredients: ingredients, profile: profile, count: count, servings: servings, special: special, tasteFeedback: tasteFeedback, useUpItems: useUpItems)
         let request = try makeRequest(prompt: prompt, apiKey: apiKey)
 
         let (data, response) = try await session.data(for: request)
@@ -659,7 +660,8 @@ struct GeminiRecipeService {
         preferOnHand: Bool = false,
         servings: Int? = nil,
         special: Bool = false,
-        tasteFeedback: String? = nil
+        tasteFeedback: String? = nil,
+        useUpItems: [String] = []
     ) -> String {
         let onHand = ingredients
             .map { item -> String in
@@ -685,6 +687,9 @@ struct GeminiRecipeService {
         }
         if let tasteFeedback, !tasteFeedback.trimmingCharacters(in: .whitespaces).isEmpty {
             lines.append(tasteFeedback)
+        }
+        if !useUpItems.isEmpty {
+            lines.append("USE IT UP — the cook has had these ingredients a while; favor recipes that use them so they don't go to waste: \(useUpItems.joined(separator: ", ")).")
         }
         if !includeIngredients.isEmpty {
             lines.append("MUST USE: build the dish around these ingredients the cook chose — \(includeIngredients.joined(separator: ", ")). They should be central to the dish, not garnishes.")

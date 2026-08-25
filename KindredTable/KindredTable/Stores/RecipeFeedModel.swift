@@ -32,16 +32,16 @@ final class RecipeFeedModel {
 
     var isLoading: Bool { phase == .loading }
 
-    func loadIfNeeded(ingredients: [Ingredient], profile: TasteProfile, servings: Int? = nil, special: Bool = false, tasteFeedback: String? = nil) async {
+    func loadIfNeeded(ingredients: [Ingredient], profile: TasteProfile, servings: Int? = nil, special: Bool = false, tasteFeedback: String? = nil, useUpItems: [String] = []) async {
         if case .loaded = phase { return }
-        await refresh(ingredients: ingredients, profile: profile, servings: servings, special: special, tasteFeedback: tasteFeedback)
+        await refresh(ingredients: ingredients, profile: profile, servings: servings, special: special, tasteFeedback: tasteFeedback, useUpItems: useUpItems)
     }
 
-    func refresh(ingredients: [Ingredient], profile: TasteProfile, servings: Int? = nil, special: Bool = false, tasteFeedback: String? = nil) async {
+    func refresh(ingredients: [Ingredient], profile: TasteProfile, servings: Int? = nil, special: Bool = false, tasteFeedback: String? = nil, useUpItems: [String] = []) async {
         phase = .loading
         usingSamples = !AppConfig.hasGeminiKey
         do {
-            let recipes = try await service.suggestRecipes(from: ingredients, profile: profile, servings: servings, special: special, tasteFeedback: tasteFeedback)
+            let recipes = try await service.suggestRecipes(from: ingredients, profile: profile, servings: servings, special: special, tasteFeedback: tasteFeedback, useUpItems: useUpItems)
             lastUpdated = nowStamp()
             phase = .loaded(recipes)
         } catch let error as RecipeServiceError {

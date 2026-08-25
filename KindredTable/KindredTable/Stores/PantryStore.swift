@@ -19,6 +19,18 @@ final class PantryStore {
 
     var isEmpty: Bool { ingredients.isEmpty }
 
+    /// Perishable-ish items the cook has had a while — names to prioritize so
+    /// food doesn't go to waste. Skips shelf-stable spices/pantry staples.
+    func useUpNames(olderThanDays days: Int = 3, limit: Int = 5, now: Date = Date()) -> [String] {
+        let cutoff = now.addingTimeInterval(-Double(days) * 86_400)
+        let perishable: Set<IngredientCategory> = [.produce, .protein, .dairy, .frozen]
+        return ingredients
+            .filter { perishable.contains($0.category) && $0.addedAt <= cutoff }
+            .sorted { $0.addedAt < $1.addedAt }
+            .prefix(limit)
+            .map(\.name)
+    }
+
     /// Ingredients grouped by category, sorted for the pantry list.
     var grouped: [(category: IngredientCategory, items: [Ingredient])] {
         Dictionary(grouping: ingredients, by: { $0.category })
