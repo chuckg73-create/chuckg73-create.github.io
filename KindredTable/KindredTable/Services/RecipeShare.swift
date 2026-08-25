@@ -51,6 +51,7 @@ enum RecipeShare {
 
         lines.append("")
         lines.append("— Shared from KindredTable 🍳")
+        lines.append("Cook what's in your kitchen: https://chuckg73-create.github.io/kindredkitchen/")
 
         return lines.joined(separator: "\n")
     }
