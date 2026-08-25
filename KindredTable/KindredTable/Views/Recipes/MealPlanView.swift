@@ -6,11 +6,19 @@ struct MealPlanView: View {
     @Environment(MealPlanStore.self) private var mealPlan
     @Environment(GroceryStore.self) private var grocery
     @Environment(SavedRecipeStore.self) private var saved
+    @Environment(PantryStore.self) private var pantry
+    @Environment(ProfileStore.self) private var profileStore
+    @Environment(HouseholdStore.self) private var household
+    @Environment(TasteFeedbackStore.self) private var feedback
     @Environment(\.dismiss) private var dismiss
 
+    private let service = GeminiRecipeService()
     @State private var addedCount: Int?
+    @State private var isPlanning = false
+    @State private var planError: String?
 
     private var days: [Date] { mealPlan.upcomingDays() }
+    private var emptyDays: [Date] { days.filter { mealPlan.meals(on: $0).isEmpty } }
 
     var body: some View {
         NavigationStack {
@@ -33,8 +41,10 @@ struct MealPlanView: View {
             EmptyState(
                 systemImage: "calendar",
                 title: "Plan your week",
-                message: "Open any recipe and tap “Add to meal plan” to drop it on a day. Then turn the whole week into one shopping list."
+                message: "Let KindredTable fill your week with taste-matched dinners in one tap — or open any recipe and tap “Add to meal plan.”"
             )
+            autoPlanButton.padding(.horizontal, 40)
+            if let planError { Text(planError).font(.caption).foregroundStyle(KindredTheme.amber).padding(.horizontal, 40) }
         }
     }
 
@@ -42,6 +52,10 @@ struct MealPlanView: View {
         VStack(spacing: 0) {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 18) {
+                    if !emptyDays.isEmpty {
+                        autoPlanButton
+                        if let planError { Text(planError).font(.caption).foregroundStyle(KindredTheme.amber) }
+                    }
                     ForEach(days, id: \.self) { day in
                         daySection(day)
                     }
@@ -50,6 +64,52 @@ struct MealPlanView: View {
                 .padding(.bottom, 90)
             }
             groceryBar
+        }
+    }
+
+    /// One-tap: fill every empty upcoming day with a taste-matched dinner.
+    private var autoPlanButton: some View {
+        Button { planWeek() } label: {
+            HStack(spacing: 8) {
+                if isPlanning { ProgressView().controlSize(.small).tint(.white); Text("Planning your week…") }
+                else { Image(systemName: "wand.and.stars"); Text("Auto-plan \(emptyDays.count) open day\(emptyDays.count == 1 ? "" : "s")") }
+            }
+            .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity).padding(.vertical, 13)
+            .foregroundStyle(.white)
+            .background(KindredTheme.brandGradient, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(isPlanning || pantry.isEmpty || emptyDays.isEmpty)
+    }
+
+    private func planWeek() {
+        let targets = emptyDays
+        guard !targets.isEmpty else { return }
+        guard !pantry.isEmpty else { planError = "Add a few ingredients first so we can match your week."; return }
+        planError = nil
+        isPlanning = true
+        Task {
+            do {
+                let recipes = try await service.suggestRecipes(
+                    from: pantry.ingredients,
+                    profile: household.effectiveProfile(you: profileStore.profile),
+                    count: targets.count,
+                    servings: household.servings,
+                    tasteFeedback: feedback.promptSummary(),
+                    useUpItems: pantry.useUpNames()
+                )
+                await MainActor.run {
+                    for (day, recipe) in zip(targets, recipes) { mealPlan.add(recipe, to: day) }
+                    addedCount = nil
+                    isPlanning = false
+                    if recipes.isEmpty { planError = "Couldn't build a plan right now — try again." }
+                }
+            } catch {
+                await MainActor.run {
+                    isPlanning = false
+                    planError = (error as? RecipeServiceError)?.errorDescription ?? error.localizedDescription
+                }
+            }
         }
     }
 
