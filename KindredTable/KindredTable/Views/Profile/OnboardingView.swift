@@ -70,6 +70,10 @@ struct OnboardingView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     VStack(alignment: .leading, spacing: 10) {
+                        SectionHeader(label: "Cuisines you love")
+                        chipGrid(Self.commonCuisines, selection: $store.profile.lovedCuisines, tint: KindredTheme.blue)
+                    }
+                    VStack(alignment: .leading, spacing: 10) {
                         SectionHeader(label: "Any diets?")
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), spacing: 8, alignment: .leading)], alignment: .leading, spacing: 8) {
                             ForEach(Diet.allCases) { diet in
@@ -91,8 +95,15 @@ struct OnboardingView: View {
                         }
                         .pickerStyle(.segmented)
                     }
+                    VStack(alignment: .leading, spacing: 10) {
+                        SectionHeader(label: "Any allergies?")
+                        Text("These are strictly excluded from every suggestion.")
+                            .font(.caption2).foregroundStyle(KindredTheme.faint)
+                        chipGrid(Self.commonAllergens, selection: $store.profile.allergens, tint: KindredTheme.coral)
+                    }
                 }
                 .padding(.horizontal, 30)
+                .padding(.bottom, 12)
             }
 
             Button {
@@ -105,6 +116,32 @@ struct OnboardingView: View {
             }
             .padding(.horizontal, 30)
             .padding(.bottom, 50)
+        }
+    }
+
+    static let commonCuisines = ["Italian", "Mexican", "Thai", "Indian", "Chinese", "Japanese",
+                                 "Mediterranean", "American", "French", "Korean", "Middle Eastern", "Greek"]
+    static let commonAllergens = ["Peanuts", "Tree nuts", "Shellfish", "Dairy", "Gluten", "Eggs", "Soy", "Fish"]
+
+    /// Tappable chips that toggle a string into/out of a `[String]` profile field
+    /// (case-insensitive, preserving anything the cook already typed).
+    private func chipGrid(_ options: [String], selection: Binding<[String]>, tint: Color) -> some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 8, alignment: .leading)],
+                  alignment: .leading, spacing: 8) {
+            ForEach(options, id: \.self) { item in
+                let on = selection.wrappedValue.contains { $0.caseInsensitiveCompare(item) == .orderedSame }
+                Button {
+                    if on {
+                        selection.wrappedValue.removeAll { $0.caseInsensitiveCompare(item) == .orderedSame }
+                    } else {
+                        selection.wrappedValue.append(item)
+                    }
+                } label: {
+                    Chip(text: item, tint: tint, filled: on)
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(on ? [.isSelected] : [])
+            }
         }
     }
 
