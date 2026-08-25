@@ -8,8 +8,10 @@ import AudioToolbox
 struct CookModeView: View {
     let recipe: Recipe
     @Environment(\.dismiss) private var dismiss
+    @Environment(TasteFeedbackStore.self) private var feedback
 
     private let session = CookingSession.shared
+    @State private var showFinishRating = false
     @State private var voice = VoiceService()
     @State private var autoSpeak = true
     @State private var micOn = false
@@ -45,6 +47,14 @@ struct CookModeView: View {
             voice.stopSpeaking()
         }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in tick() }
+        .confirmationDialog("How did it turn out?", isPresented: $showFinishRating, titleVisibility: .visible) {
+            ForEach(RecipeVerdict.allCases) { v in
+                Button(v.title) { feedback.record(recipe, verdict: v); dismiss() }
+            }
+            Button("Skip", role: .cancel) { dismiss() }
+        } message: {
+            Text("Rating helps KindredTable match your taste next time.")
+        }
         .alert("Microphone access needed", isPresented: $showPermissionAlert) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -230,6 +240,7 @@ struct CookModeView: View {
     private func advance(speak: Bool) {
         if session.isLastStep {
             voice.speak("That's the last step. Enjoy your \(recipe.title)!")
+            showFinishRating = true
             return
         }
         _ = session.next()
