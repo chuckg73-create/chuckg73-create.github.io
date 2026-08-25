@@ -21,6 +21,7 @@ struct RecipeDetailView: View {
     @State private var keepAwake = false
     @State private var showCookMode = false
     @State private var showPlan = false
+    @State private var showEdit = false
     /// Target servings for on-the-fly scaling; starts at the recipe's own yield.
     @State private var displayServings: Int
     /// "Polish with KindredTable" state for imported recipes.
@@ -79,6 +80,12 @@ struct RecipeDetailView: View {
         .sheet(isPresented: $showPlan) {
             CookPlanView(recipe: recipe)
         }
+        .sheet(isPresented: $showEdit) {
+            RecipeEditView(recipe: recipe) { edited in
+                withAnimation { recipe = edited; displayServings = max(1, edited.servings) }
+                if saved.isSaved(edited) { saved.update(edited) }
+            }
+        }
         .sheet(item: $substituteTarget) { ing in
             SubstituteSheet(recipe: recipe, ingredient: ing,
                             profile: household.effectiveProfile(you: profileStore.profile)) { updated in
@@ -87,6 +94,12 @@ struct RecipeDetailView: View {
             }
         }
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { showEdit = true } label: {
+                    Image(systemName: "pencil").foregroundStyle(KindredTheme.accent)
+                }
+                .accessibilityLabel("Edit recipe")
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 ShareLink(item: RecipeShare.text(for: displayed),
                           subject: Text(recipe.title),
