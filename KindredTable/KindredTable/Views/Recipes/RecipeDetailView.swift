@@ -10,6 +10,9 @@ struct RecipeDetailView: View {
     @Environment(MealPlanStore.self) private var mealPlan
     @Environment(HouseholdStore.self) private var household
     @Environment(TasteFeedbackStore.self) private var feedback
+    @Environment(RecipeNotesStore.self) private var notesStore
+    @State private var noteDraft = ""
+    @FocusState private var noteFocused: Bool
     @State private var plannedDay: Date?
     /// The ingredient the cook is swapping (drives the substitute sheet).
     @State private var substituteTarget: RecipeIngredient?
@@ -56,6 +59,7 @@ struct RecipeDetailView: View {
                     ingredientsCard
                     stepsCard
                     ratingCard
+                    notesCard
                     if !recipe.cooksNotes.isEmpty { cooksNotesCard }
                     if !recipe.tips.isEmpty { tipsCard }
                     if !recipe.tags.isEmpty { tagRow }
@@ -454,6 +458,31 @@ struct RecipeDetailView: View {
         }
     }
 
+    /// Personal notes on this recipe ("used less salt", "kids loved it").
+    private var notesCard: some View {
+        KindredCard {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    SectionHeader(label: "Your notes")
+                    Spacer()
+                    if noteFocused {
+                        Button("Done") { saveNote(); noteFocused = false }
+                            .font(.subheadline.weight(.semibold)).foregroundStyle(KindredTheme.accent)
+                    }
+                }
+                TextField("Add a note — tweaks, who loved it, what to change next time…",
+                          text: $noteDraft, axis: .vertical)
+                    .lineLimit(2...6)
+                    .font(.subheadline).foregroundStyle(KindredTheme.text)
+                    .focused($noteFocused)
+                    .onChange(of: noteFocused) { _, focused in if !focused { saveNote() } }
+            }
+        }
+        .onAppear { noteDraft = notesStore.note(for: recipe) }
+    }
+
+    private func saveNote() { notesStore.setNote(noteDraft, for: recipe) }
+
     /// The taste flywheel: rate a dish you made and KindredTable learns from it.
     private var ratingCard: some View {
         let current = feedback.verdict(for: recipe)
@@ -549,6 +578,7 @@ struct FlowChips: View {
             .environment(MealPlanStore())
             .environment(HouseholdStore())
             .environment(TasteFeedbackStore())
+            .environment(RecipeNotesStore())
     }
     .preferredColorScheme(.dark)
 }
