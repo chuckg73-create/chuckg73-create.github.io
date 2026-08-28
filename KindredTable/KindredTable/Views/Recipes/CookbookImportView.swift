@@ -283,6 +283,16 @@ struct CookbookImportView: View {
         if !name.isEmpty { toSave.title = name }
         toSave.sourceNote = attribution.trimmingCharacters(in: .whitespacesAndNewlines)
         cookbook.add(toSave)
+
+        // Warm an AI photo for recipes that arrived without one (a photographed
+        // recipe card like Grandma's peanut butter fudge), so the cookbook card
+        // is photo-rich immediately instead of waiting for the first detail open.
+        if toSave.imageURL.trimmingCharacters(in: .whitespaces).isEmpty,
+           RecipeImageService.shared.isAvailable {
+            let recipeForPhoto = toSave
+            Task.detached { _ = await RecipeImageService.shared.image(for: recipeForPhoto) }
+        }
+
         dismiss()
     }
 }

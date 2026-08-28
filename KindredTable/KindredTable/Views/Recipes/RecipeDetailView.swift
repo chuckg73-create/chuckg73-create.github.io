@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import PhotosUI
 
 /// Full recipe view with ingredients, steps, and save-for-later.
 struct RecipeDetailView: View {
@@ -28,6 +29,20 @@ struct RecipeDetailView: View {
     @State private var isPolishing = false
     @State private var polished = false
     @State private var polishError: String?
+    // MARK: Recipe photo (take / choose / generate)
+    @State private var showPhotoOptions = false
+    @State private var showCamera = false
+    @State private var libraryItem: PhotosPickerItem?
+    @State private var showLibraryPicker = false
+    @State private var isGeneratingPhoto = false
+    @State private var photoError: String?
+    /// Bumped to force the hero to reload after a photo is added/removed.
+    @State private var heroReload = 0
+
+    /// A cook photo or generated photo currently exists → offer removal.
+    private var hasCustomPhoto: Bool {
+        RecipeUserPhotoStore.shared.hasPhoto(for: recipe.id)
+    }
 
     init(recipe: Recipe) {
         _recipe = State(initialValue: recipe)
@@ -48,8 +63,7 @@ struct RecipeDetailView: View {
             KindredBackground()
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    RecipeHeroImage(recipe: recipe, height: 210, glyphSize: 76, generateIfMissing: true)
-                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    heroSection
                     header
                     if canPolish || isPolishing { polishCard }
                     if !recipe.steps.isEmpty { cookModeButton }
@@ -119,6 +133,90 @@ struct RecipeDetailView: View {
                 .accessibilityLabel(saved.isSaved(recipe) ? "Saved" : "Save recipe")
             }
         }
+        .confirmationDialog("Recipe photo", isPresented: $showPhotoOptions, titleVisibility: .visible) {
+            Button("Take Photo") { showCamera = true }
+            Button("Choose from Library") { showLibraryPicker = true }
+            if RecipeImageService.shared.isAvailable {
+                Button("Generate with AI") { Task { await generatePhoto() } }
+            }
+            if hasCustomPhoto {
+                Button("Remove Photo", role: .destructive) { removePhoto() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Add your own snap of the finished dish, or let KindredTable create one.")
+        }
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraPicker { image in savePhoto(image) }
+                .ignoresSafeArea()
+        }
+        .photosPicker(isPresented: $showLibraryPicker, selection: $libraryItem, matching: .images)
+        .onChange(of: libraryItem) { _, item in
+            guard let item else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self),
+                   let image = UIImage(data: data) {
+                    await MainActor.run { savePhoto(image) }
+                }
+                await MainActor.run { libraryItem = nil }
+            }
+        }
+        .alert("Couldn't add photo", isPresented: Binding(get: { photoError != nil }, set: { if !$0 { photoError = nil } })) {
+            Button("OK", role: .cancel) { photoError = nil }
+        } message: { Text(photoError ?? "") }
+    }
+
+    // MARK: Hero + photo controls
+
+    private var heroSection: some View {
+        RecipeHeroImage(recipe: recipe, height: 210, glyphSize: 76,
+                        generateIfMissing: true, reloadToken: heroReload)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(alignment: .bottomTrailing) {
+                Button { showPhotoOptions = true } label: {
+                    Group {
+                        if isGeneratingPhoto {
+                            ProgressView().tint(.white)
+                        } else {
+                            Image(systemName: "camera.fill").font(.footnote.weight(.semibold))
+                        }
+                    }
+                    .foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(.black.opacity(0.45), in: Circle())
+                    .overlay(Circle().stroke(.white.opacity(0.25), lineWidth: 1))
+                }
+                .disabled(isGeneratingPhoto)
+                .padding(12)
+                .accessibilityLabel("Add or change recipe photo")
+            }
+    }
+
+    private func savePhoto(_ image: UIImage) {
+        guard RecipeUserPhotoStore.shared.save(image, for: recipe.id) else {
+            photoError = "That image couldn't be saved. Try another photo."
+            return
+        }
+        withAnimation { heroReload += 1 }
+    }
+
+    private func generatePhoto() async {
+        guard !isGeneratingPhoto else { return }
+        isGeneratingPhoto = true
+        defer { isGeneratingPhoto = false }
+        // A generated photo should replace any earlier cook photo the user is
+        // discarding by choosing "Generate with AI".
+        if let image = await RecipeImageService.shared.image(for: recipe, force: true) {
+            RecipeUserPhotoStore.shared.save(image, for: recipe.id)
+            withAnimation { heroReload += 1 }
+        } else {
+            photoError = "Couldn't create a photo right now. Please try again in a moment."
+        }
+    }
+
+    private func removePhoto() {
+        RecipeUserPhotoStore.shared.remove(for: recipe.id)
+        withAnimation { heroReload += 1 }
     }
 
     private var header: some View {

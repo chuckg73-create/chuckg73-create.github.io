@@ -42,8 +42,24 @@ actor RecipeImageService {
     /// The recipe's photo, generating and caching it if missing. Coalesces
     /// concurrent requests for the same dish. Returns `nil` if there's no key,
     /// generation fails, or the content is blocked.
-    func image(for recipe: Recipe) async -> UIImage? {
+    ///
+    /// `force` bypasses the cache and any prior-failure guard to synthesize a
+    /// fresh photo (the "Generate with AI" button) — used when the cook wants a
+    /// new image even though one already exists.
+    func image(for recipe: Recipe, force: Bool = false) async -> UIImage? {
         let key = Self.key(for: recipe)
+        if force {
+            failed.remove(key)
+            if let existing = inFlight[key] { return await existing.value }
+            let task = Task<UIImage?, Never> { [weak self] () -> UIImage? in
+                guard let self else { return nil }
+                let result = await self.synthesize(for: recipe, key: key)
+                await self.finish(key: key, success: result != nil)
+                return result
+            }
+            inFlight[key] = task
+            return await task.value
+        }
         if let img = RecipeImageCache.shared.image(forKey: key) { return img }
         guard apiKey?.isEmpty == false, !failed.contains(key) else { return nil }
         if let existing = inFlight[key] { return await existing.value }

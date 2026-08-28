@@ -1,34 +1,39 @@
 import SwiftUI
 
 /// A recipe's hero image. Priority:
-/// 1. the real photo when the recipe has an `imageURL` (e.g. a web import),
-/// 2. an AI-generated cookbook photo (cached on disk once made), and
-/// 3. a designed warm placeholder keyed to the dish — so every card looks
+/// 1. the cook's OWN photo, if they took/attached one (durable, always wins),
+/// 2. the real photo when the recipe has an `imageURL` (e.g. a web import),
+/// 3. an AI-generated cookbook photo (cached on disk once made), and
+/// 4. a designed warm placeholder keyed to the dish — so every card looks
 ///    intentional and appetizing, never blank.
 ///
 /// `generateIfMissing` gates synthesis: the detail hero passes `true` (generate on
 /// demand), while feed/planner cards pass `false` — they show a generated photo
 /// only if it's *already* cached, so scrolling never blocks on a network call.
+///
+/// `reloadToken` lets an owner force a refresh (e.g. after the cook attaches or
+/// generates a photo) without changing the recipe identity.
 struct RecipeHeroImage: View {
     let recipe: Recipe
     var height: CGFloat = 150
     var glyphSize: CGFloat = 54
     var generateIfMissing: Bool = false
+    var reloadToken: Int = 0
 
-    @State private var generated: UIImage?
+    @State private var image: UIImage?
 
     var body: some View {
         ZStack {
             placeholder   // always underneath — shows while a photo loads/fails
 
-            if let img = generated {
+            if let img = image {
                 Image(uiImage: img)
                     .resizable().aspectRatio(contentMode: .fill)
                     .transition(.opacity)
             } else if let url = photoURL {
                 AsyncImage(url: url) { phase in
-                    if case .success(let image) = phase {
-                        image.resizable().aspectRatio(contentMode: .fill)
+                    if case .success(let webImage) = phase {
+                        webImage.resizable().aspectRatio(contentMode: .fill)
                             .transition(.opacity)
                     }
                 }
@@ -38,19 +43,24 @@ struct RecipeHeroImage: View {
         .frame(height: height)
         .clipped()
         .accessibilityHidden(true)
-        .task(id: recipe.id) { await loadGeneratedImage() }
+        .task(id: "\(recipe.id)-\(reloadToken)") { await loadImage() }
     }
 
-    /// Only AI-generate when there's no real web photo. Feed cards read cache-only;
-    /// the detail hero generates on demand.
-    private func loadGeneratedImage() async {
-        generated = nil
+    private func loadImage() async {
+        image = nil
+        // 1. The cook's own photo always wins.
+        if let mine = RecipeUserPhotoStore.shared.image(for: recipe.id) {
+            withAnimation(.easeInOut(duration: 0.3)) { image = mine }
+            return
+        }
+        // 2. A real web photo (imported recipe) is shown by AsyncImage below.
         guard photoURL == nil, RecipeImageService.shared.isAvailable else { return }
-        let image = generateIfMissing
+        // 3. AI photo — detail generates on demand; cards read cache-only.
+        let ai = generateIfMissing
             ? await RecipeImageService.shared.image(for: recipe)
             : await RecipeImageService.shared.cachedImage(for: recipe)
-        if let image {
-            withAnimation(.easeInOut(duration: 0.35)) { generated = image }
+        if let ai {
+            withAnimation(.easeInOut(duration: 0.35)) { image = ai }
         }
     }
 
