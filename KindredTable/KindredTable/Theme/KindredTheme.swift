@@ -9,12 +9,12 @@ enum KindredTheme {
 
     // MARK: Core palette
 
-    static let background = Color(hex: 0x080D21)
-    static let surface = Color(hex: 0x111833)
-    static let card = Color(hex: 0x171E38)
-    static let cardElevated = Color(hex: 0x1E2745)
+    static let background = Color(hex: 0x0A1512)
+    static let surface = Color(hex: 0x122019)
+    static let card = Color(hex: 0x162A20)
+    static let cardElevated = Color(hex: 0x1F3529)
 
-    static let accent = Color(hex: 0xFF8A3D)   // warm amber-orange (matches the icon)
+    static let accent = Color(hex: 0x35D6A0)   // BASIL prototype — emerald/herb
     static let blue = Color(hex: 0x3B82F6)
     static let amber = Color(hex: 0xFF9E33)
     static let coral = Color(hex: 0xFF6B47)
@@ -30,8 +30,11 @@ enum KindredTheme {
     // MARK: Gradients
 
     static var brandGradient: LinearGradient {
+        // Deep emerald → teal — dark enough that white button text clears WCAG AA
+        // (large), while `accent` stays a brighter emerald for icons/tints on the
+        // dark canvas.
         LinearGradient(
-            colors: [amber, coral],
+            colors: [Color(hex: 0x059669), Color(hex: 0x0D9488)],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
