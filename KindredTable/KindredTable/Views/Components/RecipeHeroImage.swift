@@ -1,17 +1,31 @@
 import SwiftUI
 
-/// A recipe's hero image. Shows the real photo when the recipe has an
-/// `imageURL` (e.g. a web import), otherwise a designed warm placeholder keyed
-/// to the dish — so every card looks intentional and appetizing, never blank.
+/// A recipe's hero image. Priority:
+/// 1. the real photo when the recipe has an `imageURL` (e.g. a web import),
+/// 2. an AI-generated cookbook photo (cached on disk once made), and
+/// 3. a designed warm placeholder keyed to the dish — so every card looks
+///    intentional and appetizing, never blank.
+///
+/// `generateIfMissing` gates synthesis: the detail hero passes `true` (generate on
+/// demand), while feed/planner cards pass `false` — they show a generated photo
+/// only if it's *already* cached, so scrolling never blocks on a network call.
 struct RecipeHeroImage: View {
     let recipe: Recipe
     var height: CGFloat = 150
     var glyphSize: CGFloat = 54
+    var generateIfMissing: Bool = false
+
+    @State private var generated: UIImage?
 
     var body: some View {
         ZStack {
             placeholder   // always underneath — shows while a photo loads/fails
-            if let url = photoURL {
+
+            if let img = generated {
+                Image(uiImage: img)
+                    .resizable().aspectRatio(contentMode: .fill)
+                    .transition(.opacity)
+            } else if let url = photoURL {
                 AsyncImage(url: url) { phase in
                     if case .success(let image) = phase {
                         image.resizable().aspectRatio(contentMode: .fill)
@@ -24,6 +38,20 @@ struct RecipeHeroImage: View {
         .frame(height: height)
         .clipped()
         .accessibilityHidden(true)
+        .task(id: recipe.id) { await loadGeneratedImage() }
+    }
+
+    /// Only AI-generate when there's no real web photo. Feed cards read cache-only;
+    /// the detail hero generates on demand.
+    private func loadGeneratedImage() async {
+        generated = nil
+        guard photoURL == nil, RecipeImageService.shared.isAvailable else { return }
+        let image = generateIfMissing
+            ? await RecipeImageService.shared.image(for: recipe)
+            : await RecipeImageService.shared.cachedImage(for: recipe)
+        if let image {
+            withAnimation(.easeInOut(duration: 0.35)) { generated = image }
+        }
     }
 
     private var photoURL: URL? {

@@ -48,7 +48,7 @@ struct RecipeDetailView: View {
             KindredBackground()
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    RecipeHeroImage(recipe: recipe, height: 210, glyphSize: 76)
+                    RecipeHeroImage(recipe: recipe, height: 210, glyphSize: 76, generateIfMissing: true)
                         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                     header
                     if canPolish || isPolishing { polishCard }
