@@ -44,7 +44,9 @@ struct RootTabView: View {
 
     var body: some View {
         TabView(selection: $selection) {
-            CaptureView(goToPantry: { selection = .pantry })
+            CaptureView(goToPantry: { selection = .pantry },
+                        goToRecipes: { selection = .recipes },
+                        goToCookbook: { selection = .cookbook })
                 .tabItem { Label("Capture", systemImage: "camera.viewfinder") }
                 .tag(Tab.capture)
 

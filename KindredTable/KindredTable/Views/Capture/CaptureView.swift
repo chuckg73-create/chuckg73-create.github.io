@@ -6,7 +6,10 @@ import UIKit
 /// recognition, and route the results into an editable review sheet.
 struct CaptureView: View {
     @Environment(PantryStore.self) private var pantry
+    @Environment(SavedRecipeStore.self) private var saved
     var goToPantry: () -> Void
+    var goToRecipes: () -> Void = {}
+    var goToCookbook: () -> Void = {}
 
     private let recognizer = VisionIngredientRecognizer()
     private let geminiService = GeminiRecipeService()
@@ -19,15 +22,20 @@ struct CaptureView: View {
     @State private var errorMessage: String?
     @State private var lastImage: UIImage?
 
+    /// The cook's most recent recipes, newest first, for the "jump back in" row.
+    private var recentRecipes: [Recipe] { Array(saved.saved.prefix(10)) }
+
     var body: some View {
         NavigationStack {
             ZStack {
                 KindredBackground()
                 ScrollView {
-                    VStack(spacing: 22) {
-                        hero
+                    VStack(alignment: .leading, spacing: 24) {
+                        greeting
                         captureCard
-                        howItWorks
+                        if !recentRecipes.isEmpty { jumpBackIn }
+                        quickLinks
+                        if recentRecipes.isEmpty { howItWorks }
                     }
                     .padding(20)
                 }
@@ -70,28 +78,96 @@ struct CaptureView: View {
 
     // MARK: Sections
 
-    private var hero: some View {
-        VStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(KindredTheme.brandGradient)
-                    .frame(width: 108, height: 108)
-                    .shadow(color: KindredTheme.accent.opacity(0.4), radius: 24, y: 10)
-                Image(systemName: "refrigerator.fill")
-                    .font(.system(size: 46, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-            .padding(.top, 8)
-
-            Text("What's in your kitchen?")
-                .font(.title2).fontWeight(.bold)
-                .multilineTextAlignment(.center)
-            Text("Snap your fridge or pantry. KindredTable identifies the ingredients, then suggests meals matched to your taste.")
+    private var greeting: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(Self.timeGreeting)
+                .font(.largeTitle).fontWeight(.heavy)
+                .foregroundStyle(KindredTheme.text)
+            Text(recentRecipes.isEmpty
+                 ? "Photograph your fridge and cook what matches you."
+                 : "What sounds good? Snap your kitchen or pick up where you left off.")
                 .font(.subheadline)
                 .foregroundStyle(KindredTheme.subtext)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 8)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 4)
+    }
+
+    /// Time-aware greeting (uses the device clock at render time).
+    private static var timeGreeting: String {
+        switch Calendar.current.component(.hour, from: Date()) {
+        case 5..<12:  return "Good morning"
+        case 12..<17: return "Good afternoon"
+        case 17..<22: return "Good evening"
+        default:      return "Late-night kitchen"
+        }
+    }
+
+    private var jumpBackIn: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                SectionHeader(label: "Jump back in")
+                Spacer()
+                Button("Cookbook", action: goToCookbook)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(KindredTheme.accent)
+            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(recentRecipes) { recipe in
+                        NavigationLink { RecipeDetailView(recipe: recipe) } label: {
+                            recentCard(recipe)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.trailing, 4)
+            }
+        }
+    }
+
+    private func recentCard(_ recipe: Recipe) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            RecipeHeroImage(recipe: recipe, height: 116, glyphSize: 34)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            Text(recipe.title)
+                .font(.subheadline).fontWeight(.semibold)
+                .foregroundStyle(KindredTheme.text)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+            Text("\(recipe.totalMinutes) min · \(recipe.mealType.title)")
+                .font(.caption).foregroundStyle(KindredTheme.faint)
+        }
+        .frame(width: 168, alignment: .leading)
+    }
+
+    private var quickLinks: some View {
+        HStack(spacing: 12) {
+            quickTile("Today's ideas", "sparkles", KindredTheme.accent, action: goToRecipes)
+            quickTile("Cookbook", "books.vertical.fill", KindredTheme.amber, action: goToCookbook)
+            quickTile("On hand", "list.bullet.rectangle.portrait", KindredTheme.blue, action: goToPantry)
+        }
+    }
+
+    private func quickTile(_ title: String, _ icon: String, _ tint: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundStyle(tint)
+                    .frame(width: 44, height: 44)
+                    .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                Text(title)
+                    .font(.caption).fontWeight(.semibold)
+                    .foregroundStyle(KindredTheme.text)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: KindredTheme.corner, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: KindredTheme.corner, style: .continuous).stroke(KindredTheme.hairline, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     private var captureCard: some View {
@@ -208,6 +284,12 @@ struct CaptureView: View {
 #Preview {
     CaptureView(goToPantry: {})
         .environment(PantryStore(seed: SampleData.ingredients))
+        .environment(SavedRecipeStore(seed: Array(SampleData.recipes.prefix(3))))
         .environment(ProfileStore(seed: .starter))
+        .environment(HouseholdStore())
+        .environment(GroceryStore())
+        .environment(MealPlanStore())
+        .environment(TasteFeedbackStore())
+        .environment(RecipeNotesStore())
         .preferredColorScheme(.dark)
 }
