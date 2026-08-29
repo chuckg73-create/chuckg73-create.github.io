@@ -823,8 +823,56 @@ struct GeminiRecipeService {
             let payload = try JSONDecoder().decode(RecipePayload.self, from: data)
             return payload.recipes.map { $0.toRecipe() }
         } catch {
+            // The model sometimes truncates the array (a long search hitting the
+            // output-token ceiling → finishReason MAX_TOKENS) or wraps a stray
+            // token, so the whole-payload decode fails. Rather than surface a hard
+            // "couldn't read the suggestions", salvage every complete recipe
+            // object that did arrive and drop only the cut-off tail.
+            let salvaged = Self.salvageRecipes(from: json)
+            if !salvaged.isEmpty { return salvaged }
             throw RecipeServiceError.decoding("bad JSON near: \(String(json.prefix(80)))")
         }
+    }
+
+    /// Recover every complete recipe object from a partial/truncated payload by
+    /// scanning for balanced `{ … }` blocks that decode as a recipe (they must
+    /// carry a `title`; nested ingredient/nutrition objects don't and are skipped).
+    static func salvageRecipes(from json: String) -> [Recipe] {
+        let chars = Array(json)
+        let decoder = JSONDecoder()
+        var items: [RecipePayload.Item] = []
+        var i = 0
+        while i < chars.count {
+            guard chars[i] == "{" else { i += 1; continue }
+            // Find the matching close brace, respecting string literals/escapes.
+            var depth = 0, inString = false, escaped = false, end = -1, j = i
+            while j < chars.count {
+                let c = chars[j]
+                if inString {
+                    if escaped { escaped = false }
+                    else if c == "\\" { escaped = true }
+                    else if c == "\"" { inString = false }
+                } else if c == "\"" { inString = true }
+                else if c == "{" { depth += 1 }
+                else if c == "}" {
+                    depth -= 1
+                    if depth == 0 { end = j; break }
+                }
+                j += 1
+            }
+            // No matching close (the outer `{"recipes":[…` wrapper, or a truncated
+            // final recipe): step in by one and keep scanning for complete objects.
+            guard end != -1 else { i += 1; continue }
+            let block = String(chars[i...end])
+            if let data = block.data(using: .utf8),
+               let item = try? decoder.decode(RecipePayload.Item.self, from: data) {
+                items.append(item)
+                i = end + 1                  // skip past this recipe's nested objects
+            } else {
+                i += 1                       // not a recipe object; keep scanning
+            }
+        }
+        return items.map { $0.toRecipe() }
     }
 
     /// Decode a `{"items": [...]}` (or legacy `{"ingredients": [...]}`) string
