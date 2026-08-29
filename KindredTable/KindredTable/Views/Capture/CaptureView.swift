@@ -7,6 +7,7 @@ import UIKit
 struct CaptureView: View {
     @Environment(PantryStore.self) private var pantry
     @Environment(SavedRecipeStore.self) private var saved
+    @Environment(MealPlanStore.self) private var mealPlan
     var goToPantry: () -> Void
     var goToRecipes: () -> Void = {}
     var goToCookbook: () -> Void = {}
@@ -25,6 +26,21 @@ struct CaptureView: View {
     /// The cook's most recent recipes, newest first, for the "jump back in" row.
     private var recentRecipes: [Recipe] { Array(saved.saved.prefix(10)) }
 
+    /// The 5pm moment: what's for dinner. A meal planned for today wins; otherwise,
+    /// in the late afternoon/evening, feature a dinner from the cookbook.
+    private var tonight: (recipe: Recipe, label: String)? {
+        let today = mealPlan.meals(on: Date())
+        if let planned = today.first(where: { $0.recipe.mealType == .dinner }) ?? today.first {
+            return (planned.recipe, "Planned for tonight")
+        }
+        guard Calendar.current.component(.hour, from: Date()) >= 16 else { return nil }
+        let dinners = saved.saved.filter { $0.mealType == .dinner }
+        let pool = dinners.isEmpty ? saved.saved : dinners
+        guard !pool.isEmpty else { return nil }
+        let day = Calendar.current.ordinality(of: .day, in: .year, for: Date()) ?? 0
+        return (pool[day % pool.count], "Tonight’s idea")
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -32,6 +48,7 @@ struct CaptureView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
                         greeting
+                        if let tonight { tonightCard(tonight.recipe, label: tonight.label) }
                         captureCard
                         if !recentRecipes.isEmpty { jumpBackIn }
                         quickLinks
@@ -101,6 +118,33 @@ struct CaptureView: View {
         case 17..<22: return "Good evening"
         default:      return "Late-night kitchen"
         }
+    }
+
+    private func tonightCard(_ recipe: Recipe, label: String) -> some View {
+        NavigationLink { RecipeDetailView(recipe: recipe) } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                ZStack(alignment: .bottomLeading) {
+                    RecipeHeroImage(recipe: recipe, height: 180, glyphSize: 46)
+                    LinearGradient(colors: [.clear, .black.opacity(0.72)],
+                                   startPoint: .center, endPoint: .bottom)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label(label.uppercased(), systemImage: "moon.stars.fill")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(KindredTheme.accent)
+                        Text(recipe.title)
+                            .font(.title3).fontWeight(.bold)
+                            .foregroundStyle(.white)
+                            .lineLimit(2)
+                        Text("\(recipe.totalMinutes) min · tap to cook")
+                            .font(.caption).foregroundStyle(.white.opacity(0.85))
+                    }
+                    .padding(16)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: KindredTheme.cardCorner, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: KindredTheme.cardCorner, style: .continuous).stroke(KindredTheme.accent.opacity(0.4), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     private var jumpBackIn: some View {
