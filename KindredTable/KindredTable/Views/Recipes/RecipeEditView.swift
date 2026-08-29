@@ -23,6 +23,8 @@ struct RecipeEditView: View {
                         if draft.source.isImported {
                             TextField("Whose recipe? (e.g. Mom)", text: $draft.sourceNote)
                                 .textInputAutocapitalization(.words)
+                            TextField("A memory (e.g. Mom made this every Christmas)", text: $draft.story, axis: .vertical)
+                                .lineLimit(1...3)
                         }
                         Stepper("Serves \(draft.servings)", value: $draft.servings, in: 1...24)
                         TextField("One-line summary", text: $draft.summary, axis: .vertical)

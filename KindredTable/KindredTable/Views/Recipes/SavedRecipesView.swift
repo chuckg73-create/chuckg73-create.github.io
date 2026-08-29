@@ -20,12 +20,9 @@ struct CookbookView: View {
                         LazyVStack(alignment: .leading, spacing: 16) {
                             addRecipeButton
                             if trimmedQuery.isEmpty {
-                                if !cookbook.imported.isEmpty {
-                                    section(title: "Your recipes", icon: "heart.text.square.fill",
-                                            recipes: cookbook.imported)
-                                }
+                                if !cookbook.imported.isEmpty { familySection }
                                 if !cookbook.fromApp.isEmpty {
-                                    section(title: "From the app", icon: "sparkles",
+                                    section(title: "From KindredTable", icon: "sparkles",
                                             recipes: cookbook.fromApp)
                                 }
                             } else {
@@ -66,6 +63,7 @@ struct CookbookView: View {
         let n = q.lowercased()
         if r.title.lowercased().contains(n) { return true }
         if r.sourceNote.lowercased().contains(n) { return true }
+        if r.story.lowercased().contains(n) { return true }
         if r.summary.lowercased().contains(n) { return true }
         if r.tags.contains(where: { $0.lowercased().contains(n) }) { return true }
         if r.ingredients.contains(where: { $0.name.lowercased().contains(n) }) { return true }
@@ -107,6 +105,56 @@ struct CookbookView: View {
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(KindredTheme.hairline, lineWidth: 1))
         }
         .buttonStyle(.plain)
+    }
+
+    /// The heart of the cookbook — family recipes shown as treasured cards with
+    /// their attribution and memory front and center.
+    private var familySection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "heart.text.square.fill").font(.caption).foregroundStyle(KindredTheme.coral)
+                SectionHeader(label: "Family recipes")
+                Spacer()
+                Text("\(cookbook.imported.count)").font(.caption).foregroundStyle(KindredTheme.faint)
+            }
+            ForEach(cookbook.imported) { recipe in
+                NavigationLink { RecipeDetailView(recipe: recipe) } label: {
+                    familyCard(recipe)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func familyCard(_ recipe: Recipe) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            RecipeHeroImage(recipe: recipe, height: 168)
+            VStack(alignment: .leading, spacing: 8) {
+                Label(recipe.sourceNote.isEmpty ? "Your recipe" : "From \(recipe.sourceNote)",
+                      systemImage: "heart.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(KindredTheme.coral)
+                Text(recipe.title)
+                    .font(.title3).fontWeight(.bold)
+                    .foregroundStyle(KindredTheme.text)
+                if !recipe.story.isEmpty {
+                    Text("“\(recipe.story)”")
+                        .font(.subheadline).italic()
+                        .foregroundStyle(KindredTheme.subtext)
+                        .lineLimit(2)
+                }
+                HStack(spacing: 14) {
+                    Label("\(recipe.totalMinutes) min", systemImage: "clock")
+                    Label("Serves \(recipe.servings)", systemImage: "person.2.fill")
+                }
+                .font(.caption).foregroundStyle(KindredTheme.faint)
+            }
+            .padding(16)
+        }
+        .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: KindredTheme.cardCorner, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: KindredTheme.cardCorner, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: KindredTheme.cardCorner, style: .continuous)
+            .stroke(KindredTheme.coral.opacity(0.28), lineWidth: 1))
     }
 
     private func section(title: String, icon: String, recipes: [Recipe]) -> some View {

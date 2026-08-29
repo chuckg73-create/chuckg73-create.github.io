@@ -22,6 +22,7 @@ struct CookbookImportView: View {
     @State private var showCamera = false
     @State private var photoItem: PhotosPickerItem?
     @State private var attribution = ""
+    @State private var story = ""
     @State private var titleDraft = ""
     @State private var urlText = ""
     @FocusState private var urlFocused: Bool
@@ -162,6 +163,12 @@ struct CookbookImportView: View {
                             .textInputAutocapitalization(.words)
                             .foregroundStyle(KindredTheme.text)
                     }
+                    Divider().overlay(KindredTheme.hairline)
+                    field(label: "A memory (optional)") {
+                        TextField("e.g. Mom made this every Christmas Eve", text: $story, axis: .vertical)
+                            .lineLimit(1...3)
+                            .foregroundStyle(KindredTheme.text)
+                    }
                 }
             }
 
@@ -282,6 +289,7 @@ struct CookbookImportView: View {
         let name = titleDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         if !name.isEmpty { toSave.title = name }
         toSave.sourceNote = attribution.trimmingCharacters(in: .whitespacesAndNewlines)
+        toSave.story = story.trimmingCharacters(in: .whitespacesAndNewlines)
         cookbook.add(toSave)
 
         // Warm an AI photo for recipes that arrived without one (a photographed

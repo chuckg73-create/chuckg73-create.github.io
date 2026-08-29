@@ -50,6 +50,9 @@ struct Recipe: Identifiable, Codable, Hashable {
     var source: RecipeSource
     /// Optional attribution for an imported recipe — "Mom's", "Grandma Rose".
     var sourceNote: String
+    /// Optional family memory / story for a treasured recipe — "Mom made this
+    /// every Christmas Eve." Shown prominently on imported recipes.
+    var story: String
     /// Optional hero image URL (e.g. a web recipe's photo). Empty = show the
     /// designed placeholder hero instead.
     var imageURL: String
@@ -98,6 +101,7 @@ struct Recipe: Identifiable, Codable, Hashable {
         mealType: MealType = .dinner,
         source: RecipeSource = .app,
         sourceNote: String = "",
+        story: String = "",
         imageURL: String = "",
         ingredients: [RecipeIngredient] = [],
         steps: [String] = [],
@@ -119,6 +123,7 @@ struct Recipe: Identifiable, Codable, Hashable {
         self.mealType = mealType
         self.source = source
         self.sourceNote = sourceNote
+        self.story = story
         self.imageURL = imageURL
         self.ingredients = ingredients
         self.steps = steps
@@ -136,7 +141,7 @@ struct Recipe: Identifiable, Codable, Hashable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, title, summary, mealType, source, sourceNote, imageURL, ingredients, steps, tips, cooksNotes
+        case id, title, summary, mealType, source, sourceNote, story, imageURL, ingredients, steps, tips, cooksNotes
         case servings, prepMinutes, cookMinutes, difficulty, tags, matchScore, whyYoullLikeIt, timeline, nutrition
     }
 
@@ -155,6 +160,7 @@ struct Recipe: Identifiable, Codable, Hashable {
         mealType = try c.decodeIfPresent(MealType.self, forKey: .mealType) ?? .dinner
         source = try c.decodeIfPresent(RecipeSource.self, forKey: .source) ?? .app
         sourceNote = try c.decodeIfPresent(String.self, forKey: .sourceNote) ?? ""
+        story = try c.decodeIfPresent(String.self, forKey: .story) ?? ""
         imageURL = try c.decodeIfPresent(String.self, forKey: .imageURL) ?? ""
         steps = try c.decodeIfPresent([String].self, forKey: .steps) ?? []
         tips = try c.decodeIfPresent([String].self, forKey: .tips) ?? []

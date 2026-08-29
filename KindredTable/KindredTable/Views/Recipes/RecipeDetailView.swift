@@ -33,6 +33,9 @@ struct RecipeDetailView: View {
     @State private var polishError: String?
     /// Transient confirmation after a more/less-like-this tap.
     @State private var tuneMessage: String?
+    /// Rendered share card + build state.
+    @State private var shareCardImage: UIImage?
+    @State private var isBuildingCard = false
     // MARK: Recipe photo (take / choose / generate)
     @State private var showPhotoOptions = false
     @State private var showCamera = false
@@ -69,6 +72,7 @@ struct RecipeDetailView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     heroSection
                     header
+                    if !recipe.story.isEmpty { storyCard }
                     if canPolish || isPolishing { polishCard }
                     if !recipe.steps.isEmpty { cookModeButton }
                     addToPlanButton
@@ -96,6 +100,9 @@ struct RecipeDetailView: View {
         .fullScreenCover(isPresented: $showCookMode) {
             CookModeView(recipe: recipe)
         }
+        .sheet(isPresented: Binding(get: { shareCardImage != nil }, set: { if !$0 { shareCardImage = nil } })) {
+            if let img = shareCardImage { ActivityView(items: [img]) }
+        }
         .sheet(isPresented: $showPlan) {
             CookPlanView(recipe: recipe)
         }
@@ -120,11 +127,22 @@ struct RecipeDetailView: View {
                 .accessibilityLabel("Edit recipe")
             }
             ToolbarItem(placement: .topBarTrailing) {
-                ShareLink(item: RecipeShare.text(for: displayed),
-                          subject: Text(recipe.title),
-                          preview: SharePreview(recipe.title)) {
-                    Image(systemName: "square.and.arrow.up")
-                        .foregroundStyle(KindredTheme.accent)
+                Menu {
+                    Button { shareAsCard() } label: {
+                        Label("Share as photo card", systemImage: "photo")
+                    }
+                    ShareLink(item: RecipeShare.text(for: displayed),
+                              subject: Text(recipe.title),
+                              preview: SharePreview(recipe.title)) {
+                        Label("Share as text", systemImage: "doc.text")
+                    }
+                } label: {
+                    if isBuildingCard {
+                        ProgressView().tint(KindredTheme.accent)
+                    } else {
+                        Image(systemName: "square.and.arrow.up")
+                            .foregroundStyle(KindredTheme.accent)
+                    }
                 }
                 .accessibilityLabel("Share recipe")
             }
@@ -222,6 +240,22 @@ struct RecipeDetailView: View {
     private func removePhoto() {
         RecipeUserPhotoStore.shared.remove(for: recipe.id)
         withAnimation { heroReload += 1 }
+    }
+
+    /// Build a shareable photo card (fetching the recipe's image first), then
+    /// present the system share sheet.
+    private func shareAsCard() {
+        guard !isBuildingCard else { return }
+        isBuildingCard = true
+        Task {
+            var photo = RecipeUserPhotoStore.shared.image(for: recipe.id)
+            if photo == nil { photo = await RecipeImageService.shared.image(for: recipe) }
+            let resolved = photo
+            await MainActor.run {
+                shareCardImage = RecipeShareCard.render(displayed, photo: resolved)
+                isBuildingCard = false
+            }
+        }
     }
 
     private var header: some View {
@@ -339,6 +373,28 @@ struct RecipeDetailView: View {
         MatchReason.sentence(for: recipe,
                              profile: household.effectiveProfile(you: profileStore.profile),
                              lovedTags: feedback.lovedTags)
+    }
+
+    /// A treasured family memory attached to an imported recipe.
+    private var storyCard: some View {
+        KindredCard {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "quote.opening")
+                    .font(.title3).foregroundStyle(KindredTheme.coral)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(recipe.story)
+                        .font(.callout)
+                        .italic()
+                        .foregroundStyle(KindredTheme.text)
+                    if !recipe.attribution.isEmpty {
+                        Text("— \(recipe.attribution)")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(KindredTheme.coral)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+        }
     }
 
     /// "More / less like this" — steers the next batch and says what it learned.
