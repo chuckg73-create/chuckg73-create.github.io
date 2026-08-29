@@ -9,7 +9,17 @@ struct CraveSearchView: View {
     @Environment(ProfileStore.self) private var profileStore
     @Environment(SavedRecipeStore.self) private var saved
     @Environment(HouseholdStore.self) private var household
+    @Environment(TasteFeedbackStore.self) private var feedback
+    @Environment(TastePreferenceStore.self) private var preferences
     @Environment(\.dismiss) private var dismiss
+
+    /// Rated dishes + hand-tuned more/less-like-this steering, for the prompt.
+    private var tasteSignals: String? {
+        let combined = [feedback.promptSummary(), preferences.promptLine()]
+            .compactMap { $0 }
+            .joined(separator: "\n")
+        return combined.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : combined
+    }
 
     @State private var request = MealRequest()
     @State private var ingredientDraft = ""
@@ -251,7 +261,8 @@ struct CraveSearchView: View {
                     from: pantry.ingredients,
                     profile: household.effectiveProfile(you: profileStore.profile),
                     servings: household.servings,
-                    special: household.specialOccasion
+                    special: household.specialOccasion,
+                    tasteFeedback: tasteSignals
                 )
                 phase = .results(recipes)
             } catch {

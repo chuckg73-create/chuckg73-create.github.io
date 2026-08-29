@@ -10,6 +10,7 @@ struct KindredTableApp: App {
     @State private var household = HouseholdStore()
     @State private var mealPlan = MealPlanStore()
     @State private var feedback = TasteFeedbackStore()
+    @State private var preferences = TastePreferenceStore()
     @State private var notes = RecipeNotesStore()
 
     var body: some Scene {
@@ -22,6 +23,7 @@ struct KindredTableApp: App {
                 .environment(household)
                 .environment(mealPlan)
                 .environment(feedback)
+                .environment(preferences)
                 .environment(notes)
                 .onAppear { mealPlan.prunePast() }
                 .preferredColorScheme(.dark)

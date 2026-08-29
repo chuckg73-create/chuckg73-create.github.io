@@ -9,6 +9,7 @@ struct RecipeFeedView: View {
     @Environment(HouseholdStore.self) private var household
     @Environment(MealPlanStore.self) private var mealPlan
     @Environment(TasteFeedbackStore.self) private var feedback
+    @Environment(TastePreferenceStore.self) private var preferences
 
     @State private var model = RecipeFeedModel()
     /// Meal-type filter. nil = show all types.
@@ -24,6 +25,15 @@ struct RecipeFeedView: View {
         household.effectiveProfile(you: profileStore.profile)
     }
 
+    /// What the cook has taught the engine — dishes they've rated plus their
+    /// hand-tuned more/less-like-this steering — folded into one prompt block.
+    private var tasteSignals: String? {
+        let combined = [feedback.promptSummary(), preferences.promptLine()]
+            .compactMap { $0 }
+            .joined(separator: "\n")
+        return combined.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : combined
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -34,7 +44,7 @@ struct RecipeFeedView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: feedback.promptSummary(), useUpItems: pantry.useUpNames()) }
+                        Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: tasteSignals, useUpItems: pantry.useUpNames()) }
                     } label: {
                         Image(systemName: "arrow.clockwise")
                     }
@@ -62,11 +72,11 @@ struct RecipeFeedView: View {
                 }
             }
             .task {
-                await model.loadIfNeeded(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: feedback.promptSummary(), useUpItems: pantry.useUpNames())
+                await model.loadIfNeeded(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: tasteSignals, useUpItems: pantry.useUpNames())
             }
             .onChange(of: household.signature(you: profileStore.profile)) {
                 guard !pantry.isEmpty else { return }
-                Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: feedback.promptSummary(), useUpItems: pantry.useUpNames()) }
+                Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: tasteSignals, useUpItems: pantry.useUpNames()) }
             }
             .sheet(isPresented: $showHousehold) { HouseholdView() }
             .sheet(isPresented: $showCrave) { CraveSearchView() }
@@ -91,7 +101,7 @@ struct RecipeFeedView: View {
                     title: "Couldn't load ideas",
                     message: message,
                     actionTitle: "Try again",
-                    action: { Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: feedback.promptSummary(), useUpItems: pantry.useUpNames()) } }
+                    action: { Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: tasteSignals, useUpItems: pantry.useUpNames()) } }
                 )
             case .loaded(let recipes):
                 feed(recipes)
@@ -142,7 +152,7 @@ struct RecipeFeedView: View {
                 .padding(20)
             }
             .refreshable {
-                await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: feedback.promptSummary(), useUpItems: pantry.useUpNames())
+                await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: tasteSignals, useUpItems: pantry.useUpNames())
             }
         }
     }

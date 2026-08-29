@@ -4,6 +4,8 @@ import SwiftUI
 /// suggestions. Bound directly to the persisted `ProfileStore`.
 struct TasteProfileView: View {
     @Environment(ProfileStore.self) private var profileStore
+    @Environment(TasteFeedbackStore.self) private var feedback
+    @Environment(TastePreferenceStore.self) private var preferences
     @Environment(\.dismiss) private var dismiss
     @State private var showEquipmentScan = false
 
@@ -13,6 +15,7 @@ struct TasteProfileView: View {
         ZStack {
             KindredBackground()
             Form {
+                if !feedback.isEmpty || !preferences.isEmpty { learnedSection }
                 dietSection(store: store)
 
                 Section("Cuisines you love") {
@@ -67,6 +70,53 @@ struct TasteProfileView: View {
             }
         }
         .sheet(isPresented: $showEquipmentScan) { EquipmentScanView() }
+    }
+
+    /// Makes the personalization tangible: what the engine has learned from the
+    /// cook's ratings and their more/less-like-this taps.
+    private var learnedSection: some View {
+        Section {
+            if feedback.lovedCount > 0 {
+                learnedRow(icon: "heart.fill", tint: KindredTheme.coral,
+                           title: "You’ve loved \(feedback.lovedCount) \(feedback.lovedCount == 1 ? "dish" : "dishes")",
+                           detail: feedback.lovedTags.prefix(6).joined(separator: ", "))
+            }
+            if !preferences.boosted.isEmpty {
+                learnedRow(icon: "hand.thumbsup.fill", tint: KindredTheme.accent,
+                           title: "More of",
+                           detail: preferences.boosted.prefix(6).joined(separator: ", "))
+            }
+            if !preferences.suppressed.isEmpty {
+                learnedRow(icon: "hand.thumbsdown.fill", tint: KindredTheme.faint,
+                           title: "Less of",
+                           detail: preferences.suppressed.prefix(6).joined(separator: ", "))
+            }
+            if !preferences.isEmpty {
+                Button(role: .destructive) {
+                    preferences.clear()
+                } label: {
+                    Label("Reset my more/less tuning", systemImage: "arrow.counterclockwise")
+                }
+            }
+        } header: {
+            Text("What we’ve learned")
+        } footer: {
+            Text("Built from dishes you’ve rated and your “more/less like this” taps. It sharpens every suggestion.")
+        }
+        .listRowBackground(KindredTheme.card)
+    }
+
+    private func learnedRow(icon: String, tint: Color, title: String, detail: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon).foregroundStyle(tint).frame(width: 22)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.subheadline).fontWeight(.medium).foregroundStyle(KindredTheme.text)
+                if !detail.isEmpty {
+                    Text(detail).font(.caption).foregroundStyle(KindredTheme.subtext)
+                }
+            }
+            Spacer()
+        }
     }
 
     private func dietSection(store: ProfileStore) -> some View {
@@ -210,5 +260,7 @@ struct TokenEditor: View {
 #Preview {
     NavigationStack { TasteProfileView() }
         .environment(ProfileStore(seed: .starter))
+        .environment(TasteFeedbackStore())
+        .environment(TastePreferenceStore())
         .preferredColorScheme(.dark)
 }

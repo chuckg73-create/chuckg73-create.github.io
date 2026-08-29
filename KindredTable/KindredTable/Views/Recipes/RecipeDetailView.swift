@@ -11,6 +11,7 @@ struct RecipeDetailView: View {
     @Environment(MealPlanStore.self) private var mealPlan
     @Environment(HouseholdStore.self) private var household
     @Environment(TasteFeedbackStore.self) private var feedback
+    @Environment(TastePreferenceStore.self) private var preferences
     @Environment(RecipeNotesStore.self) private var notesStore
     @State private var noteDraft = ""
     @FocusState private var noteFocused: Bool
@@ -29,6 +30,8 @@ struct RecipeDetailView: View {
     @State private var isPolishing = false
     @State private var polished = false
     @State private var polishError: String?
+    /// Transient confirmation after a more/less-like-this tap.
+    @State private var tuneMessage: String?
     // MARK: Recipe photo (take / choose / generate)
     @State private var showPhotoOptions = false
     @State private var showCamera = false
@@ -70,6 +73,7 @@ struct RecipeDetailView: View {
                     addToPlanButton
                     if !recipe.steps.isEmpty { planButton }
                     if matchReason != nil || !recipe.whyYoullLikeIt.isEmpty { whyCard }
+                    if !recipe.source.isImported { tuneCard }
                     if let n = recipe.nutrition, n.hasAny { nutritionCard(n) }
                     ingredientsCard
                     stepsCard
@@ -334,6 +338,53 @@ struct RecipeDetailView: View {
         MatchReason.sentence(for: recipe,
                              profile: household.effectiveProfile(you: profileStore.profile),
                              lovedTags: feedback.lovedTags)
+    }
+
+    /// "More / less like this" — steers the next batch and says what it learned.
+    private var tuneCard: some View {
+        KindredCard {
+            VStack(spacing: 12) {
+                if let tuneMessage {
+                    Label(tuneMessage, systemImage: "checkmark.circle.fill")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(KindredTheme.accent)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 4)
+                        .transition(.opacity)
+                } else {
+                    Text("Tune your suggestions")
+                        .font(.subheadline).fontWeight(.semibold)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    HStack(spacing: 12) {
+                        tuneButton(up: true, title: "More like this", icon: "hand.thumbsup.fill", tint: KindredTheme.accent)
+                        tuneButton(up: false, title: "Less like this", icon: "hand.thumbsdown.fill", tint: KindredTheme.faint)
+                    }
+                }
+            }
+        }
+    }
+
+    private func tuneButton(up: Bool, title: String, icon: String, tint: Color) -> some View {
+        Button {
+            preferences.vote(recipe, up: up)
+            let tag = preferences.headlineTag(of: recipe)
+            let subject = tag.map { "\($0) " } ?? ""
+            let msg = up ? "Got it — more \(subject)coming up" : "Noted — fewer \(subject)dishes"
+            withAnimation { tuneMessage = msg }
+            Task {
+                try? await Task.sleep(nanoseconds: 2_200_000_000)
+                await MainActor.run { withAnimation { tuneMessage = nil } }
+            }
+        } label: {
+            Label(title, systemImage: icon)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(tint)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(tint.opacity(0.12), in: Capsule())
+                .overlay(Capsule().stroke(tint.opacity(0.25), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     private var whyCard: some View {
