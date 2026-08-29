@@ -36,6 +36,19 @@ final class TasteFeedbackStore {
     var lovedCount: Int { ratings.lazy.filter { $0.verdict == .loved }.count }
     var isEmpty: Bool { ratings.isEmpty }
 
+    /// Distinct tags (cuisines/descriptors) from dishes the cook has loved —
+    /// the learned side of their taste, used to explain why a recipe matched.
+    var lovedTags: [String] {
+        var seen = Set<String>()
+        var out: [String] = []
+        for rating in ratings where rating.verdict == .loved {
+            for tag in rating.tags where seen.insert(tag.lowercased()).inserted {
+                out.append(tag)
+            }
+        }
+        return out
+    }
+
     /// A compact summary of recent taste feedback for the recipe prompt, or nil
     /// when there's nothing to learn from yet.
     func promptSummary(lovedLimit: Int = 8, dislikedLimit: Int = 6) -> String? {

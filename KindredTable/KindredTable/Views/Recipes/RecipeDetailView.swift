@@ -69,7 +69,7 @@ struct RecipeDetailView: View {
                     if !recipe.steps.isEmpty { cookModeButton }
                     addToPlanButton
                     if !recipe.steps.isEmpty { planButton }
-                    if !recipe.whyYoullLikeIt.isEmpty { whyCard }
+                    if matchReason != nil || !recipe.whyYoullLikeIt.isEmpty { whyCard }
                     if let n = recipe.nutrition, n.hasAny { nutritionCard(n) }
                     ingredientsCard
                     stepsCard
@@ -328,13 +328,30 @@ struct RecipeDetailView: View {
         .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
+    /// A grounded, always-true reason this recipe fits the cook, from their real
+    /// taste + what's on hand (nil for imported recipes / when nothing concrete matches).
+    private var matchReason: String? {
+        MatchReason.sentence(for: recipe,
+                             profile: household.effectiveProfile(you: profileStore.profile),
+                             lovedTags: feedback.lovedTags)
+    }
+
     private var whyCard: some View {
         KindredCard {
             HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "heart.fill").foregroundStyle(KindredTheme.coral)
-                VStack(alignment: .leading, spacing: 4) {
-                    SectionHeader(label: "Why you'll like it")
-                    Text(recipe.whyYoullLikeIt).font(.subheadline)
+                Image(systemName: "sparkles").foregroundStyle(KindredTheme.accent)
+                VStack(alignment: .leading, spacing: 6) {
+                    SectionHeader(label: "Why this matched you")
+                    if let matchReason {
+                        Text(matchReason)
+                            .font(.subheadline).fontWeight(.medium)
+                            .foregroundStyle(KindredTheme.text)
+                    }
+                    if !recipe.whyYoullLikeIt.isEmpty {
+                        Text(recipe.whyYoullLikeIt)
+                            .font(.subheadline)
+                            .foregroundStyle(matchReason == nil ? KindredTheme.text : KindredTheme.subtext)
+                    }
                 }
             }
         }

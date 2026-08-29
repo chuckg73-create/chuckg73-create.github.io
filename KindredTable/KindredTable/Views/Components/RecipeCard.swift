@@ -6,6 +6,17 @@ struct RecipeCard: View {
     var isSaved: Bool
     var onSave: () -> Void
 
+    @Environment(ProfileStore.self) private var profileStore
+    @Environment(HouseholdStore.self) private var household
+    @Environment(TasteFeedbackStore.self) private var feedback
+
+    /// Grounded "why this matched you" line (nil for imported / no concrete match).
+    private var matchReason: String? {
+        MatchReason.sentence(for: recipe,
+                             profile: household.effectiveProfile(you: profileStore.profile),
+                             lovedTags: feedback.lovedTags)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             RecipeHeroImage(recipe: recipe, height: 148)
@@ -15,6 +26,18 @@ struct RecipeCard: View {
                     .font(.subheadline)
                     .foregroundStyle(KindredTheme.subtext)
                     .lineLimit(2)
+
+                if let matchReason {
+                    Label {
+                        Text(matchReason)
+                            .font(.caption).fontWeight(.medium)
+                            .foregroundStyle(KindredTheme.text)
+                            .lineLimit(2)
+                    } icon: {
+                        Image(systemName: "sparkles").foregroundStyle(KindredTheme.accent)
+                    }
+                    .accessibilityLabel("Why this matched you: \(matchReason)")
+                }
 
                 metaRow
 
@@ -83,4 +106,7 @@ struct RecipeCard: View {
             .padding()
     }
     .preferredColorScheme(.dark)
+    .environment(ProfileStore(seed: nil))
+    .environment(HouseholdStore())
+    .environment(TasteFeedbackStore())
 }
