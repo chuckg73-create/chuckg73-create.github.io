@@ -9,6 +9,7 @@ struct RecipeCard: View {
     @Environment(ProfileStore.self) private var profileStore
     @Environment(HouseholdStore.self) private var household
     @Environment(TasteFeedbackStore.self) private var feedback
+    @Environment(StaplesStore.self) private var staples
 
     /// Grounded "why this matched you" line (nil for imported / no concrete match).
     private var matchReason: String? {
@@ -87,11 +88,12 @@ struct RecipeCard: View {
     }
 
     private var metaRow: some View {
-        HStack(spacing: 14) {
+        let toBuy = recipe.needsToBuy.filter { !staples.covers($0) }
+        return HStack(spacing: 14) {
             Label("\(recipe.totalMinutes) min", systemImage: "clock")
             Label("Serves \(recipe.servings)", systemImage: "person.2.fill")
-            if !recipe.needsToBuy.isEmpty {
-                Label("+\(recipe.needsToBuy.count) to buy", systemImage: "cart")
+            if !toBuy.isEmpty {
+                Label("+\(toBuy.count) to buy", systemImage: "cart")
             }
         }
         .font(.caption)
@@ -109,4 +111,5 @@ struct RecipeCard: View {
     .environment(ProfileStore(seed: nil))
     .environment(HouseholdStore())
     .environment(TasteFeedbackStore())
+    .environment(StaplesStore())
 }

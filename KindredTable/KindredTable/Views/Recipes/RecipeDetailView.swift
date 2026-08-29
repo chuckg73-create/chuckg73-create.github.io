@@ -12,6 +12,7 @@ struct RecipeDetailView: View {
     @Environment(HouseholdStore.self) private var household
     @Environment(TasteFeedbackStore.self) private var feedback
     @Environment(TastePreferenceStore.self) private var preferences
+    @Environment(StaplesStore.self) private var staples
     @Environment(RecipeNotesStore.self) private var notesStore
     @State private var noteDraft = ""
     @FocusState private var noteFocused: Bool
@@ -421,13 +422,14 @@ struct RecipeDetailView: View {
                 ForEach(Array(displayed.ingredients.enumerated()), id: \.offset) { idx, ing in
                     ingredientRow(ing, base: idx < recipe.ingredients.count ? recipe.ingredients[idx] : ing)
                 }
-                if !displayed.needsToBuy.isEmpty {
+                let toBuy = displayed.needsToBuy.filter { !staples.covers($0) }
+                if !toBuy.isEmpty {
                     Button {
-                        grocery.addMany(displayed.needsToBuy)
+                        grocery.addMany(toBuy)
                         withAnimation { addedToList = true }
                     } label: {
                         Label(
-                            addedToList ? "Added to grocery list" : "Add \(displayed.needsToBuy.count) to grocery list",
+                            addedToList ? "Added to grocery list" : "Add \(toBuy.count) to grocery list",
                             systemImage: addedToList ? "checkmark.circle.fill" : "cart.badge.plus"
                         )
                         .font(.subheadline).fontWeight(.medium)
@@ -495,11 +497,14 @@ struct RecipeDetailView: View {
     }
 
     private func ingredientRow(_ ing: RecipeIngredient, base: RecipeIngredient) -> some View {
-        Button { substituteTarget = base } label: {
+        // A pantry staple counts as on-hand even if the model flagged it to buy.
+        let isStaple = !ing.haveIt && staples.covers(ing.name)
+        let onHand = ing.haveIt || isStaple
+        return Button { substituteTarget = base } label: {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Image(systemName: ing.haveIt ? "checkmark.circle.fill" : "cart.fill")
+                Image(systemName: onHand ? "checkmark.circle.fill" : "cart.fill")
                     .font(.caption)
-                    .foregroundStyle(ing.haveIt ? KindredTheme.mint : KindredTheme.amber)
+                    .foregroundStyle(onHand ? KindredTheme.mint : KindredTheme.amber)
                 if !ing.amount.isEmpty {
                     Text(ing.amount)
                         .font(.subheadline).fontWeight(.semibold)
@@ -509,7 +514,9 @@ struct RecipeDetailView: View {
                     .font(.subheadline)
                     .foregroundStyle(KindredTheme.subtext)
                 Spacer(minLength: 0)
-                if !ing.haveIt {
+                if isStaple {
+                    Text("staple").font(.caption2).foregroundStyle(KindredTheme.faint)
+                } else if !ing.haveIt {
                     Text("buy").font(.caption2).foregroundStyle(KindredTheme.amber)
                 }
                 Image(systemName: "arrow.left.arrow.right")

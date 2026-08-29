@@ -11,11 +11,12 @@ struct CraveSearchView: View {
     @Environment(HouseholdStore.self) private var household
     @Environment(TasteFeedbackStore.self) private var feedback
     @Environment(TastePreferenceStore.self) private var preferences
+    @Environment(StaplesStore.self) private var staples
     @Environment(\.dismiss) private var dismiss
 
-    /// Rated dishes + hand-tuned more/less-like-this steering, for the prompt.
+    /// Rated dishes + hand-tuned steering + pantry staples, for the prompt.
     private var tasteSignals: String? {
-        let combined = [feedback.promptSummary(), preferences.promptLine()]
+        let combined = [feedback.promptSummary(), preferences.promptLine(), staples.promptLine()]
             .compactMap { $0 }
             .joined(separator: "\n")
         return combined.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : combined

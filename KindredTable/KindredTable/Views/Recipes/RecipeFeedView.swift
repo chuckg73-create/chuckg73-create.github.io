@@ -10,6 +10,7 @@ struct RecipeFeedView: View {
     @Environment(MealPlanStore.self) private var mealPlan
     @Environment(TasteFeedbackStore.self) private var feedback
     @Environment(TastePreferenceStore.self) private var preferences
+    @Environment(StaplesStore.self) private var staples
 
     @State private var model = RecipeFeedModel()
     /// Meal-type filter. nil = show all types.
@@ -28,7 +29,7 @@ struct RecipeFeedView: View {
     /// What the cook has taught the engine — dishes they've rated plus their
     /// hand-tuned more/less-like-this steering — folded into one prompt block.
     private var tasteSignals: String? {
-        let combined = [feedback.promptSummary(), preferences.promptLine()]
+        let combined = [feedback.promptSummary(), preferences.promptLine(), staples.promptLine()]
             .compactMap { $0 }
             .joined(separator: "\n")
         return combined.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : combined
@@ -124,9 +125,11 @@ struct RecipeFeedView: View {
         // back to "All".
         let present = MealType.allCases.filter { type in recipes.contains { $0.mealType == type } }
         let effective = (selectedMealType.map(present.contains) ?? false) ? selectedMealType : nil
-        let hasOnHandOnly = recipes.contains { $0.needsToBuy.isEmpty }
+        // A recipe needs shopping only if something beyond the cook's staples is missing.
+        let needsShopping: (Recipe) -> Bool = { r in r.needsToBuy.contains { !staples.covers($0) } }
+        let hasOnHandOnly = recipes.contains { !needsShopping($0) }
         var shown = effective == nil ? recipes : recipes.filter { $0.mealType == effective }
-        if onHandOnly { shown = shown.filter { $0.needsToBuy.isEmpty } }
+        if onHandOnly { shown = shown.filter { !needsShopping($0) } }
 
         return VStack(spacing: 0) {
             cookingForBar

@@ -6,8 +6,10 @@ struct TasteProfileView: View {
     @Environment(ProfileStore.self) private var profileStore
     @Environment(TasteFeedbackStore.self) private var feedback
     @Environment(TastePreferenceStore.self) private var preferences
+    @Environment(StaplesStore.self) private var staples
     @Environment(\.dismiss) private var dismiss
     @State private var showEquipmentScan = false
+    @State private var stapleDraft = ""
 
     var body: some View {
         @Bindable var store = profileStore
@@ -27,6 +29,8 @@ struct TasteProfileView: View {
                     TokenEditor(tokens: $store.profile.dislikedIngredients, placeholder: "e.g. cilantro", tint: KindredTheme.subtext)
                 }
                 .listRowBackground(KindredTheme.card)
+
+                staplesSection
 
                 Section {
                     TokenEditor(tokens: $store.profile.allergens, placeholder: "e.g. peanuts", tint: KindredTheme.coral)
@@ -117,6 +121,48 @@ struct TasteProfileView: View {
             }
             Spacer()
         }
+    }
+
+    /// Staples the cook always has — excluded from every shopping list.
+    private var staplesSection: some View {
+        Section {
+            if !staples.names.isEmpty {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: 8, alignment: .leading)],
+                          alignment: .leading, spacing: 8) {
+                    ForEach(staples.names, id: \.self) { name in
+                        Button { staples.remove(name) } label: {
+                            HStack(spacing: 4) {
+                                Text(name).font(.caption).fontWeight(.medium)
+                                Image(systemName: "xmark").font(.system(size: 8))
+                            }
+                            .padding(.horizontal, 10).padding(.vertical, 6)
+                            .foregroundStyle(KindredTheme.mint)
+                            .background(KindredTheme.mint.opacity(0.14), in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            HStack {
+                TextField("e.g. soy sauce", text: $stapleDraft)
+                    .textInputAutocapitalization(.never)
+                    .onSubmit(addStaple)
+                Button("Add", action: addStaple)
+                    .font(.subheadline)
+                    .disabled(stapleDraft.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        } header: {
+            Text("Pantry staples")
+        } footer: {
+            Text("Things you always keep on hand. They’re treated as available and never added to your shopping list.")
+        }
+        .listRowBackground(KindredTheme.card)
+    }
+
+    private func addStaple() {
+        staples.add(stapleDraft)
+        stapleDraft = ""
     }
 
     private func dietSection(store: ProfileStore) -> some View {
@@ -262,5 +308,6 @@ struct TokenEditor: View {
         .environment(ProfileStore(seed: .starter))
         .environment(TasteFeedbackStore())
         .environment(TastePreferenceStore())
+        .environment(StaplesStore())
         .preferredColorScheme(.dark)
 }
