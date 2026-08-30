@@ -243,6 +243,52 @@ struct GeminiRecipeService {
         return recipe
     }
 
+    /// "Spruce it up" — quick, achievable ways to elevate a finished dish
+    /// (a garnish, a finishing flavor, a plating touch, an easy level-up),
+    /// honoring the cook's taste and hard dietary rules.
+    func spruceUp(_ recipe: Recipe, profile: TasteProfile) async throws -> [SpruceIdea] {
+        guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
+
+        var lines: [String] = []
+        lines.append("You are a chef helping a home cook make a dish feel special. Dish: \"\(recipe.title)\" — \(recipe.summary).")
+        lines.append("Its components: \(recipe.ingredients.prefix(8).map(\.name).joined(separator: ", ")).")
+        lines.append("Suggest 4 quick, achievable finishing touches that elevate it WITHOUT changing the core dish — one GARNISH, one FLAVOR finishing touch, one PLATING tip, and one easy LEVEL UP. Each must be short, specific and actionable (one sentence), using easy-to-find items.")
+        lines.append(Self.dietaryConstraintLine(profile))
+        lines.append("Honor the cook's taste; never break a dietary rule or use a disliked ingredient.")
+        lines.append("Respond with ONLY this JSON, no markdown: {\"ideas\":[{\"kind\":\"Garnish|Flavor|Plating|Level up\",\"text\":\"one sentence\"}]}")
+
+        let request = try makeRequest(prompt: lines.joined(separator: "\n"), apiKey: apiKey)
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw RecipeServiceError.badResponse(status: -1, body: "")
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            throw RecipeServiceError.badResponse(status: http.statusCode, body: String(data: data, encoding: .utf8) ?? "")
+        }
+        let text = try Self.extractText(from: data)
+        return try Self.decodeSpruce(from: text)
+    }
+
+    static func decodeSpruce(from text: String) throws -> [SpruceIdea] {
+        struct Payload: Decodable {
+            struct Item: Decodable { var kind: String?; var text: String? }
+            var ideas: [Item]?
+        }
+        let json = sanitizedJSON(text)
+        guard let data = json.data(using: .utf8) else { throw RecipeServiceError.decoding("not utf8") }
+        do {
+            let payload = try JSONDecoder().decode(Payload.self, from: data)
+            let ideas = (payload.ideas ?? []).compactMap { item -> SpruceIdea? in
+                guard let t = item.text?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { return nil }
+                return SpruceIdea(kind: (item.kind ?? "Level up"), text: t)
+            }
+            guard !ideas.isEmpty else { throw RecipeServiceError.noRecipes }
+            return ideas
+        } catch {
+            throw RecipeServiceError.decoding("bad JSON near: \(String(json.prefix(80)))")
+        }
+    }
+
     // MARK: Ingredient substitution
 
     /// Suggest `count` realistic swaps for one ingredient in a recipe, honoring

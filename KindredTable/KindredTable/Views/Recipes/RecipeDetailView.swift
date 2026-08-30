@@ -26,6 +26,7 @@ struct RecipeDetailView: View {
     @State private var showPlan = false
     @State private var showEdit = false
     @State private var showPlate = false
+    @State private var showSpruce = false
     /// Target servings for on-the-fly scaling; starts at the recipe's own yield.
     @State private var displayServings: Int
     /// "Polish with KindredTable" state for imported recipes.
@@ -77,6 +78,7 @@ struct RecipeDetailView: View {
                     if canPolish || isPolishing { polishCard }
                     if !recipe.steps.isEmpty { cookModeButton }
                     if recipe.mealType == .dinner || recipe.mealType == .lunch { plateButton }
+                    if !recipe.steps.isEmpty { spruceButton }
                     addToPlanButton
                     if !recipe.steps.isEmpty { planButton }
                     if matchReason != nil || !recipe.whyYoullLikeIt.isEmpty { whyCard }
@@ -110,6 +112,9 @@ struct RecipeDetailView: View {
         }
         .sheet(isPresented: $showPlate) {
             PlateSheet(main: recipe)
+        }
+        .sheet(isPresented: $showSpruce) {
+            SpruceSheet(recipe: recipe)
         }
         .sheet(isPresented: $showEdit) {
             RecipeEditView(recipe: recipe) { edited in
@@ -296,6 +301,20 @@ struct RecipeDetailView: View {
                     .foregroundStyle(KindredTheme.faint)
             }
         }
+    }
+
+    /// "Spruce it up" — chef's touches to elevate this dish.
+    private var spruceButton: some View {
+        Button { showSpruce = true } label: {
+            Label("Spruce it up — chef's touches", systemImage: "sparkles")
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .foregroundStyle(KindredTheme.amber)
+                .background(KindredTheme.amber.opacity(0.14),
+                           in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     /// "Complete the plate" — generate sides that pair with this main.
