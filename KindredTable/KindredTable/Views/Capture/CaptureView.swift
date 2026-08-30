@@ -16,8 +16,10 @@ struct CaptureView: View {
     private let geminiService = GeminiRecipeService()
 
     @State private var showCamera = false
-    @State private var photoItem: PhotosPickerItem?
+    @State private var photoItems: [PhotosPickerItem] = []
     @State private var isRecognizing = false
+    /// Progress while scanning a batch of chosen photos (done, total).
+    @State private var scanProgress: (done: Int, total: Int)?
     @State private var recognized: [Ingredient] = []
     @State private var showReview = false
     @State private var errorMessage: String?
@@ -64,9 +66,9 @@ struct CaptureView: View {
                 CameraPicker { image in handle(image) }
                     .ignoresSafeArea()
             }
-            .onChange(of: photoItem) { _, newValue in
-                guard let newValue else { return }
-                Task { await loadPickedPhoto(newValue) }
+            .onChange(of: photoItems) { _, newValue in
+                guard !newValue.isEmpty else { return }
+                Task { await loadPickedPhotos(newValue) }
             }
             .sheet(isPresented: $showReview) {
                 IngredientReviewSheet(
@@ -220,7 +222,7 @@ struct CaptureView: View {
                 if isRecognizing {
                     VStack(spacing: 12) {
                         ProgressView().controlSize(.large).tint(KindredTheme.accent)
-                        Text("Identifying ingredients…")
+                        Text(scanStatusText)
                             .font(.subheadline).foregroundStyle(KindredTheme.subtext)
                     }
                     .frame(maxWidth: .infinity)
@@ -229,10 +231,13 @@ struct CaptureView: View {
                     KindredButton(title: "Take a photo", systemImage: "camera.fill") {
                         showCamera = true
                     }
-                    PhotosPicker(selection: $photoItem, matching: .images) {
+                    PhotosPicker(selection: $photoItems,
+                                 maxSelectionCount: 30,
+                                 selectionBehavior: .ordered,
+                                 matching: .images) {
                         HStack(spacing: 10) {
                             Image(systemName: "photo.on.rectangle")
-                            Text("Choose from library").fontWeight(.semibold)
+                            Text("Choose photos").fontWeight(.semibold)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 15)
@@ -242,9 +247,9 @@ struct CaptureView: View {
                     }
                     Label(
                         AppConfig.hasGeminiKey
-                            ? "Your photo is sent securely to identify ingredients."
+                            ? "Pick several at once — fridge, freezer, pantry — and we'll combine them into one list."
                             : "Photos are analysed on-device and never uploaded.",
-                        systemImage: AppConfig.hasGeminiKey ? "sparkles" : "lock.fill"
+                        systemImage: AppConfig.hasGeminiKey ? "square.stack.3d.up.fill" : "lock.fill"
                     )
                     .font(.caption)
                     .foregroundStyle(KindredTheme.faint)
@@ -281,45 +286,93 @@ struct CaptureView: View {
 
     // MARK: Actions
 
+    private var scanStatusText: String {
+        if let p = scanProgress, p.total > 1 {
+            return p.done == 0 ? "Reading \(p.total) photos…" : "Scanned \(p.done) of \(p.total)…"
+        }
+        return "Identifying ingredients…"
+    }
+
+    /// Single image from the camera — route through the same batch path.
     private func handle(_ image: UIImage) {
         lastImage = image
-        recognize(image)
+        recognizeBatch([image])
     }
 
-    private func loadPickedPhoto(_ item: PhotosPickerItem) async {
-        photoItem = nil
-        do {
-            if let data = try await item.loadTransferable(type: Data.self),
+    private func loadPickedPhotos(_ items: [PhotosPickerItem]) async {
+        await MainActor.run { photoItems = [] }
+        var images: [UIImage] = []
+        for item in items {
+            if let data = try? await item.loadTransferable(type: Data.self),
                let image = UIImage(data: data) {
-                await MainActor.run { handle(image) }
+                images.append(image)
             }
-        } catch {
-            await MainActor.run { errorMessage = error.localizedDescription }
         }
+        guard !images.isEmpty else {
+            await MainActor.run { errorMessage = "Those photos couldn't be opened. Try again." }
+            return
+        }
+        await MainActor.run { recognizeBatch(images) }
     }
 
-    private func recognize(_ image: UIImage) {
+    /// Recognize ingredients across one or many photos and merge into a single,
+    /// de-duplicated list — so a cook can capture the fridge, freezer and pantry
+    /// in one pass instead of scanning shelf by shelf. Runs in small concurrent
+    /// batches with progress; a photo that fails is skipped, not fatal.
+    private func recognizeBatch(_ images: [UIImage]) {
+        guard !images.isEmpty else { return }
         isRecognizing = true
+        scanProgress = images.count > 1 ? (0, images.count) : nil
+
+        let service = geminiService
+        let visionRecognizer = recognizer
+        let hasKey = AppConfig.hasGeminiKey
+
         Task {
-            do {
-                let found: [Ingredient]
-                if AppConfig.hasGeminiKey, let jpeg = image.jpegForUpload() {
-                    // Vision model reads the photo far more accurately.
-                    found = try await geminiService.identifyIngredients(in: jpeg)
-                } else {
-                    // Offline fallback: on-device Apple Vision classifier.
-                    found = try await recognizer.recognizeIngredients(in: image)
+            func detect(_ image: UIImage) async -> [Ingredient] {
+                do {
+                    if hasKey, let jpeg = image.jpegForUpload() {
+                        return try await service.identifyIngredients(in: jpeg)
+                    }
+                    return try await visionRecognizer.recognizeIngredients(in: image)
+                } catch {
+                    return []   // skip a photo that fails; keep the rest
                 }
-                await MainActor.run {
-                    isRecognizing = false
-                    recognized = found      // may be empty; the sheet still allows manual add
-                    showReview = true
+            }
+
+            var combined: [Ingredient] = []
+            var seen = Set<String>()
+            var processed = 0
+            let chunkSize = 5
+            var start = 0
+            while start < images.count {
+                let chunk = Array(images[start..<min(start + chunkSize, images.count)])
+                let results = await withTaskGroup(of: [Ingredient].self) { group -> [[Ingredient]] in
+                    for img in chunk { group.addTask { await detect(img) } }
+                    var out: [[Ingredient]] = []
+                    for await found in group { out.append(found) }
+                    return out
                 }
-            } catch {
-                await MainActor.run {
-                    isRecognizing = false
-                    errorMessage = error.localizedDescription
+                for found in results {
+                    for ing in found where seen.insert(ing.name.lowercased()).inserted {
+                        combined.append(ing)
+                    }
                 }
+                processed += chunk.count
+                let done = processed
+                let total = images.count
+                await MainActor.run { if total > 1 { scanProgress = (done, total) } }
+                start += chunkSize
+            }
+
+            let result = combined
+            let first = images.first
+            await MainActor.run {
+                isRecognizing = false
+                scanProgress = nil
+                recognized = result      // may be empty; the sheet still allows manual add
+                lastImage = first
+                showReview = true
             }
         }
     }
