@@ -15,12 +15,14 @@ struct CookbookImportView: View {
         case choose
         case reading
         case review(Recipe)
+        case batch([Recipe])
         case failed(String)
     }
 
     @State private var phase: Phase = .choose
     @State private var showCamera = false
-    @State private var photoItem: PhotosPickerItem?
+    @State private var photoItems: [PhotosPickerItem] = []
+    @State private var scanProgress: (done: Int, total: Int)?
     @State private var attribution = ""
     @State private var story = ""
     @State private var titleDraft = ""
@@ -37,6 +39,7 @@ struct CookbookImportView: View {
                         case .choose:  chooseState
                         case .reading: readingState
                         case .review(let recipe): reviewState(recipe)
+                        case .batch(let recipes): batchState(recipes)
                         case .failed(let message): failedState(message)
                         }
                     }
@@ -49,9 +52,9 @@ struct CookbookImportView: View {
             .fullScreenCover(isPresented: $showCamera) {
                 CameraPicker { image in read(image) }.ignoresSafeArea()
             }
-            .onChange(of: photoItem) { _, item in
-                guard let item else { return }
-                Task { await loadPicked(item) }
+            .onChange(of: photoItems) { _, items in
+                guard !items.isEmpty else { return }
+                Task { await loadPickedPhotos(items) }
             }
         }
     }
@@ -79,18 +82,21 @@ struct CookbookImportView: View {
             KindredCard {
                 VStack(spacing: 14) {
                     KindredButton(title: "Take a photo", systemImage: "camera.fill") { showCamera = true }
-                    PhotosPicker(selection: $photoItem, matching: .images) {
+                    PhotosPicker(selection: $photoItems,
+                                 maxSelectionCount: 15,
+                                 selectionBehavior: .ordered,
+                                 matching: .images) {
                         HStack(spacing: 10) {
                             Image(systemName: "photo.on.rectangle")
-                            Text("Choose from library").fontWeight(.semibold)
+                            Text("Choose photos").fontWeight(.semibold)
                         }
                         .frame(maxWidth: .infinity).padding(.vertical, 15)
                         .foregroundStyle(KindredTheme.text)
                         .background(KindredTheme.card, in: Capsule())
                         .overlay(Capsule().stroke(KindredTheme.hairline, lineWidth: 1))
                     }
-                    Label("Works best on a flat, well-lit recipe with the whole card in frame.",
-                          systemImage: "lightbulb.fill")
+                    Label("Pick several cards at once — we'll read them all in. Works best flat, well-lit, whole card in frame.",
+                          systemImage: "square.stack.3d.up.fill")
                         .font(.caption).foregroundStyle(KindredTheme.faint)
 
                     HStack(spacing: 10) {
@@ -136,13 +142,46 @@ struct CookbookImportView: View {
     private var readingState: some View {
         VStack(spacing: 16) {
             ProgressView().controlSize(.large).tint(KindredTheme.accent)
-            Text("Reading your recipe…")
+            Text(scanProgress.map { "Reading recipe \($0.done) of \($0.total)…" } ?? "Reading your recipe…")
                 .font(.headline).foregroundStyle(KindredTheme.text)
             Text("Transcribing the ingredients and steps exactly as written.")
                 .font(.subheadline).foregroundStyle(KindredTheme.subtext)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity).padding(.vertical, 60)
+    }
+
+    private func batchState(_ recipes: [Recipe]) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Label("Read \(recipes.count) recipe\(recipes.count == 1 ? "" : "s")", systemImage: "checkmark.seal.fill")
+                .font(.subheadline.weight(.semibold)).foregroundStyle(KindredTheme.mint)
+            Text("Save them all to your cookbook — you can fine-tune each one (whose it is, a memory) later.")
+                .font(.caption).foregroundStyle(KindredTheme.subtext)
+
+            ForEach(recipes) { recipe in
+                HStack(spacing: 12) {
+                    Image(systemName: "book.pages.fill")
+                        .foregroundStyle(KindredTheme.coral).frame(width: 26)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(recipe.title).font(.subheadline.weight(.semibold))
+                            .foregroundStyle(KindredTheme.text).lineLimit(1)
+                        Text("\(recipe.ingredients.count) ingredients · \(recipe.steps.count) steps · Serves \(recipe.servings)")
+                            .font(.caption).foregroundStyle(KindredTheme.faint)
+                    }
+                    Spacer()
+                }
+                .padding(12)
+                .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(KindredTheme.hairline, lineWidth: 1))
+            }
+
+            KindredButton(title: "Save \(recipes.count) to cookbook", systemImage: "tray.and.arrow.down.fill") {
+                saveBatch(recipes)
+            }
+            Button("Choose different photos") { phase = .choose }
+                .font(.subheadline).foregroundStyle(KindredTheme.accent)
+                .frame(maxWidth: .infinity)
+        }
     }
 
     private func reviewState(_ recipe: Recipe) -> some View {
@@ -224,16 +263,76 @@ struct CookbookImportView: View {
 
     // MARK: Actions
 
-    private func loadPicked(_ item: PhotosPickerItem) async {
-        photoItem = nil
-        do {
-            if let data = try await item.loadTransferable(type: Data.self),
+    private func loadPickedPhotos(_ items: [PhotosPickerItem]) async {
+        await MainActor.run { photoItems = [] }
+
+        // Load the chosen images.
+        var images: [UIImage] = []
+        for item in items {
+            if let data = try? await item.loadTransferable(type: Data.self),
                let image = UIImage(data: data) {
-                await MainActor.run { read(image) }
+                images.append(image)
             }
-        } catch {
-            await MainActor.run { phase = .failed(error.localizedDescription) }
         }
+        guard !images.isEmpty else {
+            await MainActor.run { phase = .failed("Those photos couldn't be opened. Try again.") }
+            return
+        }
+        // A single card keeps the rich single-recipe review (attribution + memory).
+        if images.count == 1 {
+            await MainActor.run { read(images[0]) }
+            return
+        }
+
+        // Multiple cards → read each, then a batch review.
+        await MainActor.run { phase = .reading; scanProgress = (0, images.count) }
+        let service = self.service
+        var recipes: [Recipe] = []
+        var done = 0
+        var start = 0
+        let chunk = 3
+        while start < images.count {
+            let slice = Array(images[start..<min(start + chunk, images.count)])
+            let read = await withTaskGroup(of: Recipe?.self) { group -> [Recipe] in
+                for img in slice {
+                    group.addTask {
+                        guard let jpeg = img.jpegForUpload() else { return nil }
+                        return try? await service.importRecipe(from: jpeg)
+                    }
+                }
+                var out: [Recipe] = []
+                for await r in group { if let r { out.append(r) } }
+                return out
+            }
+            recipes.append(contentsOf: read)
+            done += slice.count
+            let d = done
+            await MainActor.run { scanProgress = (d, images.count) }
+            start += chunk
+        }
+
+        let result = recipes
+        await MainActor.run {
+            scanProgress = nil
+            if result.isEmpty {
+                phase = .failed("Couldn't read those. Try clearer, flatter photos with the whole card in frame.")
+            } else {
+                phase = .batch(result)
+            }
+        }
+    }
+
+    private func saveBatch(_ recipes: [Recipe]) {
+        for var recipe in recipes {
+            recipe.source = .imported
+            cookbook.add(recipe)
+            if recipe.imageURL.trimmingCharacters(in: .whitespaces).isEmpty,
+               RecipeImageService.shared.isAvailable {
+                let forPhoto = recipe
+                Task.detached { _ = await RecipeImageService.shared.image(for: forPhoto) }
+            }
+        }
+        dismiss()
     }
 
     private func importFromLink() {
