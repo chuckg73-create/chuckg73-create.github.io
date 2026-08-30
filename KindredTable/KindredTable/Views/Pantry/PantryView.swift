@@ -59,7 +59,15 @@ struct PantryView: View {
     }
 
     private var filteredGroups: [(category: IngredientCategory, items: [Ingredient])] {
-        guard !search.isEmpty else { return pantry.grouped }
+        if search.isEmpty {
+            // Items surfaced in the "Check freshness" section are shown there
+            // instead of duplicated in their category group.
+            let agingIDs = Set(pantry.agingItems().map(\.id))
+            return pantry.grouped.compactMap { group in
+                let items = group.items.filter { !agingIDs.contains($0.id) }
+                return items.isEmpty ? nil : (group.category, items)
+            }
+        }
         return pantry.grouped.compactMap { group in
             let items = group.items.filter { $0.name.localizedCaseInsensitiveContains(search) }
             return items.isEmpty ? nil : (group.category, items)
@@ -69,6 +77,7 @@ struct PantryView: View {
     private var list: some View {
         VStack(spacing: 0) {
             List {
+                if search.isEmpty { freshnessSection }
                 ForEach(filteredGroups, id: \.category) { group in
                     Section {
                         ForEach(group.items) { item in
@@ -90,6 +99,62 @@ struct PantryView: View {
 
             footer
         }
+    }
+
+    /// Perishables at/near their freshness window — a new photo can't tell what
+    /// you've used up, so this is where the cook keeps or clears them.
+    @ViewBuilder private var freshnessSection: some View {
+        let aging = pantry.agingItems()
+        if !aging.isEmpty {
+            Section {
+                ForEach(aging) { item in
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 12) {
+                            Image(systemName: item.category.systemImage)
+                                .foregroundStyle(freshnessColor(item)).frame(width: 26)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.name).foregroundStyle(KindredTheme.text)
+                                if let label = item.freshness().shortLabel {
+                                    Text(label).font(.caption.weight(.medium))
+                                        .foregroundStyle(freshnessColor(item))
+                                }
+                            }
+                            Spacer()
+                        }
+                        HStack(spacing: 10) {
+                            Button { pantry.refresh(item) } label: {
+                                Label("Still have it", systemImage: "checkmark")
+                                    .font(.caption.weight(.semibold))
+                                    .frame(maxWidth: .infinity).padding(.vertical, 9)
+                                    .foregroundStyle(KindredTheme.accent)
+                                    .background(KindredTheme.accent.opacity(0.15), in: Capsule())
+                            }
+                            .buttonStyle(.plain)
+                            Button { withAnimation { pantry.remove(item) } } label: {
+                                Label("Used it up", systemImage: "trash")
+                                    .font(.caption.weight(.semibold))
+                                    .frame(maxWidth: .infinity).padding(.vertical, 9)
+                                    .foregroundStyle(KindredTheme.subtext)
+                                    .background(KindredTheme.faint.opacity(0.15), in: Capsule())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                    .listRowBackground(KindredTheme.card)
+                }
+            } header: {
+                Label("Check freshness · \(aging.count)", systemImage: "clock.badge.exclamationmark")
+                    .foregroundStyle(KindredTheme.amber)
+            } footer: {
+                Text("A new photo adds what's new but can't tell what you've used up. Keep these or clear them so suggestions stay accurate.")
+            }
+        }
+    }
+
+    private func freshnessColor(_ item: Ingredient) -> Color {
+        if case .past = item.freshness() { return KindredTheme.coral }
+        return KindredTheme.amber
     }
 
     private var footer: some View {
@@ -121,6 +186,13 @@ struct IngredientRow: View {
                 }
             }
             Spacer()
+            if let label = ingredient.freshness().shortLabel {
+                Text(label)
+                    .font(.caption2.weight(.semibold))
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .foregroundStyle(badgeColor)
+                    .background(badgeColor.opacity(0.15), in: Capsule())
+            }
             if ingredient.isAutoDetected {
                 Image(systemName: "camera.viewfinder")
                     .font(.caption)
@@ -128,6 +200,11 @@ struct IngredientRow: View {
             }
         }
         .padding(.vertical, 2)
+    }
+
+    private var badgeColor: Color {
+        if case .past = ingredient.freshness() { return KindredTheme.coral }
+        return KindredTheme.amber
     }
 }
 

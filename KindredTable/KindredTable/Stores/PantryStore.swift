@@ -31,6 +31,14 @@ final class PantryStore {
             .map(\.name)
     }
 
+    /// Perishables at or past their freshness window — the cook should confirm
+    /// they still have them (oldest first).
+    func agingItems(now: Date = Date()) -> [Ingredient] {
+        ingredients
+            .filter { $0.freshness(now: now).needsAttention }
+            .sorted { $0.addedAt < $1.addedAt }
+    }
+
     /// Ingredients grouped by category, sorted for the pantry list.
     var grouped: [(category: IngredientCategory, items: [Ingredient])] {
         Dictionary(grouping: ingredients, by: { $0.category })
@@ -67,6 +75,13 @@ final class PantryStore {
     func update(_ ingredient: Ingredient) {
         guard let index = ingredients.firstIndex(where: { $0.id == ingredient.id }) else { return }
         ingredients[index] = ingredient
+        persist()
+    }
+
+    /// The cook confirmed they still have this — reset its freshness clock.
+    func refresh(_ ingredient: Ingredient, now: Date = Date()) {
+        guard let index = ingredients.firstIndex(where: { $0.id == ingredient.id }) else { return }
+        ingredients[index].addedAt = now
         persist()
     }
 
