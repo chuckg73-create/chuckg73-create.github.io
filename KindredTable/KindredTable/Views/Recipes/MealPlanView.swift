@@ -16,6 +16,15 @@ struct MealPlanView: View {
     @State private var addedCount: Int?
     @State private var isPlanning = false
     @State private var planError: String?
+    // Dinner-time reminders + per-day editing
+    @State private var usualTime = Date()
+    @State private var remindersOn = false
+    @State private var remindersMessage: String?
+    @State private var editingTimeMeal: PlannedMeal?
+    @State private var settingDinnerFor: DayRef?
+
+    /// Identifiable wrapper so a day can drive a `.sheet(item:)`.
+    private struct DayRef: Identifiable { let id = UUID(); let day: Date }
 
     private var days: [Date] { mealPlan.upcomingDays() }
     private var emptyDays: [Date] { days.filter { mealPlan.meals(on: $0).isEmpty } }
@@ -33,6 +42,17 @@ struct MealPlanView: View {
             .navigationTitle("This week")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() } } }
+            .onAppear {
+                usualTime = Calendar.current.date(bySettingHour: mealPlan.usualDinnerHour,
+                                                  minute: mealPlan.usualDinnerMinute,
+                                                  second: 0, of: Date()) ?? Date()
+            }
+            .sheet(item: $editingTimeMeal) { meal in
+                DinnerTimeSheet(meal: meal) { Task { await resyncIfOn() } }
+            }
+            .sheet(item: $settingDinnerFor) { ref in
+                SetDinnerSheet(day: ref.day) { Task { await resyncIfOn() } }
+            }
         }
     }
 
@@ -52,6 +72,7 @@ struct MealPlanView: View {
         VStack(spacing: 0) {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 18) {
+                    reminderHeader
                     if !emptyDays.isEmpty {
                         autoPlanButton
                         if let planError { Text(planError).font(.caption).foregroundStyle(KindredTheme.amber) }
@@ -65,6 +86,58 @@ struct MealPlanView: View {
             }
             groceryBar
         }
+    }
+
+    /// Sets the usual sit-down time and turns on back-timed "start cooking" +
+    /// evening-before prep reminders for the week.
+    private var reminderHeader: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Label("Usual dinner time", systemImage: "clock")
+                    .font(.subheadline.weight(.medium)).foregroundStyle(KindredTheme.text)
+                Spacer()
+                DatePicker("", selection: $usualTime, displayedComponents: .hourAndMinute)
+                    .labelsHidden()
+            }
+            Button { Task { await scheduleWeek() } } label: {
+                Label(remindersMessage ?? (remindersOn ? "Reminders on for this week" : "Turn on dinner reminders"),
+                      systemImage: remindersOn ? "bell.fill" : "bell.badge")
+                    .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity).padding(.vertical, 12)
+                    .foregroundStyle(.white)
+                    .background(remindersOn ? AnyShapeStyle(KindredTheme.mint) : AnyShapeStyle(KindredTheme.brandGradient),
+                                in: Capsule())
+            }
+            .buttonStyle(.plain)
+            Text("We'll tell you when to start each night so dinner lands at your sit-down time — plus a heads-up the evening before to prep ahead.")
+                .font(.caption2).foregroundStyle(KindredTheme.faint).multilineTextAlignment(.center)
+        }
+        .padding(14)
+        .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(KindredTheme.hairline, lineWidth: 1))
+        .onChange(of: usualTime) { _, newValue in
+            mealPlan.setUsualDinnerTime(newValue)
+            Task { await resyncIfOn() }
+        }
+    }
+
+    private func scheduleWeek() async {
+        guard await MealPlanScheduler.requestPermission() else {
+            withAnimation { remindersMessage = "Enable notifications in Settings" }
+            return
+        }
+        await MealPlanScheduler.syncAll(mealPlan.meals,
+                                        serveTime: { mealPlan.serveTime(for: $0) },
+                                        headcount: { mealPlan.headcount(for: $0) })
+        remindersOn = true
+        withAnimation { remindersMessage = "Reminders on for this week ✓" }
+    }
+
+    /// Re-sync notifications after a change, but only once reminders are enabled.
+    private func resyncIfOn() async {
+        guard remindersOn else { return }
+        await MealPlanScheduler.syncAll(mealPlan.meals,
+                                        serveTime: { mealPlan.serveTime(for: $0) },
+                                        headcount: { mealPlan.headcount(for: $0) })
     }
 
     /// One-tap: fill every empty upcoming day with a taste-matched dinner.
@@ -123,9 +196,12 @@ struct MealPlanView: View {
             HStack {
                 Text(Self.dayLabel(day)).font(.headline).foregroundStyle(KindredTheme.text)
                 Spacer()
-                if !meals.isEmpty {
-                    Text("\(meals.count)").font(.caption).foregroundStyle(KindredTheme.faint)
+                Button { settingDinnerFor = DayRef(day: day) } label: {
+                    Label(meals.isEmpty ? "Set dinner" : "Change",
+                          systemImage: "square.and.pencil")
+                        .font(.caption.weight(.semibold)).foregroundStyle(KindredTheme.accent)
                 }
+                .buttonStyle(.plain)
             }
             if meals.isEmpty {
                 Text("Nothing planned")
@@ -147,18 +223,35 @@ struct MealPlanView: View {
     }
 
     private func mealRow(_ meal: PlannedMeal) -> some View {
-        HStack(spacing: 12) {
+        let serve = mealPlan.serveTime(for: meal)
+        let people = mealPlan.headcount(for: meal)
+        let startBy = CookPlanner.plan(for: RecipeScaler.scaled(meal.recipe, to: people), serveTime: serve).first?.fireAt
+        return HStack(spacing: 12) {
             RecipeHeroImage(recipe: meal.recipe, height: 52, glyphSize: 22)
                 .frame(width: 52)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(meal.recipe.title).font(.subheadline.weight(.semibold))
                     .foregroundStyle(KindredTheme.text).lineLimit(1)
-                Text(meal.recipe.mealType.title).font(.caption).foregroundStyle(KindredTheme.subtext)
+                HStack(spacing: 8) {
+                    Label(Self.timeStr(serve), systemImage: "fork.knife")
+                    Label("\(people)", systemImage: "person.2.fill")
+                }
+                .font(.caption).foregroundStyle(KindredTheme.subtext)
+                if let startBy {
+                    Text("Start by \(Self.timeStr(startBy))")
+                        .font(.caption2.weight(.medium)).foregroundStyle(KindredTheme.accent)
+                }
             }
             Spacer(minLength: 0)
+            Button { editingTimeMeal = meal } label: {
+                Image(systemName: "clock.arrow.circlepath").foregroundStyle(KindredTheme.accent)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Set time and headcount")
             Button {
                 withAnimation { mealPlan.remove(meal); addedCount = nil }
+                Task { await resyncIfOn() }
             } label: {
                 Image(systemName: "minus.circle.fill").foregroundStyle(KindredTheme.faint)
             }
@@ -168,6 +261,10 @@ struct MealPlanView: View {
         .padding(10)
         .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(KindredTheme.hairline, lineWidth: 1))
+    }
+
+    static func timeStr(_ date: Date) -> String {
+        let f = DateFormatter(); f.timeStyle = .short; return f.string(from: date)
     }
 
     private var groceryBar: some View {
