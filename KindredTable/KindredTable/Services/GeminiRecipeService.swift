@@ -829,6 +829,14 @@ struct GeminiRecipeService {
             }
         }
 
+        if !profile.eatingStyles.isEmpty {
+            lines.append("")
+            lines.append("EATING STYLE — shape every recipe to fit the cook's chosen way of eating:")
+            for guidance in profile.eatingStyleGuidance {
+                lines.append("- \(guidance)")
+            }
+        }
+
         lines.append("")
         lines.append("RULES:")
         lines.append("- Prioritise recipes that use the most on-hand ingredients and the fewest new purchases.")

@@ -17,6 +17,10 @@ struct TasteProfile: Codable, Hashable {
     var equipment: [String]
     /// Free-text extra notes, e.g. "cooking for a toddler too".
     var notes: String
+    /// Nutritional goals / ways of eating that shape every suggestion (e.g.
+    /// heart-healthy, whole-food plant-based). Distinct from `diets`, which are
+    /// hard exclusions.
+    var eatingStyles: Set<EatingStyle>
 
     init(
         diets: Set<Diet> = [],
@@ -27,7 +31,8 @@ struct TasteProfile: Codable, Hashable {
         skill: CookingSkill = .comfortable,
         maxCookMinutes: Int = 45,
         equipment: [String] = [],
-        notes: String = ""
+        notes: String = "",
+        eatingStyles: Set<EatingStyle> = []
     ) {
         self.diets = diets
         self.lovedCuisines = lovedCuisines
@@ -38,6 +43,7 @@ struct TasteProfile: Codable, Hashable {
         self.maxCookMinutes = maxCookMinutes
         self.equipment = equipment
         self.notes = notes
+        self.eatingStyles = eatingStyles
     }
 
     /// Tolerant decoding so profiles saved by older versions (without newer
@@ -53,11 +59,12 @@ struct TasteProfile: Codable, Hashable {
         maxCookMinutes = try c.decodeIfPresent(Int.self, forKey: .maxCookMinutes) ?? 45
         equipment = try c.decodeIfPresent([String].self, forKey: .equipment) ?? []
         notes = try c.decodeIfPresent(String.self, forKey: .notes) ?? ""
+        eatingStyles = try c.decodeIfPresent(Set<EatingStyle>.self, forKey: .eatingStyles) ?? []
     }
 
     private enum CodingKeys: String, CodingKey {
         case diets, lovedCuisines, dislikedIngredients, allergens
-        case spiceLevel, skill, maxCookMinutes, equipment, notes
+        case spiceLevel, skill, maxCookMinutes, equipment, notes, eatingStyles
     }
 
     /// Common appliances offered as quick-add chips in the profile editor.
@@ -67,6 +74,11 @@ struct TasteProfile: Codable, Hashable {
         "Blender", "Food processor", "Toaster", "Rice cooker", "Panini press",
         "Espresso machine", "Stand mixer",
     ]
+
+    /// Prompt guidance for every chosen eating style, joined for the recipe engine.
+    var eatingStyleGuidance: [String] {
+        eatingStyles.sorted { $0.title < $1.title }.map(\.promptGuidance)
+    }
 
     static let empty = TasteProfile()
 
@@ -196,6 +208,66 @@ extension TasteProfile {
         guard !base.isEmpty else { return false }
         let pattern = "\\b\(NSRegularExpression.escapedPattern(for: base))(es|s)?\\b"
         return text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+}
+
+/// A nutritional goal or way of eating that shapes suggestions (softly, unlike
+/// the hard `Diet` exclusions). Health-oriented styles are framed as "leaning,"
+/// not medical prescriptions.
+enum EatingStyle: String, Codable, CaseIterable, Identifiable, Hashable {
+    case heartHealthy, plantBased, mediterranean, highProtein, lowSodium, lowSugar
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .heartHealthy: return "Heart-healthy"
+        case .plantBased:   return "Whole-food plant-based"
+        case .mediterranean: return "Mediterranean"
+        case .highProtein:  return "High-protein"
+        case .lowSodium:    return "Low-sodium"
+        case .lowSugar:     return "Low-sugar"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .heartHealthy: return "Lower saturated fat & sodium, more fiber"
+        case .plantBased:   return "Plants first, no oil — Forks Over Knives style"
+        case .mediterranean: return "Olive oil, veg, fish, whole grains"
+        case .highProtein:  return "Protein-forward portions"
+        case .lowSodium:    return "Go easy on the salt"
+        case .lowSugar:     return "Minimal added sugar"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .heartHealthy: return "heart.fill"
+        case .plantBased:   return "leaf.fill"
+        case .mediterranean: return "sun.max.fill"
+        case .highProtein:  return "figure.strengthtraining.traditional"
+        case .lowSodium:    return "drop.triangle.fill"
+        case .lowSugar:     return "cube.fill"
+        }
+    }
+
+    /// How the recipe engine should shape recipes for this style.
+    var promptGuidance: String {
+        switch self {
+        case .heartHealthy:
+            return "HEART-HEALTHY leaning: minimize saturated fat and sodium; favor lean or plant proteins, whole grains, vegetables and unsaturated fats (olive oil, nuts, avocado); avoid deep-frying and heavy cream/butter. Keep it flavorful with herbs, citrus and spices."
+        case .plantBased:
+            return "WHOLE-FOOD PLANT-BASED (Forks Over Knives style): 100% plant-based — no meat, poultry, fish, dairy or eggs — built on whole foods (vegetables, fruit, whole grains, legumes); avoid added oils and heavily refined ingredients; get richness from nuts, seeds, beans and vegetables."
+        case .mediterranean:
+            return "MEDITERRANEAN: center olive oil, vegetables, legumes, whole grains, fish and herbs; use red meat sparingly."
+        case .highProtein:
+            return "HIGH-PROTEIN: make protein the centerpiece with generous lean-protein portions; pair with vegetables and moderate carbs."
+        case .lowSodium:
+            return "LOW-SODIUM: keep added salt minimal; build flavor with herbs, citrus, aromatics and spices; avoid high-sodium processed ingredients and salty sauces."
+        case .lowSugar:
+            return "LOW-SUGAR: minimize added sugars and refined carbs; favor whole foods and naturally low-sugar ingredients."
+        }
     }
 }
 

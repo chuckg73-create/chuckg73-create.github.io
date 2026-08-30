@@ -19,6 +19,7 @@ struct TasteProfileView: View {
             Form {
                 if !feedback.isEmpty || !preferences.isEmpty { learnedSection }
                 dietSection(store: store)
+                eatingStyleSection(store: store)
 
                 Section("Cuisines you love") {
                     TokenEditor(tokens: $store.profile.lovedCuisines, placeholder: "e.g. Thai", tint: KindredTheme.blue)
@@ -163,6 +164,38 @@ struct TasteProfileView: View {
     private func addStaple() {
         staples.add(stapleDraft)
         stapleDraft = ""
+    }
+
+    private func eatingStyleSection(store storeRef: ProfileStore) -> some View {
+        @Bindable var store = storeRef
+        return Section {
+            ForEach(EatingStyle.allCases) { style in
+                let on = store.profile.eatingStyles.contains(style)
+                Button {
+                    if on { store.profile.eatingStyles.remove(style) }
+                    else { store.profile.eatingStyles.insert(style) }
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: on ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(on ? KindredTheme.accent : KindredTheme.faint)
+                        Image(systemName: style.systemImage)
+                            .font(.caption).foregroundStyle(on ? KindredTheme.accent : KindredTheme.subtext)
+                            .frame(width: 20)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(style.title).foregroundStyle(KindredTheme.text)
+                            Text(style.subtitle).font(.caption).foregroundStyle(KindredTheme.subtext)
+                        }
+                        Spacer()
+                    }
+                }
+                .accessibilityAddTraits(on ? [.isSelected] : [])
+            }
+        } header: {
+            Text("Eating style")
+        } footer: {
+            Text("Shapes every suggestion toward how you like to eat. Health-oriented styles are general guidance, not medical advice — check with your doctor or dietitian for your own targets.")
+        }
+        .listRowBackground(KindredTheme.card)
     }
 
     private func dietSection(store: ProfileStore) -> some View {
