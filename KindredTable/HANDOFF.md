@@ -14,8 +14,8 @@ ingredients → taste-matched recipes. Part of the "Kindred" family.
 - **Bundle ID:** `com.kindred.KindredTable` (must match the existing App Store Connect
   record — do NOT change it to AgileInABox.*; that caused upload 409s).
 - **Team:** Z7H7ZD8D7X (Charles Gallagher) · **Display name:** KindredTable
-- **Current version:** 3.1 in progress on the app branch (3.0 build 12 is the last
-  archived/uploadable orange build; bump the build number for each new upload).
+- **Current version:** 3.2 in progress on the app branch (build 16). 3.1 shipped a
+  few TestFlight builds (14/15). Bump the build number for each new upload.
 - **Marketing site (live):** https://chuckg73-create.github.io/
   - Support:  https://chuckg73-create.github.io/kindredkitchen/support.html
   - Privacy:  https://chuckg73-create.github.io/kindredkitchen/privacy.html
