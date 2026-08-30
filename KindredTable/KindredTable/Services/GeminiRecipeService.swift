@@ -171,6 +171,52 @@ struct GeminiRecipeService {
         return recipes.sorted { $0.matchScore > $1.matchScore }
     }
 
+    /// Suggest side dishes that complete the plate around a chosen main —
+    /// complementing its cuisine, flavors and richness, honoring the cook's taste
+    /// and hard dietary rules, and leaning on what's on hand where it fits.
+    func suggestSides(
+        for main: Recipe,
+        from ingredients: [Ingredient],
+        profile: TasteProfile,
+        count: Int = 2,
+        servings: Int? = nil
+    ) async throws -> [Recipe] {
+        guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
+
+        let components = main.ingredients.prefix(6).map(\.name).joined(separator: ", ")
+        let plateContext = """
+        PLATE CONTEXT — the cook is serving this MAIN dish: "\(main.title)" (\(main.summary)). \
+        Its key components: \(components).
+        Return \(count) DIFFERENT side dishes that COMPLETE THE PLATE: complement the main's \
+        cuisine, flavors and richness, add balance (e.g. a vegetable or salad plus a starch \
+        where it fits), and do NOT repeat the main's central protein or main ingredient. Each \
+        must be a full side-dish recipe that pairs well with the main — not another main course.
+        """
+
+        let prompt = Self.buildPrompt(
+            ingredients: ingredients,
+            profile: profile,
+            count: count,
+            course: "a side dish (a complement to a main course, never a main itself)",
+            servings: servings ?? max(1, main.servings),
+            tasteFeedback: plateContext
+        )
+
+        let request = try makeRequest(prompt: prompt, apiKey: apiKey)
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw RecipeServiceError.badResponse(status: -1, body: "")
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            throw RecipeServiceError.badResponse(status: http.statusCode, body: String(data: data, encoding: .utf8) ?? "")
+        }
+        let text = try Self.extractText(from: data)
+        let sides = try Self.decodeRecipes(from: text)
+        let safe = profile.compliantRecipes(from: sides)
+        guard !safe.isEmpty else { throw RecipeServiceError.noRecipes }
+        return safe
+    }
+
     /// Import a recipe from a web page's reduced text (JSON-LD + visible text).
     /// Transcribes the single main recipe faithfully, ignores nav/ads/comments,
     /// and marks it imported with the site as attribution.

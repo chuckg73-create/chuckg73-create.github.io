@@ -25,6 +25,7 @@ struct RecipeDetailView: View {
     @State private var showCookMode = false
     @State private var showPlan = false
     @State private var showEdit = false
+    @State private var showPlate = false
     /// Target servings for on-the-fly scaling; starts at the recipe's own yield.
     @State private var displayServings: Int
     /// "Polish with KindredTable" state for imported recipes.
@@ -75,6 +76,7 @@ struct RecipeDetailView: View {
                     if !recipe.story.isEmpty { storyCard }
                     if canPolish || isPolishing { polishCard }
                     if !recipe.steps.isEmpty { cookModeButton }
+                    if recipe.mealType == .dinner || recipe.mealType == .lunch { plateButton }
                     addToPlanButton
                     if !recipe.steps.isEmpty { planButton }
                     if matchReason != nil || !recipe.whyYoullLikeIt.isEmpty { whyCard }
@@ -105,6 +107,9 @@ struct RecipeDetailView: View {
         }
         .sheet(isPresented: $showPlan) {
             CookPlanView(recipe: recipe)
+        }
+        .sheet(isPresented: $showPlate) {
+            PlateSheet(main: recipe)
         }
         .sheet(isPresented: $showEdit) {
             RecipeEditView(recipe: recipe) { edited in
@@ -291,6 +296,20 @@ struct RecipeDetailView: View {
                     .foregroundStyle(KindredTheme.faint)
             }
         }
+    }
+
+    /// "Complete the plate" — generate sides that pair with this main.
+    private var plateButton: some View {
+        Button { showPlate = true } label: {
+            Label("Complete the plate — add sides", systemImage: "fork.knife.circle.fill")
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .foregroundStyle(KindredTheme.accent)
+                .background(KindredTheme.accent.opacity(0.14),
+                           in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     private var addToPlanButton: some View {
