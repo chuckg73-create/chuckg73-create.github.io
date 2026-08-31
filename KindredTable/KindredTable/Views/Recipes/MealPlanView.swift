@@ -49,7 +49,7 @@ struct MealPlanView: View {
                                                   second: 0, of: Date()) ?? Date()
             }
             .sheet(item: $editingTimeMeal) { meal in
-                DinnerTimeSheet(meal: meal) { Task { await resyncIfOn() } }
+                DinnerTimeSheet(meal: meal, serveTime: mealPlan.serveTime(for: meal)) { Task { await resyncIfOn() } }
             }
             .sheet(item: $settingDinnerFor) { ref in
                 SetDinnerSheet(day: ref.day) { Task { await resyncIfOn() } }

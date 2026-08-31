@@ -13,7 +13,7 @@ enum MealPlanScheduler {
     static func syncAll(_ meals: [PlannedMeal],
                         serveTime: (PlannedMeal) -> Date,
                         headcount: (PlannedMeal) -> Int) async {
-        cancelAll()
+        await cancelAll()
         for meal in meals {
             await schedule(meal, serveTime: serveTime(meal), headcount: headcount(meal))
         }
@@ -22,7 +22,7 @@ enum MealPlanScheduler {
     @discardableResult
     static func schedule(_ meal: PlannedMeal, serveTime: Date, headcount: Int, now: Date = Date()) async -> Int {
         let center = UNUserNotificationCenter.current()
-        cancel(meal)
+        await cancel(meal)
         guard serveTime > now else { return 0 }
 
         // Scale the recipe to the night's headcount so timings/quantities match.
@@ -59,20 +59,21 @@ enum MealPlanScheduler {
         return count
     }
 
-    static func cancel(_ meal: PlannedMeal) {
+    /// Async so the pending-requests snapshot is awaited before we remove — and
+    /// before any reschedule adds new ones — otherwise the late completion handler
+    /// would wipe the notifications we just scheduled.
+    static func cancel(_ meal: PlannedMeal) async {
         let center = UNUserNotificationCenter.current()
-        center.getPendingNotificationRequests { reqs in
-            let ids = reqs.map(\.identifier).filter { $0.hasPrefix(prefix(meal)) }
-            center.removePendingNotificationRequests(withIdentifiers: ids)
-        }
+        let ids = (await center.pendingNotificationRequests())
+            .map(\.identifier).filter { $0.hasPrefix(prefix(meal)) }
+        center.removePendingNotificationRequests(withIdentifiers: ids)
     }
 
-    static func cancelAll() {
+    static func cancelAll() async {
         let center = UNUserNotificationCenter.current()
-        center.getPendingNotificationRequests { reqs in
-            let ids = reqs.map(\.identifier).filter { $0.hasPrefix(rootPrefix) }
-            center.removePendingNotificationRequests(withIdentifiers: ids)
-        }
+        let ids = (await center.pendingNotificationRequests())
+            .map(\.identifier).filter { $0.hasPrefix(rootPrefix) }
+        center.removePendingNotificationRequests(withIdentifiers: ids)
     }
 
     // MARK: Helpers

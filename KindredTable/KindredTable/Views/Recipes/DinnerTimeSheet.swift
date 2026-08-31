@@ -12,10 +12,13 @@ struct DinnerTimeSheet: View {
     @State private var time: Date
     @State private var count: Int
 
-    init(meal: PlannedMeal, onChange: @escaping () -> Void) {
+    /// `serveTime` is the meal's resolved sit-down time (its override, or the
+    /// cook's usual dinner time) — never the start-of-day, so the picker doesn't
+    /// default to midnight.
+    init(meal: PlannedMeal, serveTime: Date, onChange: @escaping () -> Void) {
         self.meal = meal
         self.onChange = onChange
-        _time = State(initialValue: meal.serveTime ?? meal.date)
+        _time = State(initialValue: serveTime)
         _count = State(initialValue: meal.headcount ?? max(1, meal.recipe.servings))
     }
 

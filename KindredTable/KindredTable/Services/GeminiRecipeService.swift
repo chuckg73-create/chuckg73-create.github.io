@@ -167,8 +167,11 @@ struct GeminiRecipeService {
         }
         let text = try Self.extractText(from: data)
         let recipes = try Self.decodeRecipes(from: text)
-        guard !recipes.isEmpty else { throw RecipeServiceError.noRecipes }
-        return recipes.sorted { $0.matchScore > $1.matchScore }
+        // Safety backstop: never surface a recipe that slipped past the prompt's
+        // hard dietary/allergen rules — same guard every other generator applies.
+        let safe = profile.compliantRecipes(from: recipes)
+        guard !safe.isEmpty else { throw RecipeServiceError.noRecipes }
+        return safe.sorted { $0.matchScore > $1.matchScore }
     }
 
     /// Suggest side dishes that complete the plate around a chosen main —
@@ -276,17 +279,18 @@ struct GeminiRecipeService {
         }
         let json = sanitizedJSON(text)
         guard let data = json.data(using: .utf8) else { throw RecipeServiceError.decoding("not utf8") }
+        let ideas: [SpruceIdea]
         do {
             let payload = try JSONDecoder().decode(Payload.self, from: data)
-            let ideas = (payload.ideas ?? []).compactMap { item -> SpruceIdea? in
+            ideas = (payload.ideas ?? []).compactMap { item -> SpruceIdea? in
                 guard let t = item.text?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { return nil }
                 return SpruceIdea(kind: (item.kind ?? "Level up"), text: t)
             }
-            guard !ideas.isEmpty else { throw RecipeServiceError.noRecipes }
-            return ideas
         } catch {
             throw RecipeServiceError.decoding("bad JSON near: \(String(json.prefix(80)))")
         }
+        guard !ideas.isEmpty else { throw RecipeServiceError.noRecipes }
+        return ideas
     }
 
     // MARK: Ingredient substitution

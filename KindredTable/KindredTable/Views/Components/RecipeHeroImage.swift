@@ -49,7 +49,7 @@ struct RecipeHeroImage: View {
     private func loadImage() async {
         image = nil
         // 1. The cook's own photo always wins.
-        if let mine = RecipeUserPhotoStore.shared.image(for: recipe.id) {
+        if let mine = await RecipeUserPhotoStore.shared.image(for: recipe.id) {
             withAnimation(.easeInOut(duration: 0.3)) { image = mine }
             return
         }

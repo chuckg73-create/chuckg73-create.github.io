@@ -10,7 +10,7 @@ import UIKit
 /// Keyed by the recipe's stable `id`. The absolute path is resolved fresh from
 /// the current container each call (never persisted), so photos keep working
 /// across app updates that move the container.
-final class RecipeUserPhotoStore {
+final class RecipeUserPhotoStore: @unchecked Sendable {
     static let shared = RecipeUserPhotoStore()
 
     private let memory = NSCache<NSString, UIImage>()
@@ -39,14 +39,21 @@ final class RecipeUserPhotoStore {
         return io.sync { fm.fileExists(atPath: fileURL(id).path) }
     }
 
-    func image(for id: UUID) -> UIImage? {
+    /// Memory-cache hit returns instantly; a disk read happens off the main
+    /// thread so scrolling a feed of cards never blocks on a JPEG load.
+    func image(for id: UUID) async -> UIImage? {
         let key = id.uuidString as NSString
         if let hit = memory.object(forKey: key) { return hit }
-        return io.sync {
-            guard let data = try? Data(contentsOf: fileURL(id)),
-                  let image = UIImage(data: data) else { return nil }
-            memory.setObject(image, forKey: key)
-            return image
+        return await withCheckedContinuation { continuation in
+            io.async { [weak self] in
+                guard let self,
+                      let data = try? Data(contentsOf: self.fileURL(id)),
+                      let image = UIImage(data: data) else {
+                    continuation.resume(returning: nil); return
+                }
+                self.memory.setObject(image, forKey: key)
+                continuation.resume(returning: image)
+            }
         }
     }
 

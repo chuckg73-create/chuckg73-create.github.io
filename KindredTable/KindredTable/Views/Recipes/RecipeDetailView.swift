@@ -258,7 +258,7 @@ struct RecipeDetailView: View {
         guard !isBuildingCard else { return }
         isBuildingCard = true
         Task {
-            var photo = RecipeUserPhotoStore.shared.image(for: recipe.id)
+            var photo = await RecipeUserPhotoStore.shared.image(for: recipe.id)
             if photo == nil { photo = await RecipeImageService.shared.image(for: recipe) }
             let resolved = photo
             await MainActor.run {
