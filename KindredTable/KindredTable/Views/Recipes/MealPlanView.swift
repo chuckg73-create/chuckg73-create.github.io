@@ -10,6 +10,7 @@ struct MealPlanView: View {
     @Environment(ProfileStore.self) private var profileStore
     @Environment(HouseholdStore.self) private var household
     @Environment(TasteFeedbackStore.self) private var feedback
+    @Environment(RecentSuggestionsStore.self) private var recent
     @Environment(\.dismiss) private var dismiss
 
     private let service = GeminiRecipeService()
@@ -166,7 +167,7 @@ struct MealPlanView: View {
                 // Fold a variety instruction into the taste-feedback slot so a
                 // week's plan doesn't come back as the same protein seven times.
                 let variety = "VARIETY: this is a full week's plan — vary the proteins, cuisines and cooking methods across the recipes so no two dinners feel too similar."
-                let planNote = [feedback.promptSummary(), variety].compactMap { $0 }.joined(separator: "\n")
+                let planNote = [feedback.promptSummary(), variety, recent.avoidBlock()].compactMap { $0 }.joined(separator: "\n")
                 let recipes = try await service.suggestRecipes(
                     from: pantry.ingredients,
                     profile: household.effectiveProfile(you: profileStore.profile),
@@ -177,6 +178,7 @@ struct MealPlanView: View {
                 )
                 await MainActor.run {
                     for (day, recipe) in zip(targets, recipes) { mealPlan.add(recipe, to: day) }
+                    recent.record(recipes)
                     addedCount = nil
                     isPlanning = false
                     if recipes.isEmpty { planError = "Couldn't build a plan right now — try again." }

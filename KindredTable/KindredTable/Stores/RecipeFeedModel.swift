@@ -18,6 +18,8 @@ final class RecipeFeedModel {
     /// True when results are the offline samples (no API key configured).
     private(set) var usingSamples = false
     private(set) var lastUpdated: Date?
+    /// Records what's shown so future batches can avoid repeats (set by the view).
+    var recentStore: RecentSuggestionsStore?
 
     private let service: GeminiRecipeService
 
@@ -44,6 +46,7 @@ final class RecipeFeedModel {
             let recipes = try await service.suggestRecipes(from: ingredients, profile: profile, servings: servings, special: special, tasteFeedback: tasteFeedback, useUpItems: useUpItems)
             lastUpdated = nowStamp()
             phase = .loaded(recipes)
+            recentStore?.record(recipes)   // so the next batch avoids repeats
         } catch let error as RecipeServiceError {
             phase = .failed(error.errorDescription ?? "Something went wrong.")
         } catch {

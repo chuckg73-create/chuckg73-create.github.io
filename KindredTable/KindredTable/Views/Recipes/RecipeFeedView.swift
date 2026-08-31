@@ -11,6 +11,7 @@ struct RecipeFeedView: View {
     @Environment(TasteFeedbackStore.self) private var feedback
     @Environment(TastePreferenceStore.self) private var preferences
     @Environment(StaplesStore.self) private var staples
+    @Environment(RecentSuggestionsStore.self) private var recent
 
     @State private var model = RecipeFeedModel()
     /// Meal-type filter. nil = show all types.
@@ -29,10 +30,17 @@ struct RecipeFeedView: View {
     /// What the cook has taught the engine — dishes they've rated plus their
     /// hand-tuned more/less-like-this steering — folded into one prompt block.
     private var tasteSignals: String? {
-        let combined = [feedback.promptSummary(), preferences.promptLine(), staples.promptLine()]
+        let combined = [feedback.promptSummary(), preferences.promptLine(), staples.promptLine(), recent.avoidBlock()]
             .compactMap { $0 }
             .joined(separator: "\n")
         return combined.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : combined
+    }
+
+    /// A one-off signals string that pushes hard for novelty (the "Surprise me" tap).
+    private var surpriseSignals: String? {
+        [tasteSignals, "SURPRISE ME — deliberately go beyond this cook's usual picks: explore a different cuisine, protein or technique they don't often get, while still respecting their taste and hard dietary rules."]
+            .compactMap { $0 }
+            .joined(separator: "\n")
     }
 
     var body: some View {
@@ -51,6 +59,15 @@ struct RecipeFeedView: View {
                     }
                     .disabled(model.isLoading || pantry.isEmpty)
                     .accessibilityLabel("Refresh ideas")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: surpriseSignals, useUpItems: pantry.useUpNames()) }
+                    } label: {
+                        Image(systemName: "dice.fill")
+                    }
+                    .disabled(model.isLoading || pantry.isEmpty)
+                    .accessibilityLabel("Surprise me")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showPlan = true } label: {
@@ -73,6 +90,7 @@ struct RecipeFeedView: View {
                 }
             }
             .task {
+                model.recentStore = recent
                 await model.loadIfNeeded(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: tasteSignals, useUpItems: pantry.useUpNames())
             }
             .onChange(of: household.signature(you: profileStore.profile)) {
