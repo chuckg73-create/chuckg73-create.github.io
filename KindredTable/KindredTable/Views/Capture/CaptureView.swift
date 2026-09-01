@@ -16,6 +16,7 @@ struct CaptureView: View {
     private let geminiService = GeminiRecipeService()
 
     @State private var showCamera = false
+    @State private var showChef = false
     @State private var photoItems: [PhotosPickerItem] = []
     @State private var isRecognizing = false
     /// Progress while scanning a batch of chosen photos (done, total).
@@ -50,6 +51,7 @@ struct CaptureView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
                         greeting
+                        chefEntry
                         if let tonight { tonightCard(tonight.recipe, label: tonight.label) }
                         captureCard
                         if !recentRecipes.isEmpty { jumpBackIn }
@@ -66,6 +68,7 @@ struct CaptureView: View {
                 CameraPicker { image in handle(image) }
                     .ignoresSafeArea()
             }
+            .sheet(isPresented: $showChef) { ChefView() }
             .onChange(of: photoItems) { _, newValue in
                 guard !newValue.isEmpty else { return }
                 Task { await loadPickedPhotos(newValue) }
@@ -110,6 +113,28 @@ struct CaptureView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, 4)
+    }
+
+    /// Entry to the conversational chef.
+    private var chefEntry: some View {
+        Button { showChef = true } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "bubble.left.and.text.bubble.right.fill")
+                    .font(.headline).foregroundStyle(.white)
+                    .frame(width: 42, height: 42)
+                    .background(KindredTheme.brandGradient, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Ask the kitchen").font(.subheadline.weight(.semibold)).foregroundStyle(KindredTheme.text)
+                    Text("“Plan me an easy week, no chicken”").font(.caption).foregroundStyle(KindredTheme.subtext)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").font(.caption).foregroundStyle(KindredTheme.faint)
+            }
+            .padding(14)
+            .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(KindredTheme.hairline, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     /// Time-aware greeting (uses the device clock at render time).

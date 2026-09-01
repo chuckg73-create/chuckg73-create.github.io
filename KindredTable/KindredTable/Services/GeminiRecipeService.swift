@@ -174,6 +174,77 @@ struct GeminiRecipeService {
         return safe.sorted { $0.matchScore > $1.matchScore }
     }
 
+    // MARK: Conversational chef
+
+    /// Parse a natural-language request into a structured intent. The brain only
+    /// classifies + extracts constraints; it never writes recipes.
+    func interpret(_ text: String) async throws -> ChefIntent {
+        guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
+
+        let prompt = """
+        You are the routing brain of KindredTable, a home-cooking app. Parse the cook's message into a JSON intent. Do NOT write a recipe.
+        Cook's message: "\(text)"
+        Choose "action":
+        - "planWeek": they want several dinners or a week planned. Set "days" to a number they gave, else 5 for "a week".
+        - "specificDish": they named a dish to make — put it in "dish".
+        - "findMeals": they want ideas or something to cook now.
+        - "unknown": not a cooking request.
+        Extract only what they actually said: "include" (ingredients they want used), "avoid" (ingredients/proteins to skip THIS time), "cuisine", "maxMinutes" (if they say quick/fast use 30, or the number they gave), "servings", "mealType" (breakfast|lunch|dinner|snack|dessert).
+        "reply": one warm, short sentence acknowledging the request (no recipe).
+        Respond with ONLY this JSON, no markdown:
+        {"action":"findMeals","dish":null,"include":[],"avoid":[],"cuisine":null,"maxMinutes":null,"servings":null,"days":null,"mealType":null,"reply":"..."}
+        """
+
+        let request = try makeRequest(prompt: prompt, apiKey: apiKey)
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw RecipeServiceError.badResponse(status: (response as? HTTPURLResponse)?.statusCode ?? -1,
+                                                 body: String(data: data, encoding: .utf8) ?? "")
+        }
+        let out = try Self.extractText(from: data)
+        let json = Self.sanitizedJSON(out)
+        guard let jdata = json.data(using: .utf8),
+              let intent = try? JSONDecoder().decode(ChefIntent.self, from: jdata) else {
+            // Fall back to a plain "find meals" rather than failing the whole turn.
+            return ChefIntent(action: .findMeals, reply: "On it —")
+        }
+        return intent
+    }
+
+    /// Full conversational turn: interpret the request, then route it over the
+    /// existing engines and return a friendly reply plus recipes.
+    func chef(_ text: String, from ingredients: [Ingredient], profile: TasteProfile,
+              defaultServings: Int) async throws -> (intent: ChefIntent, recipes: [Recipe]) {
+        let intent = try await interpret(text)
+        let servings = intent.servings ?? defaultServings
+
+        switch intent.action {
+        case .specificDish:
+            let recipes = try await craveRecipes(dish: intent.dish ?? text, from: ingredients,
+                                                 profile: profile, count: 2, servings: servings)
+            return (intent, recipes)
+
+        case .planWeek:
+            guard !ingredients.isEmpty else { return (intent, []) }
+            let days = max(2, min(7, intent.days ?? 5))
+            let note = [intent.constraintBlock,
+                        "VARIETY: vary the proteins, cuisines and cooking methods across the \(days) dinners so none feel too similar."]
+                .compactMap { $0 }.joined(separator: "\n")
+            let recipes = try await suggestRecipes(from: ingredients, profile: profile, count: days,
+                                                   servings: servings, tasteFeedback: note)
+            return (intent, recipes)
+
+        case .findMeals:
+            guard !ingredients.isEmpty else { return (intent, []) }
+            let recipes = try await suggestRecipes(from: ingredients, profile: profile, count: 4,
+                                                   servings: servings, tasteFeedback: intent.constraintBlock)
+            return (intent, recipes)
+
+        case .unknown:
+            return (intent, [])
+        }
+    }
+
     /// Suggest side dishes that complete the plate around a chosen main —
     /// complementing its cuisine, flavors and richness, honoring the cook's taste
     /// and hard dietary rules, and leaning on what's on hand where it fits.
