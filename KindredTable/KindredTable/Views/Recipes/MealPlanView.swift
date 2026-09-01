@@ -81,6 +81,7 @@ struct MealPlanView: View {
                     ForEach(days, id: \.self) { day in
                         daySection(day)
                     }
+                    nutritionCard
                 }
                 .padding(20)
                 .padding(.bottom, 90)
@@ -267,6 +268,40 @@ struct MealPlanView: View {
 
     static func timeStr(_ date: Date) -> String {
         let f = DateFormatter(); f.timeStyle = .short; return f.string(from: date)
+    }
+
+    /// At-a-glance average nutrition across the week's planned dinners.
+    @ViewBuilder private var nutritionCard: some View {
+        let recipes = days.flatMap { mealPlan.meals(on: $0) }.map(\.recipe)
+        if let n = WeeklyNutrition.summarize(recipes) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    SectionHeader(label: "This week's dinners")
+                    Spacer()
+                    Text("avg per serving").font(.caption2).foregroundStyle(KindredTheme.faint)
+                }
+                HStack(spacing: 10) {
+                    nutritionStat("\(n.avgCalories)", "cal", KindredTheme.amber)
+                    nutritionStat("\(n.avgProtein)g", "protein", KindredTheme.mint)
+                    nutritionStat("\(n.avgCarbs)g", "carbs", KindredTheme.blue)
+                    nutritionStat("\(n.avgFat)g", "fat", KindredTheme.coral)
+                }
+                Text("Averaged across \(n.count) planned dinner\(n.count == 1 ? "" : "s") with nutrition info. Estimates, not medical guidance.")
+                    .font(.caption2).foregroundStyle(KindredTheme.faint)
+            }
+            .padding(16)
+            .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(KindredTheme.hairline, lineWidth: 1))
+        }
+    }
+
+    private func nutritionStat(_ value: String, _ label: String, _ tint: Color) -> some View {
+        VStack(spacing: 2) {
+            Text(value).font(.headline).foregroundStyle(KindredTheme.text)
+            Text(label).font(.caption2).foregroundStyle(KindredTheme.subtext)
+        }
+        .frame(maxWidth: .infinity).padding(.vertical, 12)
+        .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private var groceryBar: some View {
