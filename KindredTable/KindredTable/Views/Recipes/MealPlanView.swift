@@ -42,7 +42,17 @@ struct MealPlanView: View {
             }
             .navigationTitle("This week")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() } } }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() } }
+                if mealPlan.count(in: days) > 0 {
+                    ToolbarItem(placement: .topBarLeading) {
+                        ShareLink(item: MealPlanShare.text(days: days, store: mealPlan)) {
+                            Image(systemName: "square.and.arrow.up")
+                        }
+                        .accessibilityLabel("Share this week")
+                    }
+                }
+            }
             .onAppear {
                 usualTime = Calendar.current.date(bySettingHour: mealPlan.usualDinnerHour,
                                                   minute: mealPlan.usualDinnerMinute,
