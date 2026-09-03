@@ -19,7 +19,6 @@ struct CookbookView: View {
                 } else {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 16) {
-                            addRecipeButton
                             if trimmedQuery.isEmpty {
                                 if !cookbook.imported.isEmpty { familySection }
                                 if !cookbook.fromApp.isEmpty {
@@ -40,6 +39,10 @@ struct CookbookView: View {
                 ToolbarItem(placement: .topBarLeading) { ProfileToolbarButton() }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
+                        Button { presentAddRecipeSheet() } label: {
+                            Label("Add Your Own Recipe", systemImage: "camera.fill")
+                        }
+                        Divider()
                         Button { presentExportSheet() } label: {
                             Label("Export My Cookbook", systemImage: "square.and.arrow.up")
                         }
@@ -49,7 +52,7 @@ struct CookbookView: View {
                     } label: {
                         Image(systemName: "ellipsis.circle").foregroundStyle(KindredTheme.accent)
                     }
-                    .accessibilityLabel("Cookbook sharing")
+                    .accessibilityLabel("Cookbook options")
                 }
             }
             .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [.kindredCookbook]) { result in
@@ -82,11 +85,24 @@ struct CookbookView: View {
 
     private func presentUIKit(_ vc: UIViewController) {
         vc.modalPresentationStyle = .pageSheet
-        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let root = scene.keyWindow?.rootViewController else { return }
-        var top = root
-        while let next = top.presentedViewController { top = next }
-        top.present(vc, animated: true)
+        // Defer to the next run loop so we're not competing with an in-flight
+        // SwiftUI layout pass. Use explicit isKeyWindow check — UIWindowScene.keyWindow
+        // can return nil on iOS 26 if the scene hasn't finished foregrounding.
+        DispatchQueue.main.async {
+            let root = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .first(where: { $0.activationState == .foregroundActive })?
+                .windows
+                .first(where: { $0.isKeyWindow })?
+                .rootViewController
+            guard let root else { return }
+            var top: UIViewController = root
+            while let next = top.presentedViewController {
+                guard !next.isBeingDismissed else { break }
+                top = next
+            }
+            top.present(vc, animated: true)
+        }
     }
 
     // MARK: - Subviews
@@ -135,30 +151,6 @@ struct CookbookView: View {
             }
             .font(.subheadline).foregroundStyle(KindredTheme.accent)
         }
-    }
-
-    private var addRecipeButton: some View {
-        Button { presentAddRecipeSheet() } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "camera.fill")
-                    .font(.headline).foregroundStyle(.white)
-                    .frame(width: 42, height: 42)
-                    .background(KindredTheme.brandGradient, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Add your own recipe").font(.subheadline.weight(.semibold))
-                        .foregroundStyle(KindredTheme.text)
-                    Text("Photograph Mom's card or a clipping").font(.caption)
-                        .foregroundStyle(KindredTheme.subtext)
-                }
-                Spacer()
-                Image(systemName: "chevron.right").font(.caption).foregroundStyle(KindredTheme.faint)
-            }
-            .padding(14)
-            .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(KindredTheme.hairline, lineWidth: 1))
-            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        }
-        .buttonStyle(.plain)
     }
 
     private var familySection: some View {
