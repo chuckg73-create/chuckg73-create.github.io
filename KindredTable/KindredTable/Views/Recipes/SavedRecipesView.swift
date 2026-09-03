@@ -3,16 +3,7 @@ import UniformTypeIdentifiers
 
 /// The family cookbook: recipes you've saved from the app plus your own recipes
 /// photographed in — all in one place, all scalable to any number of servings.
-///
-/// Sheet presentation is intentionally NOT owned here — every time a recipe is
-/// saved, SavedRecipeStore fires an update that re-renders this view. If the
-/// sheet state lived here, that re-render would silently kill the presenter.
-/// Instead, the parent (RootTabView) owns the sheet state and passes closures.
 struct CookbookView: View {
-    var onAddRecipe: () -> Void
-    var onExport: () -> Void
-    var onImportPackage: (URL) -> Void
-
     @Environment(SavedRecipeStore.self) private var cookbook
     @State private var query = ""
     @State private var showFileImporter = false
@@ -49,7 +40,7 @@ struct CookbookView: View {
                 ToolbarItem(placement: .topBarLeading) { ProfileToolbarButton() }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        Button { onExport() } label: {
+                        Button { presentExportSheet() } label: {
                             Label("Export My Cookbook", systemImage: "square.and.arrow.up")
                         }
                         Button { showFileImporter = true } label: {
@@ -62,10 +53,43 @@ struct CookbookView: View {
                 }
             }
             .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [.kindredCookbook]) { result in
-                if case .success(let url) = result { onImportPackage(url) }
+                if case .success(let url) = result { presentImportSheet(url: url) }
             }
         }
     }
+
+    // MARK: - UIKit-backed presentation
+
+    // SwiftUI's .sheet mechanism fails after app lifecycle transitions on iOS 26's
+    // redesigned TabView — re-renders from SavedRecipeStore updates invalidate the
+    // sheet presenter regardless of where in the hierarchy the .sheet modifier lives.
+    // UIKit's present(_:animated:) is lifecycle-stable and bypasses this entirely.
+
+    private func presentAddRecipeSheet() {
+        let root = CookbookImportView().environment(cookbook)
+        presentUIKit(UIHostingController(rootView: root))
+    }
+
+    private func presentExportSheet() {
+        let root = ExportCookbookSheet().environment(cookbook)
+        presentUIKit(UIHostingController(rootView: root))
+    }
+
+    private func presentImportSheet(url: URL) {
+        let root = CookbookPackageImportView(fileURL: url).environment(cookbook)
+        presentUIKit(UIHostingController(rootView: root))
+    }
+
+    private func presentUIKit(_ vc: UIViewController) {
+        vc.modalPresentationStyle = .pageSheet
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let root = scene.keyWindow?.rootViewController else { return }
+        var top = root
+        while let next = top.presentedViewController { top = next }
+        top.present(vc, animated: true)
+    }
+
+    // MARK: - Subviews
 
     private var searchResultsSection: some View {
         let results = cookbook.saved.filter { Self.matches($0, trimmedQuery) }
@@ -103,7 +127,7 @@ struct CookbookView: View {
                 message: "Save recipes the app finds, or add your own family recipes from a photo. Everything you keep lives here — and scales to any number of servings."
             )
             KindredButton(title: "Add a recipe from a photo", systemImage: "camera.fill") {
-                onAddRecipe()
+                presentAddRecipeSheet()
             }
             .padding(.horizontal, 40)
             Button { showFileImporter = true } label: {
@@ -114,7 +138,7 @@ struct CookbookView: View {
     }
 
     private var addRecipeButton: some View {
-        Button { onAddRecipe() } label: {
+        Button { presentAddRecipeSheet() } label: {
             HStack(spacing: 12) {
                 Image(systemName: "camera.fill")
                     .font(.headline).foregroundStyle(.white)
@@ -302,7 +326,7 @@ struct ExportCookbookSheet: View {
 }
 
 #Preview {
-    CookbookView(onAddRecipe: {}, onExport: {}, onImportPackage: { _ in })
+    CookbookView()
         .environment(SavedRecipeStore(seed: SampleData.recipes))
         .environment(ProfileStore(seed: .starter))
         .preferredColorScheme(.dark)
