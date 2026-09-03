@@ -3,30 +3,19 @@ import UniformTypeIdentifiers
 
 /// The family cookbook: recipes you've saved from the app plus your own recipes
 /// photographed in — all in one place, all scalable to any number of servings.
+///
+/// Sheet presentation is intentionally NOT owned here — every time a recipe is
+/// saved, SavedRecipeStore fires an update that re-renders this view. If the
+/// sheet state lived here, that re-render would silently kill the presenter.
+/// Instead, the parent (RootTabView) owns the sheet state and passes closures.
 struct CookbookView: View {
+    var onAddRecipe: () -> Void
+    var onExport: () -> Void
+    var onImportPackage: (URL) -> Void
+
     @Environment(SavedRecipeStore.self) private var cookbook
     @State private var query = ""
-    @State private var activeSheet: CookbookSheet?
     @State private var showFileImporter = false
-
-    /// Every modal this screen can present, driven by ONE `.sheet(item:)` —
-    /// stacking several separate `.sheet(isPresented:)` modifiers on one view
-    /// is a known SwiftUI trap (the first can silently stop reopening once a
-    /// later one has presented), which is exactly what broke "Add a recipe
-    /// from a photo" after export/import was added alongside it.
-    private enum CookbookSheet: Identifiable {
-        case addFromPhoto
-        case export
-        case importPackage(URL)
-
-        var id: String {
-            switch self {
-            case .addFromPhoto: return "addFromPhoto"
-            case .export: return "export"
-            case .importPackage(let url): return "importPackage-\(url.absoluteString)"
-            }
-        }
-    }
 
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
 
@@ -60,7 +49,7 @@ struct CookbookView: View {
                 ToolbarItem(placement: .topBarLeading) { ProfileToolbarButton() }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        Button { activeSheet = .export } label: {
+                        Button { onExport() } label: {
                             Label("Export My Cookbook", systemImage: "square.and.arrow.up")
                         }
                         Button { showFileImporter = true } label: {
@@ -73,18 +62,7 @@ struct CookbookView: View {
                 }
             }
             .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [.kindredCookbook]) { result in
-                if case .success(let url) = result { activeSheet = .importPackage(url) }
-            }
-        }
-        // Sheet lives OUTSIDE the NavigationStack so iOS 26's TabView/NavigationStack
-        // combination doesn't swallow the presentation. Attaching it to the inner
-        // ZStack was the root cause — the stack consumed the event before it could
-        // bubble up to the tab-level presentation layer.
-        .sheet(item: $activeSheet) { sheet in
-            switch sheet {
-            case .addFromPhoto: CookbookImportView()
-            case .export: ExportCookbookSheet()
-            case .importPackage(let url): CookbookPackageImportView(fileURL: url)
+                if case .success(let url) = result { onImportPackage(url) }
             }
         }
     }
@@ -95,7 +73,7 @@ struct CookbookView: View {
             if results.isEmpty {
                 VStack(spacing: 8) {
                     Image(systemName: "magnifyingglass").font(.title2).foregroundStyle(KindredTheme.faint)
-                    Text("No recipes match “\(trimmedQuery)”")
+                    Text("No recipes match \"\(trimmedQuery)\"")
                         .font(.subheadline).foregroundStyle(KindredTheme.subtext)
                 }
                 .frame(maxWidth: .infinity).padding(.vertical, 40)
@@ -106,8 +84,6 @@ struct CookbookView: View {
         }
     }
 
-    /// Case-insensitive match across title, attribution, summary, tags and
-    /// ingredient names.
     static func matches(_ r: Recipe, _ q: String) -> Bool {
         let n = q.lowercased()
         if r.title.lowercased().contains(n) { return true }
@@ -127,7 +103,7 @@ struct CookbookView: View {
                 message: "Save recipes the app finds, or add your own family recipes from a photo. Everything you keep lives here — and scales to any number of servings."
             )
             KindredButton(title: "Add a recipe from a photo", systemImage: "camera.fill") {
-                activeSheet = .addFromPhoto
+                onAddRecipe()
             }
             .padding(.horizontal, 40)
             Button { showFileImporter = true } label: {
@@ -138,7 +114,7 @@ struct CookbookView: View {
     }
 
     private var addRecipeButton: some View {
-        Button { activeSheet = .addFromPhoto } label: {
+        Button { onAddRecipe() } label: {
             HStack(spacing: 12) {
                 Image(systemName: "camera.fill")
                     .font(.headline).foregroundStyle(.white)
@@ -156,15 +132,11 @@ struct CookbookView: View {
             .padding(14)
             .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(KindredTheme.hairline, lineWidth: 1))
-            // `.plain` buttons only hit-test their opaque content by default, so
-            // taps on the padded card fell through to the recipe card beneath.
             .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .buttonStyle(.plain)
     }
 
-    /// The heart of the cookbook — family recipes shown as treasured cards with
-    /// their attribution and memory front and center.
     private var familySection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
@@ -194,7 +166,7 @@ struct CookbookView: View {
                     .font(.title3).fontWeight(.bold)
                     .foregroundStyle(KindredTheme.text)
                 if !recipe.story.isEmpty {
-                    Text("“\(recipe.story)”")
+                    Text("\"\(recipe.story)\"")
                         .font(.subheadline).italic()
                         .foregroundStyle(KindredTheme.subtext)
                         .lineLimit(2)
@@ -239,10 +211,7 @@ struct CookbookView: View {
 
 // MARK: - Export whole cookbook
 
-/// Names the export, builds the `.kindredcookbook` file off the main thread,
-/// then hands it to the standard share sheet — AirDrop, Messages, Mail, or
-/// Save to Files.
-private struct ExportCookbookSheet: View {
+struct ExportCookbookSheet: View {
     @Environment(SavedRecipeStore.self) private var cookbook
     @Environment(\.dismiss) private var dismiss
 
@@ -333,7 +302,7 @@ private struct ExportCookbookSheet: View {
 }
 
 #Preview {
-    CookbookView()
+    CookbookView(onAddRecipe: {}, onExport: {}, onImportPackage: { _ in })
         .environment(SavedRecipeStore(seed: SampleData.recipes))
         .environment(ProfileStore(seed: .starter))
         .preferredColorScheme(.dark)
