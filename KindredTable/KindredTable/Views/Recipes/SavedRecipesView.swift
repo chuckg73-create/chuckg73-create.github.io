@@ -1,11 +1,32 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// The family cookbook: recipes you've saved from the app plus your own recipes
 /// photographed in — all in one place, all scalable to any number of servings.
 struct CookbookView: View {
     @Environment(SavedRecipeStore.self) private var cookbook
-    @State private var showImport = false
     @State private var query = ""
+    @State private var activeSheet: CookbookSheet?
+    @State private var showFileImporter = false
+
+    /// Every modal this screen can present, driven by ONE `.sheet(item:)` —
+    /// stacking several separate `.sheet(isPresented:)` modifiers on one view
+    /// is a known SwiftUI trap (the first can silently stop reopening once a
+    /// later one has presented), which is exactly what broke "Add a recipe
+    /// from a photo" after export/import was added alongside it.
+    private enum CookbookSheet: Identifiable {
+        case addFromPhoto
+        case export
+        case importPackage(URL)
+
+        var id: String {
+            switch self {
+            case .addFromPhoto: return "addFromPhoto"
+            case .export: return "export"
+            case .importPackage(let url): return "importPackage-\(url.absoluteString)"
+            }
+        }
+    }
 
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
 
@@ -35,8 +56,36 @@ struct CookbookView: View {
             }
             .navigationTitle("Cookbook")
             .searchable(text: $query, prompt: "Search recipes & ingredients")
-            .toolbar { ToolbarItem(placement: .topBarLeading) { ProfileToolbarButton() } }
-            .sheet(isPresented: $showImport) { CookbookImportView() }
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) { ProfileToolbarButton() }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button { activeSheet = .export } label: {
+                            Label("Export My Cookbook", systemImage: "square.and.arrow.up")
+                        }
+                        Button { showFileImporter = true } label: {
+                            Label("Import Cookbook From File", systemImage: "tray.and.arrow.down")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle").foregroundStyle(KindredTheme.accent)
+                    }
+                    .accessibilityLabel("Cookbook sharing")
+                }
+            }
+            .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [.kindredCookbook]) { result in
+                if case .success(let url) = result { activeSheet = .importPackage(url) }
+            }
+        }
+        // Sheet lives OUTSIDE the NavigationStack so iOS 26's TabView/NavigationStack
+        // combination doesn't swallow the presentation. Attaching it to the inner
+        // ZStack was the root cause — the stack consumed the event before it could
+        // bubble up to the tab-level presentation layer.
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .addFromPhoto: CookbookImportView()
+            case .export: ExportCookbookSheet()
+            case .importPackage(let url): CookbookPackageImportView(fileURL: url)
+            }
         }
     }
 
@@ -78,14 +127,18 @@ struct CookbookView: View {
                 message: "Save recipes the app finds, or add your own family recipes from a photo. Everything you keep lives here — and scales to any number of servings."
             )
             KindredButton(title: "Add a recipe from a photo", systemImage: "camera.fill") {
-                showImport = true
+                activeSheet = .addFromPhoto
             }
             .padding(.horizontal, 40)
+            Button { showFileImporter = true } label: {
+                Label("Import a cookbook someone shared with you", systemImage: "tray.and.arrow.down")
+            }
+            .font(.subheadline).foregroundStyle(KindredTheme.accent)
         }
     }
 
     private var addRecipeButton: some View {
-        Button { showImport = true } label: {
+        Button { activeSheet = .addFromPhoto } label: {
             HStack(spacing: 12) {
                 Image(systemName: "camera.fill")
                     .font(.headline).foregroundStyle(.white)
@@ -103,6 +156,9 @@ struct CookbookView: View {
             .padding(14)
             .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(KindredTheme.hairline, lineWidth: 1))
+            // `.plain` buttons only hit-test their opaque content by default, so
+            // taps on the padded card fell through to the recipe card beneath.
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .buttonStyle(.plain)
     }
@@ -176,6 +232,101 @@ struct CookbookView: View {
                     )
                 }
                 .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
+// MARK: - Export whole cookbook
+
+/// Names the export, builds the `.kindredcookbook` file off the main thread,
+/// then hands it to the standard share sheet — AirDrop, Messages, Mail, or
+/// Save to Files.
+private struct ExportCookbookSheet: View {
+    @Environment(SavedRecipeStore.self) private var cookbook
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var name = ""
+    @State private var isBuilding = false
+    @State private var exportedURL: URL?
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                KindredBackground()
+                ScrollView {
+                    VStack(spacing: 20) {
+                        VStack(spacing: 12) {
+                            Image(systemName: "square.and.arrow.up.on.square.fill")
+                                .font(.system(size: 40)).foregroundStyle(KindredTheme.accent)
+                            Text("Export your cookbook")
+                                .font(.title2).fontWeight(.bold).multilineTextAlignment(.center)
+                            Text("Every recipe you've saved, with your photos, in one file you can hand to family — AirDrop, Messages, Mail, or save to Files.")
+                                .font(.subheadline).foregroundStyle(KindredTheme.subtext)
+                                .multilineTextAlignment(.center)
+                        }
+
+                        KindredCard {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("COOKBOOK NAME")
+                                    .font(.caption2.weight(.semibold)).foregroundStyle(KindredTheme.faint)
+                                    .tracking(0.5)
+                                TextField("e.g. Mom's Recipes", text: $name)
+                                    .textInputAutocapitalization(.words)
+                                    .foregroundStyle(KindredTheme.text)
+                            }
+                        }
+
+                        Text("\(cookbook.saved.count) recipe\(cookbook.saved.count == 1 ? "" : "s") will be included.")
+                            .font(.caption).foregroundStyle(KindredTheme.faint)
+
+                        if let errorMessage {
+                            Text(errorMessage).font(.caption).foregroundStyle(KindredTheme.amber)
+                        }
+
+                        if let exportedURL {
+                            ShareLink(item: exportedURL) {
+                                Label("Share the cookbook file", systemImage: "square.and.arrow.up")
+                                    .frame(maxWidth: .infinity).padding(.vertical, 14)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(KindredTheme.accent)
+                        } else {
+                            KindredButton(title: "Build cookbook file", systemImage: "archivebox.fill",
+                                          isLoading: isBuilding) {
+                                build()
+                            }
+                            .disabled(isBuilding || cookbook.isEmpty)
+                        }
+                    }
+                    .padding(24)
+                }
+            }
+            .navigationTitle("Export")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Close") { dismiss() } } }
+        }
+    }
+
+    private func build() {
+        let recipes = cookbook.saved
+        let cookbookName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedName = cookbookName.isEmpty ? "My Cookbook" : cookbookName
+        isBuilding = true
+        errorMessage = nil
+        Task.detached {
+            do {
+                let url = try CookbookPackageService.export(recipes: recipes, cookbookName: resolvedName)
+                await MainActor.run {
+                    exportedURL = url
+                    isBuilding = false
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = "Couldn't build the cookbook file. Try again."
+                    isBuilding = false
+                }
             }
         }
     }
