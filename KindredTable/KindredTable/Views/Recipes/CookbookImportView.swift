@@ -376,6 +376,10 @@ struct CookbookImportView: View {
     }
 
     private func saveBatch(_ recipes: [Recipe]) {
+        // Dismiss before mutating the store so the @Observable re-render fires
+        // after the sheet binding is already nil, preventing the "sheet won't
+        // reopen" race where activeSheet flickers non-nil during dismissal.
+        dismiss()
         for var recipe in recipes {
             recipe.source = .imported
             cookbook.add(recipe)
@@ -385,7 +389,6 @@ struct CookbookImportView: View {
                 Task.detached { _ = await RecipeImageService.shared.image(for: forPhoto) }
             }
         }
-        dismiss()
     }
 
     private func importFromLink() {
@@ -442,6 +445,12 @@ struct CookbookImportView: View {
         if !name.isEmpty { toSave.title = name }
         toSave.sourceNote = attribution.trimmingCharacters(in: .whitespacesAndNewlines)
         toSave.story = story.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Dismiss before mutating the store so the @Observable re-render fires
+        // after the sheet binding is already nil, preventing the "sheet won't
+        // reopen" race where activeSheet flickers non-nil during dismissal.
+        dismiss()
+
         cookbook.add(toSave)
 
         // Warm an AI photo for recipes that arrived without one (a photographed
@@ -452,7 +461,5 @@ struct CookbookImportView: View {
             let recipeForPhoto = toSave
             Task.detached { _ = await RecipeImageService.shared.image(for: recipeForPhoto) }
         }
-
-        dismiss()
     }
 }
