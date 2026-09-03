@@ -179,7 +179,7 @@ struct RecipeDetailView: View {
         } message: {
             Text("Add your own snap of the finished dish, or let KindredTable create one.")
         }
-        .fullScreenCover(isPresented: $showCamera) {
+        .sheet(isPresented: $showCamera) {
             CameraPicker { image in savePhoto(image) }
                 .ignoresSafeArea()
         }

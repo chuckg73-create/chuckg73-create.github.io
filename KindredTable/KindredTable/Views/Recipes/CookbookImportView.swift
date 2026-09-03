@@ -27,6 +27,9 @@ struct CookbookImportView: View {
     @State private var story = ""
     @State private var titleDraft = ""
     @State private var urlText = ""
+    /// Multiple photos just picked, awaiting the cook's answer to "separate
+    /// recipes, or pages of one?" before we know how to read them.
+    @State private var pendingPageImages: [UIImage]?
     @FocusState private var urlFocused: Bool
 
     var body: some View {
@@ -49,12 +52,29 @@ struct CookbookImportView: View {
             .navigationTitle("Add a recipe")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Close") { dismiss() } } }
-            .fullScreenCover(isPresented: $showCamera) {
+            .sheet(isPresented: $showCamera) {
                 CameraPicker { image in read(image) }.ignoresSafeArea()
             }
             .onChange(of: photoItems) { _, items in
                 guard !items.isEmpty else { return }
                 Task { await loadPickedPhotos(items) }
+            }
+            .confirmationDialog(
+                "Separate recipes, or pages of the same one?",
+                isPresented: Binding(get: { pendingPageImages != nil }, set: { if !$0 { pendingPageImages = nil } }),
+                titleVisibility: .visible
+            ) {
+                Button("Pages of the same recipe") {
+                    if let images = pendingPageImages { readAsOneRecipe(images) }
+                    pendingPageImages = nil
+                }
+                Button("Separate recipes") {
+                    if let images = pendingPageImages { readBatch(images) }
+                    pendingPageImages = nil
+                }
+                Button("Cancel", role: .cancel) { pendingPageImages = nil }
+            } message: {
+                Text("e.g. ingredients on one card and directions on another — pick \u{201C}pages of the same recipe\u{201D} so they read as one.")
             }
         }
     }
@@ -284,40 +304,73 @@ struct CookbookImportView: View {
             return
         }
 
-        // Multiple cards → read each, then a batch review.
-        await MainActor.run { phase = .reading; scanProgress = (0, images.count) }
-        let service = self.service
-        var recipes: [Recipe] = []
-        var done = 0
-        var start = 0
-        let chunk = 3
-        while start < images.count {
-            let slice = Array(images[start..<min(start + chunk, images.count)])
-            let read = await withTaskGroup(of: Recipe?.self) { group -> [Recipe] in
-                for img in slice {
-                    group.addTask {
-                        guard let jpeg = img.jpegForUpload() else { return nil }
-                        return try? await service.importRecipe(from: jpeg)
-                    }
-                }
-                var out: [Recipe] = []
-                for await r in group { if let r { out.append(r) } }
-                return out
-            }
-            recipes.append(contentsOf: read)
-            done += slice.count
-            let d = done
-            await MainActor.run { scanProgress = (d, images.count) }
-            start += chunk
-        }
+        // Multiple photos could be several different recipes, or several pages
+        // of ONE recipe (ingredients on one card, directions on another) —
+        // ask, rather than guessing and silently splitting a family recipe in two.
+        await MainActor.run { pendingPageImages = images }
+    }
 
-        let result = recipes
-        await MainActor.run {
-            scanProgress = nil
-            if result.isEmpty {
-                phase = .failed("Couldn't read those. Try clearer, flatter photos with the whole card in frame.")
-            } else {
-                phase = .batch(result)
+    /// Reads each photo as its own separate recipe (a box of different cards).
+    private func readBatch(_ images: [UIImage]) {
+        Task {
+            await MainActor.run { phase = .reading; scanProgress = (0, images.count) }
+            let service = self.service
+            var recipes: [Recipe] = []
+            var done = 0
+            var start = 0
+            let chunk = 3
+            while start < images.count {
+                let slice = Array(images[start..<min(start + chunk, images.count)])
+                let read = await withTaskGroup(of: Recipe?.self) { group -> [Recipe] in
+                    for img in slice {
+                        group.addTask {
+                            guard let jpeg = img.jpegForUpload() else { return nil }
+                            return try? await service.importRecipe(from: jpeg)
+                        }
+                    }
+                    var out: [Recipe] = []
+                    for await r in group { if let r { out.append(r) } }
+                    return out
+                }
+                recipes.append(contentsOf: read)
+                done += slice.count
+                let d = done
+                await MainActor.run { scanProgress = (d, images.count) }
+                start += chunk
+            }
+
+            let result = recipes
+            await MainActor.run {
+                scanProgress = nil
+                if result.isEmpty {
+                    phase = .failed("Couldn't read those. Try clearer, flatter photos with the whole card in frame.")
+                } else {
+                    phase = .batch(result)
+                }
+            }
+        }
+    }
+
+    /// Reads every photo TOGETHER as one recipe (ingredients on one page,
+    /// directions on another) — the single-recipe review, same as one photo.
+    private func readAsOneRecipe(_ images: [UIImage]) {
+        Task {
+            await MainActor.run { phase = .reading; scanProgress = nil }
+            let jpegs = images.compactMap { $0.jpegForUpload() }
+            guard !jpegs.isEmpty else {
+                await MainActor.run { phase = .failed("Those photos couldn't be prepared. Try again.") }
+                return
+            }
+            do {
+                let recipe = try await service.importRecipe(fromPages: jpegs)
+                await MainActor.run {
+                    titleDraft = recipe.title
+                    attribution = ""
+                    phase = .review(recipe)
+                }
+            } catch {
+                let message = (error as? RecipeServiceError)?.errorDescription ?? error.localizedDescription
+                await MainActor.run { phase = .failed(message) }
             }
         }
     }
