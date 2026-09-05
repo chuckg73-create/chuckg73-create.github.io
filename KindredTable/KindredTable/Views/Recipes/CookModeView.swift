@@ -9,6 +9,7 @@ struct CookModeView: View {
     let recipe: Recipe
     @Environment(\.dismiss) private var dismiss
     @Environment(TasteFeedbackStore.self) private var feedback
+    @Environment(RecentSuggestionsStore.self) private var recent
 
     private let session = CookingSession.shared
     @State private var showFinishRating = false
@@ -49,7 +50,11 @@ struct CookModeView: View {
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in tick() }
         .confirmationDialog("How did it turn out?", isPresented: $showFinishRating, titleVisibility: .visible) {
             ForEach(RecipeVerdict.allCases) { v in
-                Button(v.title) { feedback.record(recipe, verdict: v); dismiss() }
+                Button(v.title) {
+                    feedback.record(recipe, verdict: v)
+                    if v == .disliked { recent.record([recipe]) }
+                    dismiss()
+                }
             }
             Button("Skip", role: .cancel) { dismiss() }
         } message: {

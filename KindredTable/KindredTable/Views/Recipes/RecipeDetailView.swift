@@ -14,6 +14,7 @@ struct RecipeDetailView: View {
     @Environment(TastePreferenceStore.self) private var preferences
     @Environment(StaplesStore.self) private var staples
     @Environment(RecipeNotesStore.self) private var notesStore
+    @Environment(RecentSuggestionsStore.self) private var recent
     @State private var noteDraft = ""
     @FocusState private var noteFocused: Bool
     @State private var plannedDay: Date?
@@ -785,10 +786,12 @@ struct RecipeDetailView: View {
                     ForEach(RecipeVerdict.allCases) { v in
                         Button {
                             withAnimation {
-                                if current == v { feedback.clear(recipe) }
-                                else {
+                                if current == v {
+                                    feedback.clear(recipe)
+                                } else {
                                     feedback.record(recipe, verdict: v)
                                     if v == .loved, !saved.isSaved(recipe) { saved.toggle(recipe) }
+                                    if v == .disliked { recent.record([recipe]) }
                                 }
                             }
                         } label: {
