@@ -16,12 +16,23 @@ struct SetDinnerSheet: View {
 
     private let service = GeminiRecipeService()
     @State private var dish = ""
+    @State private var extraDishes: [String] = []
     @State private var isWorking = false
     @State private var errorText: String?
+    @State private var repeatWeekly = false
+    @State private var cookbookQuery = ""
     @FocusState private var focused: Bool
 
     private static let ideas = ["Smashed burgers", "Pizza night", "Taco night",
                                 "Pasta", "Stir-fry", "Sheet-pan chicken", "Breakfast for dinner"]
+
+    private var weekdayName: String {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "EEEE"
+        return fmt.string(from: day)
+    }
+
+    private var dishCount: Int { 1 + extraDishes.count }
 
     var body: some View {
         NavigationStack {
@@ -33,6 +44,15 @@ struct SetDinnerSheet: View {
                             .font(.title2).fontWeight(.bold).foregroundStyle(KindredTheme.text)
                         Text("Name a dish and we'll build the recipe, tuned to your taste, and add it to your cookbook.")
                             .font(.subheadline).foregroundStyle(KindredTheme.subtext)
+
+                        Toggle(isOn: $repeatWeekly) {
+                            Label("Repeat every \(weekdayName)", systemImage: "repeat")
+                                .font(.subheadline.weight(.medium)).foregroundStyle(KindredTheme.text)
+                        }
+                        .tint(KindredTheme.accent)
+                        .padding(14)
+                        .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(KindredTheme.hairline, lineWidth: 1))
 
                         HStack(spacing: 10) {
                             Image(systemName: "fork.knife").foregroundStyle(KindredTheme.accent)
@@ -50,10 +70,22 @@ struct SetDinnerSheet: View {
                             generate()
                         }
 
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Making a full menu? Add the rest of it.")
+                                .font(.caption.weight(.semibold)).foregroundStyle(KindredTheme.faint)
+                            TokenEditor(tokens: $extraDishes, placeholder: "e.g. asparagus, mashed potatoes",
+                                        tint: KindredTheme.accent)
+                        }
+
                         Button(action: generate) {
                             HStack(spacing: 8) {
-                                if isWorking { ProgressView().controlSize(.small).tint(.white); Text("Building your recipe…") }
-                                else { Image(systemName: "sparkles"); Text("Set this dinner") }
+                                if isWorking {
+                                    ProgressView().controlSize(.small).tint(.white)
+                                    Text(dishCount > 1 ? "Building your menu…" : "Building your recipe…")
+                                } else {
+                                    Image(systemName: "sparkles")
+                                    Text(dishCount > 1 ? "Build this menu (\(dishCount) dishes)" : "Set this dinner")
+                                }
                             }
                             .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity).padding(.vertical, 14)
                             .foregroundStyle(.white)
@@ -64,6 +96,10 @@ struct SetDinnerSheet: View {
 
                         if let errorText {
                             Text(errorText).font(.caption).foregroundStyle(KindredTheme.amber)
+                        }
+
+                        if !saved.saved.isEmpty {
+                            cookbookPicker
                         }
                     }
                     .padding(20)
@@ -79,6 +115,9 @@ struct SetDinnerSheet: View {
     private func generate() {
         let wanted = dish.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !wanted.isEmpty, !isWorking else { return }
+        let others = extraDishes.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        guard others.isEmpty else { generateMenu(dishes: [wanted] + others); return }
+
         focused = false
         isWorking = true
         errorText = nil
@@ -95,12 +134,7 @@ struct SetDinnerSheet: View {
                     await MainActor.run { isWorking = false; errorText = "Couldn't build that one — try another dish." }
                     return
                 }
-                await MainActor.run {
-                    mealPlan.setDinner(recipe, on: day)   // replaces whatever was there
-                    saved.add(recipe)                     // keep it in the cookbook
-                    onChange()
-                    dismiss()
-                }
+                await MainActor.run { finish(recipe, isNew: true) }
             } catch {
                 await MainActor.run {
                     isWorking = false
@@ -108,6 +142,121 @@ struct SetDinnerSheet: View {
                 }
             }
         }
+    }
+
+    /// Builds a full recipe for every named dish in parallel — a whole menu
+    /// (a main plus sides) for one night, each with its own directions, tips
+    /// and back-timed cooking schedule that lands together at the night's
+    /// sit-down time.
+    private func generateMenu(dishes: [String]) {
+        focused = false
+        isWorking = true
+        errorText = nil
+        let profile = household.effectiveProfile(you: profileStore.profile)
+        let ingredients = pantry.ingredients
+        let servings = household.servings
+        Task {
+            let recipes = await withTaskGroup(of: Recipe?.self) { group -> [Recipe] in
+                for name in dishes {
+                    group.addTask {
+                        try? await service.craveRecipes(dish: name, from: ingredients, profile: profile,
+                                                        count: 1, servings: servings).first
+                    }
+                }
+                var out: [Recipe] = []
+                for await r in group { if let r { out.append(r) } }
+                return out
+            }
+            guard !recipes.isEmpty else {
+                await MainActor.run {
+                    isWorking = false
+                    errorText = "Couldn't build that menu — try again."
+                }
+                return
+            }
+            await MainActor.run { finishMenu(recipes) }
+        }
+    }
+
+    /// Sets the day's dinner and, if the cook toggled it, makes it a standing
+    /// weekly theme. Shared by both the generate-a-dish path and picking
+    /// straight from the cookbook.
+    private func finish(_ recipe: Recipe, isNew: Bool) {
+        mealPlan.setDinner(recipe, on: day)   // replaces whatever was there
+        if isNew { saved.add(recipe) }        // a fresh generation joins the cookbook
+        if repeatWeekly {
+            mealPlan.setRecurring(recipe, weekday: Calendar.current.component(.weekday, from: day))
+        }
+        onChange()
+        dismiss()
+    }
+
+    /// Sets every dish of a generated menu at once. `repeatWeekly` — if on —
+    /// applies to the first (main) dish only; `RecurringTheme` models one
+    /// recipe per weekday.
+    private func finishMenu(_ recipes: [Recipe]) {
+        mealPlan.setMenu(recipes, on: day)
+        for recipe in recipes { saved.add(recipe) }
+        if repeatWeekly, let main = recipes.first {
+            mealPlan.setRecurring(main, weekday: Calendar.current.component(.weekday, from: day))
+        }
+        onChange()
+        dismiss()
+    }
+
+    // MARK: Pick from cookbook
+
+    @ViewBuilder private var cookbookPicker: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Rectangle().fill(KindredTheme.hairline).frame(height: 1)
+                Text("or pick from your cookbook").font(.caption).foregroundStyle(KindredTheme.faint)
+                Rectangle().fill(KindredTheme.hairline).frame(height: 1)
+            }
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass").foregroundStyle(KindredTheme.faint)
+                TextField("Search your cookbook", text: $cookbookQuery)
+                    .textInputAutocapitalization(.never)
+                    .foregroundStyle(KindredTheme.text)
+            }
+            .padding(12)
+            .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            let trimmed = cookbookQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                let matches = saved.saved.filter { CookbookView.matches($0, trimmed) }.prefix(8)
+                if matches.isEmpty {
+                    Text("No matches").font(.caption).foregroundStyle(KindredTheme.faint)
+                } else {
+                    ForEach(Array(matches)) { recipe in
+                        cookbookRow(recipe)
+                    }
+                }
+            }
+        }
+    }
+
+    private func cookbookRow(_ recipe: Recipe) -> some View {
+        Button { finish(recipe, isNew: false) } label: {
+            HStack(spacing: 12) {
+                RecipeHeroImage(recipe: recipe, height: 44, glyphSize: 18)
+                    .frame(width: 44, height: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(recipe.title).font(.subheadline.weight(.semibold))
+                        .foregroundStyle(KindredTheme.text).lineLimit(1)
+                    if !recipe.attribution.isEmpty {
+                        Text(recipe.attribution).font(.caption2).foregroundStyle(KindredTheme.coral)
+                    }
+                }
+                Spacer()
+                Image(systemName: "chevron.right").font(.caption2).foregroundStyle(KindredTheme.faint)
+            }
+            .padding(10)
+            .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 }
 

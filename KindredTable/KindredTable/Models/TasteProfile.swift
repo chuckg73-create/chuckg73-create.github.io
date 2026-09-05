@@ -187,6 +187,11 @@ extension TasteProfile {
         for diet in diets {
             terms.append(contentsOf: diet.forbiddenIngredientTerms)
         }
+        for dislike in dislikedIngredients {
+            let key = dislike.lowercased().trimmingCharacters(in: .whitespaces)
+            guard !key.isEmpty else { continue }
+            terms.append(key)
+        }
         guard !terms.isEmpty else { return [] }
 
         return recipe.ingredients

@@ -33,5 +33,46 @@
 			</array>
 		</dict>
 	</array>
+	<!-- Whole-cookbook export/import (see CookbookPackageService.swift): a
+	     .kindredcookbook file — tapping one in Files/Mail/Messages opens
+	     straight into the import screen via RootView's .onOpenURL. -->
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.kindred.kindredtable.cookbook</string>
+			<key>UTTypeDescription</key>
+			<string>KindredTable Cookbook</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>kindredcookbook</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>KindredTable Cookbook</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.kindred.kindredtable.cookbook</string>
+			</array>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+		</dict>
+	</array>
+	<!-- We only read a cookbook file once on import, never edit it at its
+	     original location, so it's copied into the app rather than opened
+	     in place. -->
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<false/>
 </dict>
 </plist>

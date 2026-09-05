@@ -23,6 +23,9 @@ struct MealPlanView: View {
     @State private var remindersMessage: String?
     @State private var editingTimeMeal: PlannedMeal?
     @State private var settingDinnerFor: DayRef?
+    @State private var lastRemoved: PlannedMeal?
+    @State private var swappingID: UUID?
+    @State private var swapError: String?
 
     /// Identifiable wrapper so a day can drive a `.sheet(item:)`.
     private struct DayRef: Identifiable { let id = UUID(); let day: Date }
@@ -38,6 +41,14 @@ struct MealPlanView: View {
                     emptyState
                 } else {
                     content
+                }
+                if let removed = lastRemoved {
+                    VStack {
+                        undoBanner(removed)
+                        Spacer()
+                    }
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
             .navigationTitle("This week")
@@ -57,12 +68,74 @@ struct MealPlanView: View {
                 usualTime = Calendar.current.date(bySettingHour: mealPlan.usualDinnerHour,
                                                   minute: mealPlan.usualDinnerMinute,
                                                   second: 0, of: Date()) ?? Date()
+                mealPlan.materializeRecurring()
             }
             .sheet(item: $editingTimeMeal) { meal in
                 DinnerTimeSheet(meal: meal, serveTime: mealPlan.serveTime(for: meal)) { Task { await resyncIfOn() } }
             }
             .sheet(item: $settingDinnerFor) { ref in
                 SetDinnerSheet(day: ref.day) { Task { await resyncIfOn() } }
+            }
+        }
+    }
+
+    private func undoBanner(_ removed: PlannedMeal) -> some View {
+        HStack(spacing: 10) {
+            Text("Removed “\(removed.recipe.title)”")
+                .font(.caption).foregroundStyle(KindredTheme.subtext).lineLimit(1)
+            Spacer(minLength: 8)
+            Button("Undo") {
+                withAnimation { mealPlan.restore(removed); lastRemoved = nil }
+                Task { await resyncIfOn() }
+            }
+            .font(.caption.weight(.semibold)).foregroundStyle(KindredTheme.accent)
+        }
+        .padding(.horizontal, 14).padding(.vertical, 10)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(KindredTheme.hairline, lineWidth: 1))
+        .padding(.horizontal, 20)
+    }
+
+    private func removeMeal(_ meal: PlannedMeal) {
+        withAnimation { lastRemoved = meal; mealPlan.remove(meal); addedCount = nil }
+        Task { await resyncIfOn() }
+        Task {
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            if lastRemoved?.id == meal.id { withAnimation { lastRemoved = nil } }
+        }
+    }
+
+    private func swap(_ meal: PlannedMeal) {
+        guard swappingID == nil else { return }
+        swappingID = meal.id
+        swapError = nil
+        Task {
+            do {
+                let avoid = [recent.avoidBlock(), "Also avoid repeating: \(meal.recipe.title)."]
+                    .compactMap { $0 }.joined(separator: "\n")
+                let recipes = try await service.suggestRecipes(
+                    from: pantry.ingredients,
+                    profile: household.effectiveProfile(you: profileStore.profile),
+                    count: 1,
+                    servings: mealPlan.headcount(for: meal),
+                    tasteFeedback: avoid,
+                    useUpItems: pantry.useUpNames()
+                )
+                guard let recipe = recipes.first else {
+                    await MainActor.run { swappingID = nil; swapError = "Couldn't find a swap right now — try again." }
+                    return
+                }
+                await MainActor.run {
+                    withAnimation { mealPlan.replace(meal, with: recipe) }
+                    recent.record([recipe])
+                    swappingID = nil
+                }
+                await resyncIfOn()
+            } catch {
+                await MainActor.run {
+                    swappingID = nil
+                    swapError = (error as? RecipeServiceError)?.errorDescription ?? error.localizedDescription
+                }
             }
         }
     }
@@ -88,6 +161,7 @@ struct MealPlanView: View {
                         autoPlanButton
                         if let planError { Text(planError).font(.caption).foregroundStyle(KindredTheme.amber) }
                     }
+                    if let swapError { Text(swapError).font(.caption).foregroundStyle(KindredTheme.amber) }
                     ForEach(days, id: \.self) { day in
                         daySection(day)
                     }
@@ -111,8 +185,8 @@ struct MealPlanView: View {
                 DatePicker("", selection: $usualTime, displayedComponents: .hourAndMinute)
                     .labelsHidden()
             }
-            Button { Task { await scheduleWeek() } } label: {
-                Label(remindersMessage ?? (remindersOn ? "Reminders on for this week" : "Turn on dinner reminders"),
+            Button { Task { await toggleReminders() } } label: {
+                Label(remindersMessage ?? (remindersOn ? "Reminders on — tap to turn off" : "Turn on dinner reminders"),
                       systemImage: remindersOn ? "bell.fill" : "bell.badge")
                     .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity).padding(.vertical, 12)
                     .foregroundStyle(.white)
@@ -144,6 +218,13 @@ struct MealPlanView: View {
         withAnimation { remindersMessage = "Reminders on for this week ✓" }
     }
 
+    private func toggleReminders() async {
+        guard remindersOn else { await scheduleWeek(); return }
+        await MealPlanScheduler.cancelAll()
+        remindersOn = false
+        withAnimation { remindersMessage = nil }
+    }
+
     /// Re-sync notifications after a change, but only once reminders are enabled.
     private func resyncIfOn() async {
         guard remindersOn else { return }
@@ -164,13 +245,13 @@ struct MealPlanView: View {
             .background(KindredTheme.brandGradient, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(.plain)
-        .disabled(isPlanning || pantry.isEmpty || emptyDays.isEmpty)
+        .disabled(isPlanning || emptyDays.isEmpty)
     }
 
     private func planWeek() {
         let targets = emptyDays
         guard !targets.isEmpty else { return }
-        guard !pantry.isEmpty else { planError = "Add a few ingredients first so we can match your week."; return }
+        guard !pantry.isEmpty else { planError = "Add a few ingredients in On Hand first so we can match your week."; return }
         planError = nil
         isPlanning = true
         Task {
@@ -205,9 +286,20 @@ struct MealPlanView: View {
 
     private func daySection(_ day: Date) -> some View {
         let meals = mealPlan.meals(on: day)
+        let weekday = Calendar.current.component(.weekday, from: day)
+        let theme = mealPlan.recurringTheme(for: weekday)
+        let isRecurring = theme != nil && meals.first?.recipe.id == theme?.recipe.id
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(Self.dayLabel(day)).font(.headline).foregroundStyle(KindredTheme.text)
+                if isRecurring {
+                    Button { mealPlan.clearRecurring(weekday: weekday) } label: {
+                        Label("Repeats weekly", systemImage: "repeat")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(KindredTheme.mint)
+                    }
+                    .buttonStyle(.plain)
+                }
                 Spacer()
                 Button { settingDinnerFor = DayRef(day: day) } label: {
                     Label(meals.isEmpty ? "Set dinner" : "Change",
@@ -257,14 +349,23 @@ struct MealPlanView: View {
                 }
             }
             Spacer(minLength: 0)
+            Button { swap(meal) } label: {
+                if swappingID == meal.id {
+                    ProgressView().tint(KindredTheme.accent)
+                } else {
+                    Image(systemName: "arrow.triangle.2.circlepath").foregroundStyle(KindredTheme.accent)
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(swappingID != nil)
+            .accessibilityLabel("Swap for another taste match")
             Button { editingTimeMeal = meal } label: {
                 Image(systemName: "clock.arrow.circlepath").foregroundStyle(KindredTheme.accent)
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Set time and headcount")
             Button {
-                withAnimation { mealPlan.remove(meal); addedCount = nil }
-                Task { await resyncIfOn() }
+                removeMeal(meal)
             } label: {
                 Image(systemName: "minus.circle.fill").foregroundStyle(KindredTheme.faint)
             }

@@ -10,6 +10,7 @@ struct TasteProfileView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showEquipmentScan = false
     @State private var stapleDraft = ""
+    @State private var showFullResetConfirm = false
 
     var body: some View {
         @Bindable var store = profileStore
@@ -64,6 +65,7 @@ struct TasteProfileView: View {
                 .listRowBackground(KindredTheme.card)
 
                 apiStatusSection
+                fullResetSection
             }
             .scrollContentBackground(.hidden)
         }
@@ -75,6 +77,28 @@ struct TasteProfileView: View {
             }
         }
         .sheet(isPresented: $showEquipmentScan) { EquipmentScanView() }
+        .alert("Reset your taste profile?", isPresented: $showFullResetConfirm) {
+            Button("Reset Everything", role: .destructive) { profileStore.profile = .empty }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Clears diets, cuisines, dislikes, allergens, equipment and notes back to blank. Your saved recipes, pantry and grocery list aren't touched.")
+        }
+    }
+
+    /// A true full reset — every field on this screen back to blank — distinct
+    /// from `learnedSection`'s reset, which only clears the more/less-like-this
+    /// learned tuning and leaves what the cook typed in here alone.
+    private var fullResetSection: some View {
+        Section {
+            Button(role: .destructive) {
+                showFullResetConfirm = true
+            } label: {
+                Label("Reset my taste profile", systemImage: "arrow.counterclockwise.circle")
+            }
+        } footer: {
+            Text("Starts your whole taste profile over from blank.")
+        }
+        .listRowBackground(KindredTheme.card)
     }
 
     /// Makes the personalization tangible: what the engine has learned from the

@@ -136,12 +136,17 @@ struct GroceryListView: View {
         .background(.ultraThinMaterial)
     }
 
+    private var hasUnshopped: Bool { grocery.items.contains { !$0.isChecked } }
+
     private var shopBar: some View {
         VStack(spacing: 4) {
-            KindredButton(title: "Shop this list", systemImage: "bag.fill") {
+            KindredButton(title: hasUnshopped ? "Shop this list" : "Nothing left to shop",
+                          systemImage: hasUnshopped ? "bag.fill" : "checkmark.circle.fill") {
                 showShopOptions = true
             }
-            Text("Hands off to Instacart or Walmart")
+            .disabled(!hasUnshopped)
+            .opacity(hasUnshopped ? 1 : 0.5)
+            Text(hasUnshopped ? "Hands off to Instacart or Walmart" : "Everything's checked off")
                 .font(.caption2).foregroundStyle(KindredTheme.faint)
         }
         .padding(.horizontal, 20)

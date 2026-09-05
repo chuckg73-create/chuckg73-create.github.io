@@ -39,6 +39,12 @@ final class RecipeUserPhotoStore: @unchecked Sendable {
         return io.sync { fm.fileExists(atPath: fileURL(id).path) }
     }
 
+    /// Raw JPEG bytes as stored on disk, for handing off to a cookbook export
+    /// without a decode/recompress round trip.
+    func photoData(for id: UUID) -> Data? {
+        io.sync { try? Data(contentsOf: fileURL(id)) }
+    }
+
     /// Memory-cache hit returns instantly; a disk read happens off the main
     /// thread so scrolling a feed of cards never blocks on a JPEG load.
     func image(for id: UUID) async -> UIImage? {
@@ -51,7 +57,7 @@ final class RecipeUserPhotoStore: @unchecked Sendable {
                       let image = UIImage(data: data) else {
                     continuation.resume(returning: nil); return
                 }
-                self.memory.setObject(image, forKey: key)
+                self.memory.setObject(image, forKey: id.uuidString as NSString)
                 continuation.resume(returning: image)
             }
         }

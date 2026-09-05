@@ -11,3 +11,11 @@ struct PlannedMeal: Identifiable, Codable, Hashable {
     /// Number of people eating that night; nil = use the recipe's own servings.
     var headcount: Int?
 }
+
+/// A standing "theme night" — the same recipe every week on one weekday
+/// (Tuesday smashed burgers, Thursday pizza) until the cook clears it.
+struct RecurringTheme: Codable, Hashable {
+    /// `Calendar` weekday numbering: 1 = Sunday … 7 = Saturday.
+    var weekday: Int
+    var recipe: Recipe
+}
