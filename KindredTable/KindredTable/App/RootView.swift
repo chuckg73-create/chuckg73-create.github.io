@@ -42,23 +42,23 @@ extension URL: @retroactive Identifiable {
     public var id: String { absoluteString }
 }
 
-/// The five core surfaces: capture, pantry, recipe feed, cookbook, and grocery.
+/// The five core surfaces: home, pantry, recipe feed, cookbook, and grocery.
 struct RootTabView: View {
     @Environment(PantryStore.self) private var pantry
     @Environment(SavedRecipeStore.self) private var saved
     @Environment(GroceryStore.self) private var grocery
 
-    @State private var selection: Tab = .capture
+    @State private var selection: Tab = .home
 
-    enum Tab: Hashable { case capture, pantry, recipes, cookbook, grocery }
+    enum Tab: Hashable { case home, pantry, recipes, cookbook, grocery }
 
     var body: some View {
         TabView(selection: $selection) {
             CaptureView(goToPantry: { selection = .pantry },
                         goToRecipes: { selection = .recipes },
                         goToCookbook: { selection = .cookbook })
-                .tabItem { Label("Capture", systemImage: "camera.viewfinder") }
-                .tag(Tab.capture)
+                .tabItem { Label("Home", systemImage: "house.fill") }
+                .tag(Tab.home)
 
             PantryView(goToRecipes: { selection = .recipes })
                 .tabItem { Label("On Hand", systemImage: "list.bullet.rectangle.portrait") }

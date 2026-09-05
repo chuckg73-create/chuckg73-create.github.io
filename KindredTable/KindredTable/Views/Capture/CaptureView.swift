@@ -53,8 +53,8 @@ struct CaptureView: View {
                         greeting
                         chefEntry
                         if let tonight { tonightCard(tonight.recipe, label: tonight.label) }
-                        captureCard
                         if !recentRecipes.isEmpty { jumpBackIn }
+                        scanStrip
                         quickLinks
                         if recentRecipes.isEmpty { howItWorks }
                     }
@@ -62,7 +62,7 @@ struct CaptureView: View {
                 }
             }
             .navigationTitle("KindredTable")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.large)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { ProfileToolbarButton() } }
             .fullScreenCover(isPresented: $showCamera) {
                 CameraPicker { image in handle(image) }
@@ -241,44 +241,47 @@ struct CaptureView: View {
         .buttonStyle(.plain)
     }
 
-    private var captureCard: some View {
-        KindredCard {
-            VStack(spacing: 14) {
-                if isRecognizing {
-                    VStack(spacing: 12) {
-                        ProgressView().controlSize(.large).tint(KindredTheme.accent)
-                        Text(scanStatusText)
-                            .font(.subheadline).foregroundStyle(KindredTheme.subtext)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 18)
-                } else {
-                    KindredButton(title: "Take a photo", systemImage: "camera.fill") {
+    /// Compact pantry-scan strip — keeps the action available without making it
+    /// the hero CTA on the home screen.
+    private var scanStrip: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionHeader(label: "Update your pantry")
+            if isRecognizing {
+                HStack(spacing: 12) {
+                    ProgressView().controlSize(.small).tint(KindredTheme.accent)
+                    Text(scanStatusText).font(.subheadline).foregroundStyle(KindredTheme.subtext)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: KindredTheme.corner, style: .continuous))
+            } else {
+                HStack(spacing: 10) {
+                    Button {
                         showCamera = true
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "camera.fill").font(.subheadline)
+                            Text("Camera").fontWeight(.semibold)
+                        }
+                        .frame(maxWidth: .infinity).padding(.vertical, 14)
+                        .foregroundStyle(.white)
+                        .background(KindredTheme.brandGradient, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
+                    .buttonStyle(.plain)
+
                     PhotosPicker(selection: $photoItems,
                                  maxSelectionCount: 30,
                                  selectionBehavior: .ordered,
                                  matching: .images) {
-                        HStack(spacing: 10) {
-                            Image(systemName: "photo.on.rectangle")
-                            Text("Choose photos").fontWeight(.semibold)
+                        HStack(spacing: 8) {
+                            Image(systemName: "photo.on.rectangle").font(.subheadline)
+                            Text("Photos").fontWeight(.semibold)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 15)
+                        .frame(maxWidth: .infinity).padding(.vertical, 14)
                         .foregroundStyle(KindredTheme.text)
-                        .background(KindredTheme.card, in: Capsule())
-                        .overlay(Capsule().stroke(KindredTheme.hairline, lineWidth: 1))
+                        .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(KindredTheme.hairline, lineWidth: 1))
                     }
-                    Label(
-                        AppConfig.hasGeminiKey
-                            ? "Pick several at once — fridge, freezer, pantry — and we'll combine them into one list."
-                            : "Photos are analysed on-device and never uploaded.",
-                        systemImage: AppConfig.hasGeminiKey ? "square.stack.3d.up.fill" : "lock.fill"
-                    )
-                    .font(.caption)
-                    .foregroundStyle(KindredTheme.faint)
-                    .padding(.top, 2)
                 }
             }
         }

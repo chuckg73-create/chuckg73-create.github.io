@@ -31,7 +31,7 @@ struct PantryView: View {
                     EmptyState(
                         systemImage: "basket",
                         title: "Nothing on hand yet",
-                        message: "Snap a photo on the Capture tab, or add ingredients by hand to get started.",
+                        message: "Snap a photo on the Home tab, or add ingredients by hand to get started.",
                         actionTitle: "Add ingredient",
                         action: { activeSheet = .add }
                     )
