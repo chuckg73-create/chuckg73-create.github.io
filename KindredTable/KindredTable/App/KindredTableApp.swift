@@ -29,7 +29,10 @@ struct KindredTableApp: App {
                 .environment(staples)
                 .environment(recent)
                 .environment(notes)
-                .onAppear { mealPlan.prunePast() }
+                .onAppear {
+                    mealPlan.prunePast()
+                    LocalStore.migrateLocalToCloudIfNeeded()
+                }
                 .preferredColorScheme(.dark)
                 .tint(KindredTheme.accent)
         }

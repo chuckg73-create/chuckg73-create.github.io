@@ -104,5 +104,6 @@ final class PantryStore {
 
     private func persist() {
         LocalStore.save(ingredients, to: fileName)
+        LocalStore.backupToCloud(fileName)
     }
 }

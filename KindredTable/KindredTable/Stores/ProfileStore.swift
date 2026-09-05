@@ -31,5 +31,6 @@ final class ProfileStore {
 
     private func persist() {
         LocalStore.save(profile, to: fileName)
+        LocalStore.backupToCloud(fileName)
     }
 }

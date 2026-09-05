@@ -14,6 +14,16 @@ final class SavedRecipeStore {
             saved = seed
         } else {
             saved = LocalStore.load([Recipe].self, from: fileName) ?? []
+            if saved.isEmpty {
+                // Reinstall recovery: pull cookbook from iCloud if local is empty.
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    guard let cloud = await LocalStore.restoreFromCloud([Recipe].self, from: fileName),
+                          !cloud.isEmpty else { return }
+                    saved = cloud
+                    LocalStore.save(cloud, to: fileName)
+                }
+            }
         }
     }
 
@@ -65,5 +75,6 @@ final class SavedRecipeStore {
 
     private func persist() {
         LocalStore.save(saved, to: fileName)
+        LocalStore.backupToCloud(fileName)
     }
 }
