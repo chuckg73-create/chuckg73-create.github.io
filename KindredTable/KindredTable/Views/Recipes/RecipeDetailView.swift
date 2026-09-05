@@ -38,6 +38,7 @@ struct RecipeDetailView: View {
     /// Rendered share card + build state.
     @State private var shareCardImage: UIImage?
     @State private var isBuildingCard = false
+    @State private var groceryCandidate: Recipe?
     // MARK: Recipe photo (take / choose / generate)
     @State private var showPhotoOptions = false
     @State private var showCamera = false
@@ -129,6 +130,9 @@ struct RecipeDetailView: View {
                 if saved.isSaved(updated) { saved.update(updated) }
             }
         }
+        .sheet(item: $groceryCandidate) { r in
+            GroceryAddSheet(recipe: r)
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showEdit = true } label: {
@@ -158,7 +162,11 @@ struct RecipeDetailView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
+                    let wasSaved = saved.isSaved(recipe)
                     saved.toggle(recipe)
+                    if !wasSaved && !recipe.needsToBuy.isEmpty {
+                        groceryCandidate = recipe
+                    }
                 } label: {
                     Image(systemName: saved.isSaved(recipe) ? "bookmark.fill" : "bookmark")
                         .foregroundStyle(saved.isSaved(recipe) ? KindredTheme.amber : KindredTheme.accent)

@@ -21,6 +21,8 @@ struct RecipeFeedView: View {
     @State private var showPlan = false
     /// Filter to recipes that need nothing bought.
     @State private var onHandOnly = false
+    /// Recipe just saved — offer to add its missing ingredients to grocery list.
+    @State private var groceryCandidate: Recipe?
 
     /// The profile Gemini cooks for: you blended with everyone at the table.
     private var effectiveProfile: TasteProfile {
@@ -100,6 +102,9 @@ struct RecipeFeedView: View {
             .sheet(isPresented: $showHousehold) { HouseholdView() }
             .sheet(isPresented: $showCrave) { CraveSearchView() }
             .sheet(isPresented: $showPlan) { MealPlanView() }
+            .sheet(item: $groceryCandidate) { recipe in
+                GroceryAddSheet(recipe: recipe)
+            }
         }
     }
 
@@ -164,7 +169,13 @@ struct RecipeFeedView: View {
                             RecipeCard(
                                 recipe: recipe,
                                 isSaved: saved.isSaved(recipe),
-                                onSave: { saved.toggle(recipe) }
+                                onSave: {
+                                    let wasSaved = saved.isSaved(recipe)
+                                    saved.toggle(recipe)
+                                    if !wasSaved && !recipe.needsToBuy.isEmpty {
+                                        groceryCandidate = recipe
+                                    }
+                                }
                             )
                         }
                         .buttonStyle(.plain)
