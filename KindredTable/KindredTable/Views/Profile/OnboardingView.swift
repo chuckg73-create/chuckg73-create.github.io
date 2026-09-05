@@ -4,6 +4,8 @@ import SwiftUI
 struct OnboardingView: View {
     @Environment(ProfileStore.self) private var profileStore
     @State private var page = 0
+    @State private var cuisineDraft = ""
+    @State private var allergenDraft = ""
 
     var body: some View {
         ZStack {
@@ -11,6 +13,7 @@ struct OnboardingView: View {
             TabView(selection: $page) {
                 welcome.tag(0)
                 quickTaste(store: profileStore).tag(1)
+                howYouCook(store: profileStore).tag(2)
             }
             .tabViewStyle(.page(indexDisplayMode: .always))
             .indexViewStyle(.page(backgroundDisplayMode: .always))
@@ -71,7 +74,17 @@ struct OnboardingView: View {
                 VStack(alignment: .leading, spacing: 22) {
                     VStack(alignment: .leading, spacing: 10) {
                         SectionHeader(label: "Cuisines you love")
-                        chipGrid(Self.commonCuisines, selection: $store.profile.lovedCuisines, tint: KindredTheme.blue)
+                        chipGrid(fullOptions(presets: Self.commonCuisines, selection: store.profile.lovedCuisines),
+                                 selection: $store.profile.lovedCuisines, tint: KindredTheme.blue)
+                        addCustomRow(draft: $cuisineDraft, selection: $store.profile.lovedCuisines,
+                                     placeholder: "Add your own", tint: KindredTheme.blue)
+                    }
+                    VStack(alignment: .leading, spacing: 10) {
+                        SectionHeader(label: "Anything you don't like?")
+                        Text("Ingredients to leave out of every suggestion — you can always add more later.")
+                            .font(.caption2).foregroundStyle(KindredTheme.faint)
+                        TokenEditor(tokens: $store.profile.dislikedIngredients, placeholder: "e.g. cilantro, chicken",
+                                    tint: KindredTheme.subtext)
                     }
                     VStack(alignment: .leading, spacing: 10) {
                         SectionHeader(label: "Any diets?")
@@ -99,12 +112,109 @@ struct OnboardingView: View {
                         SectionHeader(label: "Any allergies?")
                         Text("These are strictly excluded from every suggestion.")
                             .font(.caption2).foregroundStyle(KindredTheme.faint)
-                        chipGrid(Self.commonAllergens, selection: $store.profile.allergens, tint: KindredTheme.coral)
+                        chipGrid(fullOptions(presets: Self.commonAllergens, selection: store.profile.allergens),
+                                 selection: $store.profile.allergens, tint: KindredTheme.coral)
+                        addCustomRow(draft: $allergenDraft, selection: $store.profile.allergens,
+                                     placeholder: "Add your own", tint: KindredTheme.coral)
                     }
                 }
                 .padding(.horizontal, 30)
                 .padding(.bottom, 12)
             }
+
+            Button {
+                withAnimation { page = 2 }
+            } label: {
+                Text("Next").fontWeight(.semibold)
+                    .frame(maxWidth: .infinity).padding(.vertical, 15)
+                    .foregroundStyle(.white)
+                    .background(KindredTheme.brandGradient, in: Capsule())
+            }
+            .padding(.horizontal, 30)
+            .padding(.bottom, 50)
+        }
+    }
+
+    private func howYouCook(store storeRef: ProfileStore) -> some View {
+        @Bindable var store = storeRef
+        return VStack(spacing: 24) {
+            VStack(spacing: 8) {
+                Text("How you cook")
+                    .font(.title2).fontWeight(.bold)
+                Text("Recipes are matched to your available time and experience — change any of this later.")
+                    .font(.subheadline)
+                    .foregroundStyle(KindredTheme.subtext)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.top, 40)
+
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        SectionHeader(label: "Max cook time")
+                        Spacer()
+                        Text("\(store.profile.maxCookMinutes) min")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(KindredTheme.accent)
+                    }
+                    Slider(value: Binding(
+                        get: { Double(store.profile.maxCookMinutes) },
+                        set: { store.profile.maxCookMinutes = Int($0) }
+                    ), in: 15...120, step: 15)
+                    .tint(KindredTheme.accent)
+                    HStack {
+                        Text("15 min").font(.caption2).foregroundStyle(KindredTheme.faint)
+                        Spacer()
+                        Text("2 hrs").font(.caption2).foregroundStyle(KindredTheme.faint)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    SectionHeader(label: "Your skill level")
+                    VStack(spacing: 8) {
+                        ForEach(CookingSkill.allCases) { skill in
+                            let selected = store.profile.skill == skill
+                            Button { store.profile.skill = skill } label: {
+                                HStack(spacing: 14) {
+                                    Image(systemName: skillIcon(skill))
+                                        .font(.title3)
+                                        .foregroundStyle(selected ? .white : KindredTheme.accent)
+                                        .frame(width: 40, height: 40)
+                                        .background(
+                                            selected ? AnyShapeStyle(KindredTheme.brandGradient)
+                                                     : AnyShapeStyle(KindredTheme.accent.opacity(0.12)),
+                                            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        )
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(skill.title).font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(KindredTheme.text)
+                                        Text(skillSubtitle(skill)).font(.caption)
+                                            .foregroundStyle(KindredTheme.subtext)
+                                    }
+                                    Spacer()
+                                    if selected {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(KindredTheme.accent)
+                                    }
+                                }
+                                .padding(12)
+                                .background(
+                                    selected ? KindredTheme.accent.opacity(0.10) : KindredTheme.card,
+                                    in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                        .stroke(selected ? KindredTheme.accent.opacity(0.5) : KindredTheme.hairline, lineWidth: 1)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 30)
+
+            Spacer()
 
             Button {
                 store.hasOnboarded = true
@@ -116,6 +226,22 @@ struct OnboardingView: View {
             }
             .padding(.horizontal, 30)
             .padding(.bottom, 50)
+        }
+    }
+
+    private func skillIcon(_ skill: CookingSkill) -> String {
+        switch skill {
+        case .beginner:    return "hands.sparkles"
+        case .comfortable: return "frying.pan"
+        case .confident:   return "flame.fill"
+        }
+    }
+
+    private func skillSubtitle(_ skill: CookingSkill) -> String {
+        switch skill {
+        case .beginner:    return "Simple steps, minimal prep"
+        case .comfortable: return "Happy with most everyday meals"
+        case .confident:   return "Bring on the complex stuff"
         }
     }
 
@@ -143,6 +269,41 @@ struct OnboardingView: View {
                 .accessibilityAddTraits(on ? [.isSelected] : [])
             }
         }
+    }
+
+    /// Presets plus anything the cook already typed in that isn't one of them —
+    /// so a custom entry ("chicken") shows up as a real, removable chip in the
+    /// same grid instead of only living in the underlying array.
+    private func fullOptions(presets: [String], selection: [String]) -> [String] {
+        let custom = selection.filter { value in
+            !presets.contains { $0.caseInsensitiveCompare(value) == .orderedSame }
+        }
+        return presets + custom
+    }
+
+    /// A free-text fallback for when what the cook wants isn't in the preset
+    /// chips above — types anything and it joins the grid as a selected chip.
+    private func addCustomRow(draft: Binding<String>, selection: Binding<[String]>,
+                               placeholder: String, tint: Color) -> some View {
+        HStack {
+            TextField(placeholder, text: draft)
+                .textInputAutocapitalization(.words)
+                .onSubmit { addCustom(draft: draft, selection: selection) }
+            Button("Add") { addCustom(draft: draft, selection: selection) }
+                .font(.caption.weight(.semibold)).foregroundStyle(tint)
+                .disabled(draft.wrappedValue.trimmingCharacters(in: .whitespaces).isEmpty)
+        }
+    }
+
+    private func addCustom(draft: Binding<String>, selection: Binding<[String]>) {
+        let value = draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty,
+              !selection.wrappedValue.contains(where: { $0.caseInsensitiveCompare(value) == .orderedSame }) else {
+            draft.wrappedValue = ""
+            return
+        }
+        selection.wrappedValue.append(value)
+        draft.wrappedValue = ""
     }
 
     private func feature(_ icon: String, _ title: String, _ body: String) -> some View {
