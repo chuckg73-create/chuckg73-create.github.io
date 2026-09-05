@@ -31,7 +31,7 @@ final class RecentSuggestionsStore {
 
     /// A prompt block telling the engine to avoid recent repeats and diversify,
     /// or nil when there's nothing recent yet.
-    func avoidBlock(limit: Int = 18) -> String? {
+    func avoidBlock(limit: Int = 30) -> String? {
         let recent = Array(titles.prefix(limit))
         guard !recent.isEmpty else { return nil }
         return "VARIETY — you've recently suggested these to this cook; do NOT repeat them or close variations. Bring genuinely different ideas, varying the cuisine, protein and cooking method: \(recent.joined(separator: "; "))."

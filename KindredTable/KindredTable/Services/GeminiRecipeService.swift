@@ -60,7 +60,7 @@ struct GeminiRecipeService {
     func suggestRecipes(
         from ingredients: [Ingredient],
         profile: TasteProfile,
-        count: Int = 6,
+        count: Int = 5,
         servings: Int? = nil,
         special: Bool = false,
         tasteFeedback: String? = nil,
@@ -533,9 +533,18 @@ struct GeminiRecipeService {
     /// faithfully — it does not invent or substitute — and marks the result as
     /// imported so it sits alongside the app's own finds.
     func importRecipe(from jpegData: Data) async throws -> Recipe {
-        guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
+        try await importRecipe(fromPages: [jpegData])
+    }
 
-        let request = try makeRecipeVisionRequest(jpegData: jpegData, apiKey: apiKey)
+    /// Read a photographed recipe that spans MULTIPLE photos — ingredients on
+    /// one card, directions on another, or a recipe continued onto a second
+    /// page — as a SINGLE recipe rather than one per photo. Pass one photo to
+    /// behave exactly like `importRecipe(from:)`.
+    func importRecipe(fromPages jpegDatas: [Data]) async throws -> Recipe {
+        guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
+        guard !jpegDatas.isEmpty else { throw RecipeServiceError.noRecipes }
+
+        let request = try makeRecipeVisionRequest(jpegDatas: jpegDatas, apiKey: apiKey)
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else {
             throw RecipeServiceError.badResponse(status: -1, body: "")
@@ -711,7 +720,7 @@ struct GeminiRecipeService {
         return request
     }
 
-    private func makeRecipeVisionRequest(jpegData: Data, apiKey: String) throws -> URLRequest {
+    private func makeRecipeVisionRequest(jpegDatas: [Data], apiKey: String) throws -> URLRequest {
         var components = URLComponents(
             string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent"
         )!
@@ -722,9 +731,11 @@ struct GeminiRecipeService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 45
 
+        let intro = jpegDatas.count > 1
+            ? "These \(jpegDatas.count) photos are PAGES OF THE SAME RECIPE — e.g. ingredients on one card and directions on another, or a recipe continued onto a second page. Read them TOGETHER as ONE recipe, combining the ingredients and steps from every photo — do NOT return separate recipes."
+            : "This photo shows a recipe — it may be handwritten (a family recipe card), a magazine clipping, a cookbook page, or a printout."
         let prompt = """
-        This photo shows a recipe — it may be handwritten (a family recipe card), \
-        a magazine clipping, a cookbook page, or a printout. Transcribe it FAITHFULLY \
+        \(intro) Transcribe it FAITHFULLY \
         into structured JSON. Do NOT invent, substitute, or "improve" anything: use \
         the exact ingredients, amounts, and steps as written. Rules:
         - Keep every ingredient amount exactly as written ("1 1/2 cups", "1 stick", \
@@ -760,12 +771,12 @@ struct GeminiRecipeService {
         }
         """
 
+        let imageParts = jpegDatas.map {
+            GeminiRequest.Part(inlineData: .init(mimeType: "image/jpeg", data: $0.base64EncodedString()))
+        }
         let payload = GeminiRequest(
             contents: [
-                .init(role: "user", parts: [
-                    .init(text: prompt),
-                    .init(inlineData: .init(mimeType: "image/jpeg", data: jpegData.base64EncodedString())),
-                ])
+                .init(role: "user", parts: [.init(text: prompt)] + imageParts)
             ],
             generationConfig: .init(
                 temperature: 0.1,
@@ -798,12 +809,13 @@ struct GeminiRecipeService {
                 .init(role: "user", parts: [.init(text: prompt)])
             ],
             generationConfig: .init(
-                temperature: 0.7,
+                temperature: 0.9,
                 topP: 0.95,
-                // Six rich recipes (detailed steps + tips + timeline + nutrition)
-                // land right at the old 8192 cap and truncated intermittently
-                // (finishReason MAX_TOKENS → invalid JSON). Give ample headroom.
-                maxOutputTokens: 20000,
+                // Five rich recipes comfortably fit within 12000 tokens.
+                // Higher temperature (0.9) produces more varied dishes — the
+                // original 0.7 caused the model to gravitate toward the same
+                // "safe" picks even when the avoid block was present.
+                maxOutputTokens: 12000,
                 responseMimeType: "application/json",
                 // Gemini 2.5 models "think" by default, which can consume the
                 // whole output budget before any JSON is written. Disable it so
@@ -893,7 +905,7 @@ struct GeminiRecipeService {
             lines.append("- Notes: \(profile.notes)")
         }
 
-        if !profile.diets.isEmpty || !profile.allergens.isEmpty {
+        if !profile.diets.isEmpty || !profile.allergens.isEmpty || !profile.dislikedIngredients.isEmpty {
             lines.append("")
             lines.append("HARD DIETARY RULES — NON-NEGOTIABLE. EVERY recipe you return MUST fully comply. If an ingredient would break a rule, do not use it; if a dish cannot be made compliant, do not suggest it at all:")
             for diet in profile.diets.sorted(by: { $0.title < $1.title }) {
@@ -901,6 +913,9 @@ struct GeminiRecipeService {
             }
             if !profile.allergens.isEmpty {
                 lines.append("- ALLERGEN SAFETY: every recipe must be completely free of \(profile.allergens.joined(separator: ", ")) — including hidden sources, sauces, garnishes, stocks and cross-ingredients. Treat this as a health-and-safety requirement.")
+            }
+            if !profile.dislikedIngredients.isEmpty {
+                lines.append("- DISLIKES: never use \(profile.dislikedIngredients.joined(separator: ", ")) in any recipe, in any form, not even as a minor component.")
             }
         }
 
@@ -915,7 +930,7 @@ struct GeminiRecipeService {
         lines.append("")
         lines.append("RULES:")
         lines.append("- Prioritise recipes that use the most on-hand ingredients and the fewest new purchases.")
-        if !profile.diets.isEmpty || !profile.allergens.isEmpty {
+        if !profile.diets.isEmpty || !profile.allergens.isEmpty || !profile.dislikedIngredients.isEmpty {
             lines.append("- The HARD DIETARY RULES and allergen safety above are absolute — obey them in every recipe, with no exceptions.")
         }
         lines.append("- Keep cook time at or under the max where possible; if not, keep it close.")
