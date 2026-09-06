@@ -16,7 +16,7 @@ actor RecipeImageService {
 
     /// Dedicated image-generation model — separate from the text model in `AppConfig`.
     private let model = "gemini-2.5-flash-image"
-    private let apiKey: String? = AppConfig.geminiAPIKey
+    private let apiKey: String? = "via-worker"
     private let session: URLSession = .shared
 
     /// Coalesces concurrent generations: two views asking for the same dish share
@@ -113,12 +113,8 @@ actor RecipeImageService {
     }
 
     private func makeRequest(prompt: String, apiKey: String) throws -> URLRequest {
-        var components = URLComponents(
-            string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent"
-        )!
-        components.queryItems = [URLQueryItem(name: "key", value: apiKey)]
-
-        var request = URLRequest(url: components.url!)
+        let url = URL(string: "\(AppConfig.workerURL)/v1beta/models/\(model):generateContent")!
+        var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 60   // image synthesis runs ~5–8s

@@ -50,7 +50,10 @@ enum RecipeServiceError: LocalizedError {
 /// suggestions so the experience never dead-ends.
 struct GeminiRecipeService {
 
-    var apiKey: String? = AppConfig.geminiAPIKey
+    // All requests go through the Cloudflare Worker (key never ships in the bundle).
+    // The sentinel value satisfies existing guards; the URL-building functions use
+    // AppConfig.workerURL and ignore this parameter entirely.
+    var apiKey: String? = "via-worker"
     var model: String = AppConfig.geminiModel
     var session: URLSession = .shared
 
@@ -691,12 +694,8 @@ struct GeminiRecipeService {
     // MARK: Request construction
 
     private func makeVisionRequest(jpegData: Data, apiKey: String, prompt: String) throws -> URLRequest {
-        var components = URLComponents(
-            string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent"
-        )!
-        components.queryItems = [URLQueryItem(name: "key", value: apiKey)]
-
-        var request = URLRequest(url: components.url!)
+        let url = URL(string: "\(AppConfig.workerURL)/v1beta/models/\(model):generateContent")!
+        var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 45
@@ -721,12 +720,8 @@ struct GeminiRecipeService {
     }
 
     private func makeRecipeVisionRequest(jpegDatas: [Data], apiKey: String) throws -> URLRequest {
-        var components = URLComponents(
-            string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent"
-        )!
-        components.queryItems = [URLQueryItem(name: "key", value: apiKey)]
-
-        var request = URLRequest(url: components.url!)
+        let url = URL(string: "\(AppConfig.workerURL)/v1beta/models/\(model):generateContent")!
+        var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 45
@@ -793,12 +788,8 @@ struct GeminiRecipeService {
     // MARK: Request construction (recipes)
 
     private func makeRequest(prompt: String, apiKey: String) throws -> URLRequest {
-        var components = URLComponents(
-            string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent"
-        )!
-        components.queryItems = [URLQueryItem(name: "key", value: apiKey)]
-
-        var request = URLRequest(url: components.url!)
+        let url = URL(string: "\(AppConfig.workerURL)/v1beta/models/\(model):generateContent")!
+        var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         // Generous — a full-week auto-plan asks for up to 7 rich recipes at once.
