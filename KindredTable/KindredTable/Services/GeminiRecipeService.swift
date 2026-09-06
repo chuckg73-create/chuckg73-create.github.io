@@ -654,6 +654,23 @@ struct GeminiRecipeService {
         }
     }
 
+    /// Identify the ONE primary ingredient shown in a close-up photo — a package,
+    /// a protein, a produce item — for the "cook around this" flow. Returns the
+    /// 1–3 most specific names (e.g. ["salmon fillet"], ["frozen shrimp", "garlic"]).
+    func identifyFeaturedIngredient(in jpegData: Data) async throws -> [String] {
+        guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
+
+        let prompt = """
+        This is a close-up photo of a single food ingredient, package, or item from \
+        a fridge or freezer. Identify the main ingredient(s) shown. Return 1–3 \
+        short grocery-store names, most specific first (e.g. "salmon fillet" not \
+        "fish", "ground beef" not "meat", "frozen shrimp" if it looks frozen). \
+        No brand names, no quantities, no packaging words.
+        Respond with ONLY this JSON: {"items": ["name", ...]}
+        """
+        return try await runVision(prompt: prompt, jpegData: jpegData, apiKey: apiKey)
+    }
+
     /// Identify cooking equipment/appliances in a photo of the cook's kitchen —
     /// so recipe steps can be written for exactly what they own (their rice
     /// cooker, air fryer, smoker) instead of a hand-typed list.

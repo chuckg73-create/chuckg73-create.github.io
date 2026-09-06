@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 /// "Make a meal" — a flexible recipe request. Optionally name a dish, choose
 /// ingredients to build around (type or pick from your pantry), pick a course
@@ -25,6 +26,9 @@ struct CraveSearchView: View {
     @State private var request = MealRequest()
     @State private var ingredientDraft = ""
     @State private var phase: Phase = .idle
+    @State private var showCamera = false
+    @State private var photoItem: PhotosPickerItem?
+    @State private var isScanning = false
     private let service = GeminiRecipeService()
 
     enum Phase: Equatable {
@@ -53,6 +57,22 @@ struct CraveSearchView: View {
             .navigationTitle("Make a meal")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() } } }
+            .sheet(isPresented: $showCamera) {
+                CameraPicker { image in
+                    showCamera = false
+                    scanImage(image)
+                }
+            }
+            .onChange(of: photoItem) { _, item in
+                guard let item else { return }
+                Task {
+                    guard let data = try? await item.loadTransferable(type: Data.self),
+                          let ui = UIImage(data: data),
+                          let jpeg = ui.jpegData(compressionQuality: 0.85) else { return }
+                    scanImage(UIImage(data: jpeg)!)
+                    photoItem = nil
+                }
+            }
         }
     }
 
@@ -75,18 +95,35 @@ struct CraveSearchView: View {
     private var includeSection: some View {
         section("Use these ingredients", trailing: "What you want in it") {
             VStack(alignment: .leading, spacing: 10) {
-                HStack {
+                HStack(spacing: 8) {
                     TextField("Add an ingredient — e.g. diced chicken", text: $ingredientDraft)
                         .foregroundStyle(KindredTheme.text)
                         .autocorrectionDisabled()
                         .onSubmit(addIngredient)
-                    Button(action: addIngredient) {
-                        Image(systemName: "plus.circle.fill").foregroundStyle(KindredTheme.accent)
+                    if ingredientDraft.trimmingCharacters(in: .whitespaces).isEmpty {
+                        // Camera buttons — show when field is empty
+                        Button { showCamera = true } label: {
+                            Image(systemName: "camera.fill").foregroundStyle(KindredTheme.accent)
+                        }
+                        PhotosPicker(selection: $photoItem, matching: .images) {
+                            Image(systemName: "photo.fill").foregroundStyle(KindredTheme.accent)
+                        }
+                    } else {
+                        Button(action: addIngredient) {
+                            Image(systemName: "plus.circle.fill").foregroundStyle(KindredTheme.accent)
+                        }
                     }
-                    .disabled(ingredientDraft.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
                 .padding(.horizontal, 14).padding(.vertical, 12)
                 .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 12))
+
+                if isScanning {
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small).tint(KindredTheme.accent)
+                        Text("Identifying ingredient…")
+                            .font(.caption).foregroundStyle(KindredTheme.subtext)
+                    }
+                }
 
                 if !request.includeIngredients.isEmpty {
                     wrap(request.includeIngredients) { item in
@@ -242,6 +279,20 @@ struct CraveSearchView: View {
     }
 
     // MARK: Actions
+
+    private func scanImage(_ image: UIImage) {
+        guard let jpeg = image.jpegData(compressionQuality: 0.85) else { return }
+        isScanning = true
+        Task {
+            defer { isScanning = false }
+            let names = (try? await service.identifyFeaturedIngredient(in: jpeg)) ?? []
+            for name in names where !request.includeIngredients.contains(where: {
+                $0.caseInsensitiveCompare(name) == .orderedSame
+            }) {
+                request.includeIngredients.append(name)
+            }
+        }
+    }
 
     private func addIngredient() {
         let t = ingredientDraft.trimmingCharacters(in: .whitespacesAndNewlines)
