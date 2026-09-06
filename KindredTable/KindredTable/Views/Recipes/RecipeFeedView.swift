@@ -23,6 +23,16 @@ struct RecipeFeedView: View {
     @State private var onHandOnly = false
     /// Recipe just saved — offer to add its missing ingredients to grocery list.
     @State private var groceryCandidate: Recipe?
+    /// Rotating loading copy index.
+    @State private var loadingCopyIndex: Int = 0
+
+    private static let loadingPhrases: [String] = [
+        "Reading your pantry…",
+        "Checking what you love…",
+        "Skipping what you don't…",
+        "Matching to tonight's timing…",
+        "Crafting your ideas…",
+    ]
 
     /// The profile Gemini cooks for: you blended with everyone at the table.
     private var effectiveProfile: TasteProfile {
@@ -105,6 +115,12 @@ struct RecipeFeedView: View {
             .sheet(item: $groceryCandidate) { recipe in
                 GroceryAddSheet(recipe: recipe)
             }
+            .onReceive(Timer.publish(every: 2.5, on: .main, in: .common).autoconnect()) { _ in
+                guard model.isLoading else { return }
+                withAnimation(.easeInOut(duration: 0.35)) {
+                    loadingCopyIndex = (loadingCopyIndex + 1) % Self.loadingPhrases.count
+                }
+            }
         }
     }
 
@@ -134,12 +150,31 @@ struct RecipeFeedView: View {
     }
 
     private var loadingState: some View {
-        VStack(spacing: 16) {
-            ProgressView().controlSize(.large).tint(KindredTheme.accent)
-            Text("Matching recipes to your pantry…")
-                .font(.subheadline).foregroundStyle(KindredTheme.subtext)
+        VStack(spacing: 0) {
+            cookingForBar
+            // Rotating personality copy
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small).tint(KindredTheme.accent)
+                Text(Self.loadingPhrases[loadingCopyIndex])
+                    .font(.subheadline).foregroundStyle(KindredTheme.subtext)
+                    .id(loadingCopyIndex)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .bottom).combined(with: .opacity),
+                        removal:   .opacity
+                    ))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            // Skeleton cards
+            ScrollView {
+                LazyVStack(spacing: 16) {
+                    ForEach(0..<4, id: \.self) { _ in RecipeCardSkeleton() }
+                }
+                .padding(20)
+            }
+            .disabled(true)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func feed(_ recipes: [Recipe]) -> some View {
