@@ -1,5 +1,8 @@
 import Foundation
 import Observation
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 /// The weekly meal plan: recipes assigned to days, persisted locally. Feeds the
 /// grocery list (which already de-dupes + aisle-sorts) for one-tap week shopping.
@@ -187,5 +190,29 @@ final class MealPlanStore {
 
     private func persist() {
         LocalStore.save(meals, to: fileName)
+        writeWidgetSnapshot()
+    }
+
+    /// Writes tonight's first planned meal to the App Group UserDefaults so the
+    /// home screen widget can read it without App Group file sharing.
+    private func writeWidgetSnapshot() {
+        let today = calendar.startOfDay(for: Date())
+        let tonight = meals(on: today).first
+        let defaults = UserDefaults(suiteName: "group.com.kindred.KindredTable")
+        if let meal = tonight {
+            let snapshot: [String: String] = [
+                "title": meal.recipe.title,
+                "mealType": meal.recipe.mealType.title,
+                "totalMinutes": "\(meal.recipe.totalMinutes)",
+                "summary": meal.recipe.summary
+            ]
+            defaults?.set(snapshot, forKey: "kt.tonight.plan")
+        } else {
+            defaults?.removeObject(forKey: "kt.tonight.plan")
+        }
+        // Reload the widget timeline after plan changes
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
     }
 }

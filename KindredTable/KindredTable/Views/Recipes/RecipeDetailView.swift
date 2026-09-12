@@ -40,6 +40,8 @@ struct RecipeDetailView: View {
     @State private var shareCardImage: UIImage?
     @State private var isBuildingCard = false
     @State private var groceryCandidate: Recipe?
+    /// Offer to snap a "I made this" photo after rating loved/liked.
+    @State private var offerMadeItPhoto = false
     // MARK: Recipe photo (take / choose / generate)
     @State private var showPhotoOptions = false
     @State private var showCamera = false
@@ -82,6 +84,7 @@ struct RecipeDetailView: View {
                     if recipe.mealType == .dinner || recipe.mealType == .lunch { plateButton }
                     if !recipe.steps.isEmpty { spruceButton }
                     addToPlanButton
+                    shareActionRow
                     if !recipe.steps.isEmpty { planButton }
                     if matchReason != nil || !recipe.whyYoullLikeIt.isEmpty { whyCard }
                     if !recipe.source.isImported { tuneCard }
@@ -370,6 +373,33 @@ struct RecipeDetailView: View {
                 .background(KindredTheme.accent.opacity(0.14), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(.plain)
+    }
+
+    private var shareActionRow: some View {
+        Menu {
+            Button { shareAsCard() } label: {
+                Label("Share as photo card", systemImage: "photo")
+            }
+            ShareLink(item: RecipeShare.text(for: displayed),
+                      subject: Text(recipe.title),
+                      preview: SharePreview(recipe.title)) {
+                Label("Share as text", systemImage: "doc.text")
+            }
+        } label: {
+            HStack(spacing: 8) {
+                if isBuildingCard {
+                    ProgressView().controlSize(.small).tint(KindredTheme.blue)
+                } else {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                Text("Share this recipe")
+            }
+            .font(.subheadline.weight(.semibold))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 13)
+            .foregroundStyle(KindredTheme.blue)
+            .background(KindredTheme.blue.opacity(0.14), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
     }
 
     private var cookModeButton: some View {
@@ -788,10 +818,14 @@ struct RecipeDetailView: View {
                             withAnimation {
                                 if current == v {
                                     feedback.clear(recipe)
+                                    offerMadeItPhoto = false
                                 } else {
                                     feedback.record(recipe, verdict: v)
                                     if v == .loved, !saved.isSaved(recipe) { saved.toggle(recipe) }
                                     if v == .disliked { recent.record([recipe]) }
+                                    if (v == .loved || v == .liked) && !hasCustomPhoto {
+                                        offerMadeItPhoto = true
+                                    }
                                 }
                             }
                         } label: {
@@ -811,6 +845,35 @@ struct RecipeDetailView: View {
                 if current == .loved {
                     Label("Saved to your cookbook", systemImage: "bookmark.fill")
                         .font(.caption2).foregroundStyle(KindredTheme.mint)
+                }
+                if offerMadeItPhoto && !hasCustomPhoto {
+                    Button {
+                        offerMadeItPhoto = false
+                        showPhotoOptions = true
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "camera.fill")
+                                .font(.subheadline).foregroundStyle(KindredTheme.coral)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Snap your dish!")
+                                    .font(.subheadline.weight(.semibold)).foregroundStyle(KindredTheme.text)
+                                Text("Add a photo — it lives on this recipe forever.")
+                                    .font(.caption).foregroundStyle(KindredTheme.subtext)
+                            }
+                            Spacer()
+                            Button {
+                                withAnimation { offerMadeItPhoto = false }
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.caption).foregroundStyle(KindredTheme.faint)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(12)
+                        .background(KindredTheme.coral.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
             }
         }
