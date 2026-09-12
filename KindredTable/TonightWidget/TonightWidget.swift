@@ -1,88 +1,158 @@
-//
-//  TonightWidget.swift
-//  TonightWidget
-//
-//  Created by Chuck Gallagher on 9/12/26.
-//
-
 import WidgetKit
 import SwiftUI
 
-struct Provider: AppIntentTimelineProvider {
-    func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), configuration: ConfigurationAppIntent())
-    }
+// MARK: - Timeline Entry
 
-    func snapshot(for configuration: ConfigurationAppIntent, in context: Context) async -> SimpleEntry {
-        SimpleEntry(date: Date(), configuration: configuration)
-    }
-    
-    func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
-        var entries: [SimpleEntry] = []
-
-        // Generate a timeline consisting of five entries an hour apart, starting from the current date.
-        let currentDate = Date()
-        for hourOffset in 0 ..< 5 {
-            let entryDate = Calendar.current.date(byAdding: .hour, value: hourOffset, to: currentDate)!
-            let entry = SimpleEntry(date: entryDate, configuration: configuration)
-            entries.append(entry)
-        }
-
-        return Timeline(entries: entries, policy: .atEnd)
-    }
-
-//    func relevances() async -> WidgetRelevances<ConfigurationAppIntent> {
-//        // Generate a list containing the contexts this widget is relevant in.
-//    }
-}
-
-struct SimpleEntry: TimelineEntry {
+struct TonightEntry: TimelineEntry {
     let date: Date
-    let configuration: ConfigurationAppIntent
+    let recipeName: String?
+    let mealType: String?
+    let totalMinutes: String?
+    let summary: String?
+
+    static var placeholder: TonightEntry {
+        TonightEntry(date: Date(), recipeName: "Lemon Herb Chicken",
+                     mealType: "Dinner", totalMinutes: "30",
+                     summary: "Bright and fresh, just right for tonight.")
+    }
+
+    static var empty: TonightEntry {
+        TonightEntry(date: Date(), recipeName: nil, mealType: nil,
+                     totalMinutes: nil, summary: nil)
+    }
 }
 
-struct TonightWidgetEntryView : View {
-    var entry: Provider.Entry
+// MARK: - Timeline Provider
+
+struct TonightProvider: TimelineProvider {
+    private let defaults = UserDefaults(suiteName: "group.com.kindred.KindredTable")
+
+    func placeholder(in context: Context) -> TonightEntry { .placeholder }
+
+    func getSnapshot(in context: Context, completion: @escaping (TonightEntry) -> Void) {
+        completion(context.isPreview ? .placeholder : currentEntry())
+    }
+
+    func getTimeline(in context: Context, completion: @escaping (Timeline<TonightEntry>) -> Void) {
+        let entry = currentEntry()
+        // Refresh at midnight when the new day's plan may differ
+        let midnight = Calendar.current.startOfDay(for: Date().addingTimeInterval(86400))
+        completion(Timeline(entries: [entry], policy: .after(midnight)))
+    }
+
+    private func currentEntry() -> TonightEntry {
+        guard let snapshot = defaults?.dictionary(forKey: "kt.tonight.plan") as? [String: String] else {
+            return .empty
+        }
+        return TonightEntry(date: Date(),
+                            recipeName: snapshot["title"],
+                            mealType: snapshot["mealType"],
+                            totalMinutes: snapshot["totalMinutes"],
+                            summary: snapshot["summary"])
+    }
+}
+
+// MARK: - Widget View
+
+struct TonightWidgetView: View {
+    var entry: TonightEntry
+    @Environment(\.widgetFamily) private var family
+
+    // Brand warm orange
+    private let accent = Color(red: 1.0, green: 0.55, blue: 0.30)
 
     var body: some View {
-        VStack {
-            Text("Time:")
-            Text(entry.date, style: .time)
-
-            Text("Favorite Emoji:")
-            Text(entry.configuration.favoriteEmoji)
+        Group {
+            if let name = entry.recipeName {
+                plannedView(name: name)
+            } else {
+                emptyView
+            }
+        }
+        .containerBackground(for: .widget) {
+            LinearGradient(
+                colors: [Color(red: 0.12, green: 0.10, blue: 0.08),
+                         Color(red: 0.18, green: 0.14, blue: 0.10)],
+                startPoint: .topLeading, endPoint: .bottomTrailing)
         }
     }
+
+    private func plannedView(name: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Image(systemName: "fork.knife.circle.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(accent)
+                Text("Tonight")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(accent)
+                Spacer()
+                if let mins = entry.totalMinutes {
+                    HStack(spacing: 3) {
+                        Image(systemName: "clock").font(.caption2)
+                        Text("\(mins)m").font(.caption2)
+                    }
+                    .foregroundStyle(.white.opacity(0.5))
+                }
+            }
+            Spacer(minLength: 2)
+            Text(name)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(.white)
+                .lineLimit(family == .systemSmall ? 2 : 1)
+            if family != .systemSmall, let summary = entry.summary {
+                Text(summary)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.65))
+                    .lineLimit(2)
+            }
+            Spacer(minLength: 0)
+            Text(entry.mealType ?? "")
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.white.opacity(0.45))
+        }
+        .padding(family == .systemSmall ? 14 : 16)
+    }
+
+    private var emptyView: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Image(systemName: "fork.knife.circle.fill")
+                .font(.title3)
+                .foregroundStyle(accent)
+            Spacer()
+            Text("What's for dinner?")
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(.white)
+            Text("Tap to find tonight's recipe.")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.6))
+                .lineLimit(2)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .padding(family == .systemSmall ? 14 : 16)
+    }
 }
+
+// MARK: - Widget Definition
 
 struct TonightWidget: Widget {
-    let kind: String = "TonightWidget"
+    let kind = "TonightWidget"
 
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: kind, intent: ConfigurationAppIntent.self, provider: Provider()) { entry in
-            TonightWidgetEntryView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
+        StaticConfiguration(kind: kind, provider: TonightProvider()) { entry in
+            TonightWidgetView(entry: entry)
         }
+        .configurationDisplayName("Tonight's Dinner")
+        .description("See what's planned, or tap to find a recipe.")
+        .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
 
-extension ConfigurationAppIntent {
-    fileprivate static var smiley: ConfigurationAppIntent {
-        let intent = ConfigurationAppIntent()
-        intent.favoriteEmoji = "😀"
-        return intent
-    }
-    
-    fileprivate static var starEyes: ConfigurationAppIntent {
-        let intent = ConfigurationAppIntent()
-        intent.favoriteEmoji = "🤩"
-        return intent
-    }
-}
+// MARK: - Preview
 
 #Preview(as: .systemSmall) {
     TonightWidget()
 } timeline: {
-    SimpleEntry(date: .now, configuration: .smiley)
-    SimpleEntry(date: .now, configuration: .starEyes)
+    TonightEntry.placeholder
+    TonightEntry.empty
 }
