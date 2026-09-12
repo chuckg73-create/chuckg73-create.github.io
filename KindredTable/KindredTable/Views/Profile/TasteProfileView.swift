@@ -7,10 +7,12 @@ struct TasteProfileView: View {
     @Environment(TasteFeedbackStore.self) private var feedback
     @Environment(TastePreferenceStore.self) private var preferences
     @Environment(StaplesStore.self) private var staples
+    @Environment(PantryStore.self) private var pantry
     @Environment(\.dismiss) private var dismiss
     @State private var showEquipmentScan = false
     @State private var stapleDraft = ""
     @State private var showFullResetConfirm = false
+    @State private var nudgeEnabled = DinnerNudgeService.isEnabled
 
     var body: some View {
         @Bindable var store = profileStore
@@ -53,6 +55,31 @@ struct TasteProfileView: View {
                     Stepper(value: $store.profile.maxCookMinutes, in: 10...180, step: 5) {
                         Text("Max cook time: \(store.profile.maxCookMinutes) min")
                     }
+                }
+                .listRowBackground(KindredTheme.card)
+
+                Section {
+                    Toggle(isOn: $nudgeEnabled) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Daily dinner reminder")
+                            Text("A nudge at 5 pm with what you can make tonight.")
+                                .font(.caption).foregroundStyle(KindredTheme.subtext)
+                        }
+                    }
+                    .tint(KindredTheme.accent)
+                    .onChange(of: nudgeEnabled) { _, on in
+                        let items = pantry.ingredients
+                        Task {
+                            if on {
+                                let granted = await DinnerNudgeService.enable(pantryItems: items)
+                                if !granted { nudgeEnabled = false }
+                            } else {
+                                DinnerNudgeService.disable()
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Notifications")
                 }
                 .listRowBackground(KindredTheme.card)
 

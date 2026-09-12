@@ -105,5 +105,9 @@ final class PantryStore {
     private func persist() {
         LocalStore.save(ingredients, to: fileName)
         LocalStore.backupToCloud(fileName)
+        let snapshot = ingredients
+        Task.detached(priority: .background) {
+            await DinnerNudgeService.reschedule(pantryItems: snapshot)
+        }
     }
 }
