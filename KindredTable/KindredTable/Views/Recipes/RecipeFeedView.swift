@@ -69,7 +69,7 @@ struct RecipeFeedView: View {
                     } label: {
                         Image(systemName: "arrow.clockwise")
                     }
-                    .disabled(model.isLoading || pantry.isEmpty)
+                    .disabled(model.isLoading)
                     .accessibilityLabel("Refresh ideas")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -78,7 +78,7 @@ struct RecipeFeedView: View {
                     } label: {
                         Image(systemName: "dice.fill")
                     }
-                    .disabled(model.isLoading || pantry.isEmpty)
+                    .disabled(model.isLoading)
                     .accessibilityLabel("Surprise me")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -106,7 +106,6 @@ struct RecipeFeedView: View {
                 await model.loadIfNeeded(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: tasteSignals, useUpItems: pantry.useUpNames())
             }
             .onChange(of: household.signature(you: profileStore.profile)) {
-                guard !pantry.isEmpty else { return }
                 Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: tasteSignals, useUpItems: pantry.useUpNames()) }
             }
             .sheet(isPresented: $showHousehold) { HouseholdView() }
@@ -125,27 +124,19 @@ struct RecipeFeedView: View {
     }
 
     @ViewBuilder private var content: some View {
-        if pantry.isEmpty {
+        switch model.phase {
+        case .idle, .loading:
+            loadingState
+        case .failed(let message):
             EmptyState(
-                systemImage: "sparkles",
-                title: "Add ingredients first",
-                message: "Once your pantry has a few items, KindredTable will suggest meals you can make right now."
+                systemImage: "exclamationmark.triangle",
+                title: "Couldn't load ideas",
+                message: message,
+                actionTitle: "Try again",
+                action: { Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: tasteSignals, useUpItems: pantry.useUpNames()) } }
             )
-        } else {
-            switch model.phase {
-            case .idle, .loading:
-                loadingState
-            case .failed(let message):
-                EmptyState(
-                    systemImage: "exclamationmark.triangle",
-                    title: "Couldn't load ideas",
-                    message: message,
-                    actionTitle: "Try again",
-                    action: { Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: tasteSignals, useUpItems: pantry.useUpNames()) } }
-                )
-            case .loaded(let recipes):
-                feed(recipes)
-            }
+        case .loaded(let recipes):
+            feed(recipes)
         }
     }
 
@@ -197,6 +188,7 @@ struct RecipeFeedView: View {
             ScrollView {
                 LazyVStack(spacing: 16) {
                     if model.usingSamples { sampleBanner }
+                    if pantry.isEmpty { addIngredientNudge }
                     ForEach(shown) { recipe in
                         NavigationLink {
                             RecipeDetailView(recipe: recipe)
@@ -364,6 +356,28 @@ struct RecipeFeedView: View {
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(KindredTheme.amber.opacity(0.10), in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    /// Soft nudge shown above results when the pantry is empty. Not a blocker —
+    /// results are already visible and useful; this just explains how to make
+    /// them more personal.
+    private var addIngredientNudge: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "refrigerator.fill")
+                .font(.title3)
+                .foregroundStyle(KindredTheme.accent)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Ideas based on your taste")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(KindredTheme.text)
+                Text("Add what's in your fridge to see meals you can make right now.")
+                    .font(.caption)
+                    .foregroundStyle(KindredTheme.subtext)
+            }
+            Spacer()
+        }
+        .padding(14)
+        .background(KindredTheme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }
 

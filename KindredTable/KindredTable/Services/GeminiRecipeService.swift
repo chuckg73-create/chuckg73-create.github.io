@@ -69,8 +69,6 @@ struct GeminiRecipeService {
         tasteFeedback: String? = nil,
         useUpItems: [String] = []
     ) async throws -> [Recipe] {
-        guard !ingredients.isEmpty else { throw RecipeServiceError.emptyPantry }
-
         guard let apiKey, !apiKey.isEmpty else {
             // Graceful offline mode.
             return SampleData.sampleRecipes(for: ingredients, profile: profile, count: count)
@@ -892,7 +890,11 @@ struct GeminiRecipeService {
             lines.append("Lean heavily on the ON HAND ingredients and keep new purchases (haveIt=false) to a minimum.")
         }
         lines.append("")
-        lines.append("INGREDIENTS ON HAND: \(onHand)")
+        if onHand.isEmpty {
+            lines.append("INGREDIENTS ON HAND: none listed — suggest recipes that use common, easy-to-find ingredients a well-stocked home kitchen usually has. Mark all haveIt=true since we can't verify what they have.")
+        } else {
+            lines.append("INGREDIENTS ON HAND: \(onHand)")
+        }
         lines.append("")
         lines.append("TASTE PROFILE:")
         // Diets and allergens are stated once, in the HARD DIETARY RULES block
