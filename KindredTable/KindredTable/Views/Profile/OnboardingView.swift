@@ -21,33 +21,69 @@ struct OnboardingView: View {
     }
 
     private var welcome: some View {
-        VStack(spacing: 22) {
-            Spacer()
-            ZStack {
-                Circle().fill(KindredTheme.brandGradient)
-                    .frame(width: 120, height: 120)
-                    .shadow(color: KindredTheme.accent.opacity(0.4), radius: 28, y: 12)
-                Image(systemName: "refrigerator.fill")
-                    .font(.system(size: 52, weight: .semibold))
-                    .foregroundStyle(.white)
+        VStack(spacing: 0) {
+            Spacer(minLength: 20)
+
+            // Sample result: show what the app actually produces before asking anything.
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(KindredTheme.coral.opacity(0.85))
+                            .frame(width: 46, height: 46)
+                        Image(systemName: "fork.knife")
+                            .font(.title3).foregroundStyle(.white)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Lemon Herb Chicken Thighs")
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(KindredTheme.text)
+                        HStack(spacing: 8) {
+                            Label("35 min", systemImage: "clock")
+                            Label("Dinner", systemImage: "moon.fill")
+                        }
+                        .font(.caption2).foregroundStyle(KindredTheme.subtext)
+                    }
+                    Spacer()
+                    Image(systemName: "heart.fill").font(.body)
+                        .foregroundStyle(KindredTheme.coral)
+                }
+                Text("Crispy skin, bright lemon, fresh herbs — one pan, 35 minutes. Matches your Mediterranean taste and your weeknight timing.")
+                    .font(.caption).foregroundStyle(KindredTheme.subtext).lineLimit(2)
+                HStack(spacing: 6) {
+                    welcomeTag("Mediterranean", color: KindredTheme.blue)
+                    welcomeTag("One-pan", color: KindredTheme.mint)
+                    welcomeTag("Quick", color: KindredTheme.accent)
+                }
             }
-            VStack(spacing: 10) {
+            .padding(16)
+            .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(KindredTheme.hairline, lineWidth: 1))
+            .shadow(color: .black.opacity(0.2), radius: 14, y: 6)
+            .padding(.horizontal, 28)
+
+            VStack(spacing: 8) {
                 Text("KindredTable").font(.largeTitle).fontWeight(.heavy)
-                Text("Photograph your fridge. Cook what matches you.")
+                Text("Dinner matched to your taste, every night.")
                     .font(.title3)
                     .foregroundStyle(KindredTheme.subtext)
                     .multilineTextAlignment(.center)
             }
+            .padding(.top, 22)
+
             VStack(alignment: .leading, spacing: 16) {
-                feature("camera.viewfinder", "Snap & identify", "AI vision reads your ingredients — even labels and packaged goods.")
-                feature("slider.horizontal.3", "Matched to you", "Meals tuned to your taste, diet, and time.")
-                feature("bookmark.fill", "Save for later", "Keep the recipes you love in one place.")
+                feature("sparkles", "Matches your taste", "Recipes scored for how you eat — no random suggestions, ever.")
+                feature("clock", "Fits your evening", "Tuned to your time, skill level, and who's at the table.")
+                feature("camera.viewfinder", "Snap your fridge", "Optional: photograph what you have for meals you can make right now.")
             }
             .padding(.horizontal, 30)
-            .padding(.top, 8)
-            Spacer()
+            .padding(.top, 16)
+
+            Spacer(minLength: 20)
+
             Button { withAnimation { page = 1 } } label: {
-                Text("Get started").fontWeight(.semibold)
+                Text("Tell me your taste →").fontWeight(.semibold)
                     .frame(maxWidth: .infinity).padding(.vertical, 15)
                     .foregroundStyle(.white)
                     .background(KindredTheme.brandGradient, in: Capsule())
@@ -55,6 +91,14 @@ struct OnboardingView: View {
             .padding(.horizontal, 30)
             .padding(.bottom, 50)
         }
+    }
+
+    private func welcomeTag(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .foregroundStyle(color)
+            .background(color.opacity(0.15), in: Capsule())
     }
 
     private func quickTaste(store storeRef: ProfileStore) -> some View {

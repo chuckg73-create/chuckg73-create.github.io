@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 /// photographed in — all in one place, all scalable to any number of servings.
 struct CookbookView: View {
     @Environment(SavedRecipeStore.self) private var cookbook
+    @Environment(TasteFeedbackStore.self) private var feedback
     @State private var query = ""
     @State private var showFileImporter = false
 
@@ -20,6 +21,7 @@ struct CookbookView: View {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 16) {
                             if trimmedQuery.isEmpty {
+                                if !feedback.ratings.isEmpty { journalRow }
                                 if !cookbook.imported.isEmpty { familySection }
                                 if !cookbook.fromApp.isEmpty {
                                     section(title: "From KindredTable", icon: "sparkles",
@@ -133,6 +135,33 @@ struct CookbookView: View {
         if r.tags.contains(where: { $0.lowercased().contains(n) }) { return true }
         if r.ingredients.contains(where: { $0.name.lowercased().contains(n) }) { return true }
         return false
+    }
+
+    private var journalRow: some View {
+        NavigationLink {
+            RecipeJournalView()
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.title3).foregroundStyle(KindredTheme.amber)
+                    .frame(width: 40, height: 40)
+                    .background(KindredTheme.amber.opacity(0.12),
+                                in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Cooking history")
+                        .font(.subheadline.weight(.semibold)).foregroundStyle(KindredTheme.text)
+                    Text("\(feedback.ratings.count) dish\(feedback.ratings.count == 1 ? "" : "es") rated")
+                        .font(.caption).foregroundStyle(KindredTheme.subtext)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").font(.caption2).foregroundStyle(KindredTheme.faint)
+            }
+            .padding(14)
+            .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(KindredTheme.hairline, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     private var emptyState: some View {

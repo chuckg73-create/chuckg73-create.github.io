@@ -846,6 +846,30 @@ struct RecipeDetailView: View {
                     Label("Saved to your cookbook", systemImage: "bookmark.fill")
                         .font(.caption2).foregroundStyle(KindredTheme.mint)
                 }
+                if current == .loved || current == .liked {
+                    Button {
+                        let today = Calendar.current.startOfDay(for: Date())
+                        mealPlan.add(recipe, to: today)
+                        withAnimation { plannedDay = today }
+                    } label: {
+                        Label(
+                            plannedDay != nil ? "Added to tonight's plan" : "Make it again tonight",
+                            systemImage: plannedDay != nil ? "checkmark.circle.fill" : "arrow.clockwise"
+                        )
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .foregroundStyle(plannedDay != nil ? KindredTheme.mint
+                            : (current == .loved ? KindredTheme.coral : KindredTheme.mint))
+                        .background(
+                            (plannedDay != nil ? KindredTheme.mint
+                                : (current == .loved ? KindredTheme.coral : KindredTheme.mint)).opacity(0.14),
+                            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
                 if offerMadeItPhoto && !hasCustomPhoto {
                     Button {
                         offerMadeItPhoto = false

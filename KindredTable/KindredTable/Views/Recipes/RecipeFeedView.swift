@@ -189,6 +189,7 @@ struct RecipeFeedView: View {
                 LazyVStack(spacing: 16) {
                     if model.usingSamples { sampleBanner }
                     if pantry.isEmpty { addIngredientNudge }
+                    if !pantry.agingItems().isEmpty { useItUpBanner }
                     ForEach(shown) { recipe in
                         NavigationLink {
                             RecipeDetailView(recipe: recipe)
@@ -356,6 +357,40 @@ struct RecipeFeedView: View {
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(KindredTheme.amber.opacity(0.10), in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    /// Tappable banner shown when pantry items are past their freshness window.
+    /// Tapping triggers a refresh that prioritises those ingredients.
+    private var useItUpBanner: some View {
+        let aging = pantry.agingItems()
+        let names = aging.prefix(3).map(\.name).joined(separator: ", ")
+        return Button {
+            Task { await model.refresh(
+                ingredients: pantry.ingredients,
+                profile: effectiveProfile,
+                servings: household.servings,
+                special: household.specialOccasion,
+                tasteFeedback: tasteSignals,
+                useUpItems: pantry.useUpNames(olderThanDays: 0)
+            )}
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "clock.badge.exclamationmark")
+                    .font(.title3).foregroundStyle(KindredTheme.amber)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Use it up tonight →")
+                        .font(.subheadline.weight(.semibold)).foregroundStyle(KindredTheme.text)
+                    Text("\(names) should be used soon.")
+                        .font(.caption).foregroundStyle(KindredTheme.subtext)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").font(.caption2).foregroundStyle(KindredTheme.faint)
+            }
+            .padding(14)
+            .background(KindredTheme.amber.opacity(0.10),
+                        in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     /// Soft nudge shown above results when the pantry is empty. Not a blocker —
