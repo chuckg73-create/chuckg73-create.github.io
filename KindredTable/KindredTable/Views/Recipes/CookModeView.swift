@@ -10,9 +10,13 @@ struct CookModeView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(TasteFeedbackStore.self) private var feedback
     @Environment(RecentSuggestionsStore.self) private var recent
+    @Environment(PantryStore.self) private var pantry
 
     private let session = CookingSession.shared
     @State private var showFinishRating = false
+    @State private var showDepletionOffer = false
+    @State private var showManualTimer = false
+    @State private var manualMinutes = 5
     @State private var voice = VoiceService()
     @State private var autoSpeak = true
     @State private var micOn = false
@@ -22,6 +26,12 @@ struct CookModeView: View {
     @State private var timerRunning = false
 
     private var stepSeconds: Int? { StepDuration.seconds(in: session.currentStep) }
+
+    /// Pantry items the recipe used (haveIt == true) that can now be cleared.
+    private var depletableItems: [Ingredient] {
+        let usedNames = Set(recipe.ingredients.filter(\.haveIt).map { $0.name.lowercased() })
+        return pantry.ingredients.filter { usedNames.contains($0.name.lowercased()) }
+    }
 
     var body: some View {
         ZStack {
@@ -53,12 +63,30 @@ struct CookModeView: View {
                 Button(v.title) {
                     feedback.record(recipe, verdict: v)
                     if v == .disliked { recent.record([recipe]) }
-                    dismiss()
+                    let canOffer = (v == .loved || v == .liked) && !depletableItems.isEmpty
+                    if canOffer { showDepletionOffer = true } else { dismiss() }
                 }
             }
             Button("Skip", role: .cancel) { dismiss() }
         } message: {
             Text("Rating helps KindredTable match your taste next time.")
+        }
+        .alert("Remove used ingredients?", isPresented: $showDepletionOffer) {
+            Button("Remove from pantry") {
+                depletableItems.forEach { pantry.remove($0) }
+                dismiss()
+            }
+            Button("Keep them", role: .cancel) { dismiss() }
+        } message: {
+            let names = depletableItems.prefix(3).map(\.name).joined(separator: ", ")
+            Text("Clear \(names) from your pantry since you just cooked them.")
+        }
+        .sheet(isPresented: $showManualTimer) {
+            ManualTimerSheet(selectedMinutes: $manualMinutes) {
+                timerRemaining = manualMinutes * 60
+                timerRunning = true
+            }
+            .presentationDetents([.medium])
         }
         .alert("Microphone access needed", isPresented: $showPermissionAlert) {
             Button("OK", role: .cancel) {}
@@ -104,6 +132,7 @@ struct CookModeView: View {
 
     @ViewBuilder private var timerChip: some View {
         if let total = stepSeconds {
+            // Auto-detected step duration.
             HStack(spacing: 12) {
                 Image(systemName: "timer")
                     .foregroundStyle(timerRemaining == 0 ? KindredTheme.coral : KindredTheme.amber)
@@ -138,10 +167,47 @@ struct CookModeView: View {
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 14).padding(.vertical, 10)
-            .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(KindredTheme.hairline, lineWidth: 1))
-            .padding(.horizontal, 6)
+            .chipFrame
+        } else if let r = timerRemaining {
+            // Manual timer is running (no auto-detected duration in this step).
+            HStack(spacing: 12) {
+                Image(systemName: "timer")
+                    .foregroundStyle(r == 0 ? KindredTheme.coral : KindredTheme.amber)
+                Text(StepDuration.clock(r))
+                    .font(.title2.monospacedDigit().weight(.bold))
+                    .foregroundStyle(r == 0 ? KindredTheme.coral : KindredTheme.text)
+                Spacer()
+                if r == 0 {
+                    Text("Time's up").font(.subheadline.weight(.semibold)).foregroundStyle(KindredTheme.coral)
+                    Button { resetTimer() } label: { Image(systemName: "arrow.counterclockwise") }
+                        .foregroundStyle(KindredTheme.accent)
+                } else {
+                    Button { timerRunning.toggle() } label: {
+                        Image(systemName: timerRunning ? "pause.fill" : "play.fill").font(.title3)
+                            .foregroundStyle(KindredTheme.accent)
+                    }
+                    Button { resetTimer() } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(KindredTheme.faint)
+                    }
+                }
+            }
+            .chipFrame
+        } else {
+            // No detected time and no timer running — offer a manual timer.
+            Button { showManualTimer = true } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "timer").foregroundStyle(KindredTheme.faint)
+                    Text("Set a timer for this step")
+                        .font(.subheadline).foregroundStyle(KindredTheme.subtext)
+                    Spacer()
+                    Text("Set").font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 12).padding(.vertical, 6)
+                        .foregroundStyle(KindredTheme.accent)
+                        .background(KindredTheme.accent.opacity(0.14), in: Capsule())
+                }
+                .chipFrame
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -283,5 +349,92 @@ struct CookModeView: View {
         case .stop:
             voice.stopListening(); micOn = false
         }
+    }
+}
+
+// MARK: - Manual Timer Sheet
+
+private struct ManualTimerSheet: View {
+    @Binding var selectedMinutes: Int
+    var onStart: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    private let presets = [1, 2, 5, 10, 15, 20, 30]
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                KindredBackground()
+                VStack(spacing: 28) {
+                    VStack(spacing: 16) {
+                        HStack(spacing: 24) {
+                            Button {
+                                if selectedMinutes > 1 { selectedMinutes -= 1 }
+                            } label: {
+                                Image(systemName: "minus.circle.fill")
+                                    .font(.system(size: 36)).foregroundStyle(KindredTheme.accent)
+                            }
+                            Text("\(selectedMinutes) min")
+                                .font(.system(size: 52, weight: .bold, design: .rounded))
+                                .foregroundStyle(KindredTheme.text)
+                                .frame(minWidth: 130)
+                                .contentTransition(.numericText())
+                            Button {
+                                if selectedMinutes < 90 { selectedMinutes += 1 }
+                            } label: {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.system(size: 36)).foregroundStyle(KindredTheme.accent)
+                            }
+                        }
+                        // Quick presets
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(presets, id: \.self) { p in
+                                    Button("\(p)m") { withAnimation(.easeOut(duration: 0.15)) { selectedMinutes = p } }
+                                        .font(.subheadline.weight(.semibold))
+                                        .padding(.horizontal, 14).padding(.vertical, 8)
+                                        .foregroundStyle(selectedMinutes == p ? Color.white : KindredTheme.subtext)
+                                        .background(selectedMinutes == p ? AnyShapeStyle(KindredTheme.brandGradient)
+                                                    : AnyShapeStyle(KindredTheme.card), in: Capsule())
+                                        .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.horizontal, 24)
+                        }
+                    }
+                    Button {
+                        onStart()
+                        dismiss()
+                    } label: {
+                        Label("Start \(selectedMinutes) min timer", systemImage: "play.fill")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity).padding(.vertical, 14)
+                            .foregroundStyle(.white)
+                            .background(KindredTheme.warmGradient, in: Capsule())
+                    }
+                    .padding(.horizontal, 30)
+                }
+                .padding(.vertical, 30)
+            }
+            .navigationTitle("Set a timer")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - View helper
+
+private extension View {
+    var chipFrame: some View {
+        self
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(KindredTheme.hairline, lineWidth: 1))
+            .padding(.horizontal, 6)
     }
 }

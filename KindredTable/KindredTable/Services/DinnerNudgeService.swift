@@ -62,7 +62,24 @@ enum DinnerNudgeService {
     // MARK: Private
 
     private static func nudgeBody(for items: [Ingredient]) -> String {
-        // Favour non-staple, non-frozen items so the nudge sounds actionable
+        // 1. If tonight's dinner is already planned, lead with that.
+        if let plan = UserDefaults(suiteName: "group.com.kindred.KindredTable")?
+            .dictionary(forKey: "kt.tonight.plan") as? [String: String],
+           let title = plan["title"] {
+            return "Time to make \(title). Tap to start cooking."
+        }
+
+        // 2. If perishables need using up, focus the nudge there.
+        let aging = items
+            .filter { $0.freshness(now: Date()).needsAttention && $0.category != .frozen }
+            .prefix(2)
+            .map { $0.name.lowercased() }
+        if !aging.isEmpty {
+            let names = aging.count == 1 ? aging[0] : "\(aging[0]) and \(aging[1])"
+            return "Your \(names) won't keep much longer — tap for quick ideas to use them tonight."
+        }
+
+        // 3. Fall back to top pantry items.
         let picks = items
             .filter { $0.category != .frozen }
             .prefix(3)

@@ -69,6 +69,7 @@ struct TonightWidgetView: View {
                 emptyView
             }
         }
+        .widgetURL(URL(string: "kindredkitchen://cook-tonight")!)
         .containerBackground(for: .widget) {
             LinearGradient(
                 colors: [Color(red: 0.12, green: 0.10, blue: 0.08),

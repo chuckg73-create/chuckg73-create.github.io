@@ -4,9 +4,11 @@ import SwiftUI
 struct RootView: View {
     @Environment(ProfileStore.self) private var profileStore
     @Environment(HouseholdStore.self) private var household
+    @Environment(MealPlanStore.self) private var mealPlan
 
     @State private var importedName: String?
     @State private var incomingCookbookURL: URL?
+    @State private var cookTonightRecipe: Recipe?
 
     var body: some View {
         Group {
@@ -21,12 +23,20 @@ struct RootView: View {
                 incomingCookbookURL = url
                 return
             }
+            if url.scheme == "kindredkitchen", url.host == "cook-tonight" {
+                let todayRecipe = mealPlan.meals(on: Date()).first?.recipe
+                cookTonightRecipe = todayRecipe
+                return
+            }
             guard let card = TasteCard.parse(url: url) else { return }
             household.add(card)
             importedName = card.name
         }
         .sheet(item: $incomingCookbookURL) { url in
             CookbookPackageImportView(fileURL: url)
+        }
+        .sheet(item: $cookTonightRecipe) { recipe in
+            CookModeView(recipe: recipe)
         }
         .alert("Added \(importedName ?? "")", isPresented: Binding(
             get: { importedName != nil }, set: { if !$0 { importedName = nil } }
