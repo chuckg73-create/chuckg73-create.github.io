@@ -20,14 +20,15 @@ struct ChefIntent: Codable, Hashable {
     var servings: Int?          // if they named a headcount
     var days: Int?              // for planWeek
     var mealType: String?       // breakfast|lunch|dinner|snack|dessert
+    var equipment: String?      // named equipment, e.g. "Traeger smoker", "air fryer"
     var reply: String           // a warm one-sentence acknowledgement to show the cook
 
     init(action: Action, dish: String? = nil, include: [String] = [], avoid: [String] = [],
          cuisine: String? = nil, maxMinutes: Int? = nil, servings: Int? = nil, days: Int? = nil,
-         mealType: String? = nil, reply: String = "") {
+         mealType: String? = nil, equipment: String? = nil, reply: String = "") {
         self.action = action; self.dish = dish; self.include = include; self.avoid = avoid
         self.cuisine = cuisine; self.maxMinutes = maxMinutes; self.servings = servings
-        self.days = days; self.mealType = mealType; self.reply = reply
+        self.days = days; self.mealType = mealType; self.equipment = equipment; self.reply = reply
     }
 
     /// Tolerant decoding — the model may omit fields or send nulls.
@@ -42,11 +43,12 @@ struct ChefIntent: Codable, Hashable {
         servings = (try? c.decodeIfPresent(Int.self, forKey: .servings)) ?? nil
         days = (try? c.decodeIfPresent(Int.self, forKey: .days)) ?? nil
         mealType = (try? c.decodeIfPresent(String.self, forKey: .mealType)) ?? nil
+        equipment = (try? c.decodeIfPresent(String.self, forKey: .equipment)) ?? nil
         reply = ((try? c.decodeIfPresent(String.self, forKey: .reply)) ?? nil) ?? ""
     }
 
     private enum CodingKeys: String, CodingKey {
-        case action, dish, include, avoid, cuisine, maxMinutes, servings, days, mealType, reply
+        case action, dish, include, avoid, cuisine, maxMinutes, servings, days, mealType, equipment, reply
     }
 
     /// Constraints folded into a prompt block for the existing engines, or nil.

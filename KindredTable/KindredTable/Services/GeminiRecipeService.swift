@@ -187,13 +187,13 @@ struct GeminiRecipeService {
         Cook's message: "\(text)"
         Choose "action":
         - "planWeek": they want several dinners or a week planned. Set "days" to a number they gave, else 5 for "a week".
-        - "specificDish": they named a dish to make — put it in "dish".
-        - "findMeals": they want ideas or something to cook now.
-        - "unknown": not a cooking request.
-        Extract only what they actually said: "include" (ingredients they want used), "avoid" (ingredients/proteins to skip THIS time), "cuisine", "maxMinutes" (if they say quick/fast use 30, or the number they gave), "servings", "mealType" (breakfast|lunch|dinner|snack|dessert).
+        - "specificDish": they named a dish, described an ingredient they have and want to cook, described a cooking method or equipment, or asked how to cook something. Put the best dish description in "dish". Examples: "I have chicken wings and want to smoke them on a Traeger" → dish: "smoked chicken wings"; "how do I cook salmon in an air fryer" → dish: "air fryer salmon".
+        - "findMeals": they want ideas, suggestions, or something to cook without specifying a particular thing.
+        - "unknown": the message is clearly not food or cooking related at all.
+        Extract only what they actually said: "include" (ingredients or products they mentioned), "avoid" (things to skip THIS time), "cuisine", "maxMinutes" (if they say quick/fast use 30, or the number they gave), "servings", "mealType" (breakfast|lunch|dinner|snack|dessert), "equipment" (any cooking appliance or equipment they mentioned, e.g. "Traeger smoker", "air fryer", "Instant Pot", "cast iron skillet").
         "reply": one warm, short sentence acknowledging the request (no recipe).
         Respond with ONLY this JSON, no markdown:
-        {"action":"findMeals","dish":null,"include":[],"avoid":[],"cuisine":null,"maxMinutes":null,"servings":null,"days":null,"mealType":null,"reply":"..."}
+        {"action":"findMeals","dish":null,"include":[],"avoid":[],"cuisine":null,"maxMinutes":null,"servings":null,"days":null,"mealType":null,"equipment":null,"reply":"..."}
         """
 
         let request = try makeRequest(prompt: prompt, apiKey: apiKey)
@@ -221,8 +221,19 @@ struct GeminiRecipeService {
 
         switch intent.action {
         case .specificDish:
-            let recipes = try await craveRecipes(dish: intent.dish ?? text, from: ingredients,
-                                                 profile: profile, count: 2, servings: servings)
+            let equipmentList = intent.equipment.map { [$0] } ?? []
+            let recipes: [Recipe]
+            if !equipmentList.isEmpty {
+                let req = MealRequest(dish: intent.dish ?? text,
+                                      includeIngredients: intent.include,
+                                      equipment: equipmentList)
+                recipes = (try? await makeMeal(req, from: ingredients, profile: profile,
+                                               count: 2, servings: servings,
+                                               tasteFeedback: intent.constraintBlock)) ?? []
+            } else {
+                recipes = (try? await craveRecipes(dish: intent.dish ?? text, from: ingredients,
+                                                   profile: profile, count: 2, servings: servings)) ?? []
+            }
             return (intent, recipes)
 
         case .planWeek:
@@ -242,6 +253,15 @@ struct GeminiRecipeService {
             return (intent, recipes)
 
         case .unknown:
+            // Safety net: treat the full message as a dish craving — catches cases
+            // where the intent parser over-classified (e.g. product names, equipment).
+            let fallback = try? await craveRecipes(dish: text, from: ingredients,
+                                                   profile: profile, count: 2, servings: servings)
+            if let fallback, !fallback.isEmpty {
+                var recovered = intent
+                recovered.action = .specificDish
+                return (recovered, fallback)
+            }
             return (intent, [])
         }
     }

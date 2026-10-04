@@ -17,6 +17,8 @@ struct CaptureView: View {
 
     @State private var showCamera = false
     @State private var showChef = false
+    @State private var chefQuery = ""
+    @FocusState private var chefFocused: Bool
     @State private var photoItems: [PhotosPickerItem] = []
     @State private var isRecognizing = false
     /// Progress while scanning a batch of chosen photos (done, total).
@@ -41,7 +43,7 @@ struct CaptureView: View {
         let pool = dinners.isEmpty ? saved.saved : dinners
         guard !pool.isEmpty else { return nil }
         let day = Calendar.current.ordinality(of: .day, in: .year, for: Date()) ?? 0
-        return (pool[day % pool.count], "Tonight’s idea")
+        return (pool[day % pool.count], "Tonight's idea")
     }
 
     var body: some View {
@@ -68,7 +70,10 @@ struct CaptureView: View {
                 CameraPicker { image in handle(image) }
                     .ignoresSafeArea()
             }
-            .sheet(isPresented: $showChef) { ChefView() }
+            .sheet(isPresented: $showChef) {
+                ChefView(initialQuery: chefQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : chefQuery)
+                    .onDisappear { chefQuery = "" }
+            }
             .onChange(of: photoItems) { _, newValue in
                 guard !newValue.isEmpty else { return }
                 Task { await loadPickedPhotos(newValue) }
@@ -115,26 +120,34 @@ struct CaptureView: View {
         .padding(.top, 4)
     }
 
-    /// Entry to the conversational chef.
+    /// Inline search bar — type and submit to open the chef with the query pre-filled.
     private var chefEntry: some View {
-        Button { showChef = true } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "bubble.left.and.text.bubble.right.fill")
-                    .font(.headline).foregroundStyle(.white)
-                    .frame(width: 42, height: 42)
-                    .background(KindredTheme.brandGradient, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Ask the kitchen").font(.subheadline.weight(.semibold)).foregroundStyle(KindredTheme.text)
-                    Text("“Plan me an easy week, no chicken”").font(.caption).foregroundStyle(KindredTheme.subtext)
+        HStack(spacing: 10) {
+            Image(systemName: "bubble.left.and.text.bubble.right.fill")
+                .font(.subheadline).foregroundStyle(KindredTheme.accent)
+            TextField("Ask: wings on the Traeger tonight", text: $chefQuery)
+                .focused($chefFocused)
+                .submitLabel(.go)
+                .onSubmit {
+                    guard !chefQuery.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+                    chefFocused = false
+                    showChef = true
                 }
-                Spacer()
-                Image(systemName: "chevron.right").font(.caption).foregroundStyle(KindredTheme.faint)
+            if !chefQuery.isEmpty {
+                Button { chefQuery = "" } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(KindredTheme.faint)
+                }
+            } else {
+                Button { chefFocused = false; showChef = true } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.title3).foregroundStyle(KindredTheme.accent)
+                }
             }
-            .padding(14)
-            .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(KindredTheme.hairline, lineWidth: 1))
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 14).padding(.vertical, 12)
+        .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(KindredTheme.hairline, lineWidth: 1))
+        .onTapGesture { chefFocused = true }
     }
 
     /// Time-aware greeting (uses the device clock at render time).

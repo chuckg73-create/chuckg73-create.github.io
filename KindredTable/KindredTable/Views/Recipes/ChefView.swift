@@ -4,6 +4,8 @@ import SwiftUI
 /// easy week, no chicken"), and it routes your request over the app's existing
 /// engines — never inventing recipes, just orchestrating what's built.
 struct ChefView: View {
+    var initialQuery: String? = nil
+
     @Environment(PantryStore.self) private var pantry
     @Environment(ProfileStore.self) private var profileStore
     @Environment(HouseholdStore.self) private var household
@@ -40,7 +42,13 @@ struct ChefView: View {
             .navigationTitle("Ask the kitchen")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
-            .onAppear { focused = true }
+            .onAppear {
+                focused = true
+                if let q = initialQuery, !q.isEmpty {
+                    input = q
+                    submit()
+                }
+            }
         }
     }
 
