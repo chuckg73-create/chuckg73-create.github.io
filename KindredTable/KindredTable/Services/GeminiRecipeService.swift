@@ -222,7 +222,9 @@ struct GeminiRecipeService {
         switch intent.action {
         case .specificDish:
             let equipmentList = intent.equipment.map { [$0] } ?? []
-            let recipes: [Recipe]
+            var recipes: [Recipe] = []
+
+            // Try equipment-specific generation first.
             if !equipmentList.isEmpty {
                 let req = MealRequest(dish: intent.dish ?? text,
                                       includeIngredients: intent.include,
@@ -230,10 +232,20 @@ struct GeminiRecipeService {
                 recipes = (try? await makeMeal(req, from: ingredients, profile: profile,
                                                count: 2, servings: servings,
                                                tasteFeedback: intent.constraintBlock)) ?? []
-            } else {
+            }
+
+            // Fall back to plain dish craving (no equipment constraint).
+            if recipes.isEmpty {
                 recipes = (try? await craveRecipes(dish: intent.dish ?? text, from: ingredients,
                                                    profile: profile, count: 2, servings: servings)) ?? []
             }
+
+            // Last resort: use the full raw text as the craving.
+            if recipes.isEmpty && (intent.dish ?? "").isEmpty {
+                recipes = (try? await craveRecipes(dish: text, from: ingredients,
+                                                   profile: profile, count: 2, servings: servings)) ?? []
+            }
+
             return (intent, recipes)
 
         case .planWeek:

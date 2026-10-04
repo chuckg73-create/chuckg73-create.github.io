@@ -166,9 +166,11 @@ struct ChefView: View {
                     // Guide the cook when we couldn't produce recipes.
                     if recipes.isEmpty, intent.action == .planWeek || intent.action == .findMeals, pantry.isEmpty {
                         reply = "Snap your fridge or pantry first and I'll plan from what you've got — or name a specific dish and I'll build it."
+                    } else if recipes.isEmpty, intent.action == .specificDish {
+                        reply = "I couldn't build a recipe for that right now. Try describing just the dish — like \"smoked chicken wings\" — or add pantry items so I have more to work with."
                     } else if recipes.isEmpty, intent.action == .unknown {
                         reply = intent.reply.isEmpty
-                            ? "I'm your kitchen helper — try \u{201C}plan me an easy week\u{201D} or \u{201C}something quick with chicken.\u{201D}"
+                            ? "I'm your kitchen helper — try \"plan me an easy week\" or \"something quick with chicken.\""
                             : intent.reply
                     } else {
                         reply = intent.reply.isEmpty ? nil : intent.reply
