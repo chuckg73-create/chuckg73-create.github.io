@@ -257,15 +257,18 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = KindredTable/KindredTable.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 17;
+				CURRENT_PROJECT_VERSION = 18;
 				DEVELOPMENT_ASSET_PATHS = "\"KindredTable/Resources/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BaseInfo.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = KindredTable;
 				INFOPLIST_KEY_GEMINI_API_KEY = "$(GEMINI_API_KEY)";
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "KindredTable uses the camera to photograph your fridge and pantry so it can identify your ingredients privately, on your device.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Kindred Kitchen listens for cooking commands like \"next step\" so you can move through a recipe hands-free while cooking.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "KindredTable reads photos you choose so it can identify ingredients from pictures of your fridge and pantry.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Kindred Kitchen uses speech recognition to understand hands-free cooking commands like \"next step\" and \"repeat\".";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -276,7 +279,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 3.3;
+				MARKETING_VERSION = 3.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kindred.KindredTable;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -293,15 +296,18 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = KindredTable/KindredTable.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 17;
+				CURRENT_PROJECT_VERSION = 18;
 				DEVELOPMENT_ASSET_PATHS = "\"KindredTable/Resources/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BaseInfo.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = KindredTable;
 				INFOPLIST_KEY_GEMINI_API_KEY = "$(GEMINI_API_KEY)";
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "KindredTable uses the camera to photograph your fridge and pantry so it can identify your ingredients privately, on your device.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Kindred Kitchen listens for cooking commands like \"next step\" so you can move through a recipe hands-free while cooking.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "KindredTable reads photos you choose so it can identify ingredients from pictures of your fridge and pantry.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Kindred Kitchen uses speech recognition to understand hands-free cooking commands like \"next step\" and \"repeat\".";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -312,7 +318,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 3.3;
+				MARKETING_VERSION = 3.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kindred.KindredTable;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -451,7 +457,7 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = TonightWidget/TonightWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 17;
+				CURRENT_PROJECT_VERSION = 18;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TonightWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = TonightWidget;
@@ -462,7 +468,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 3.3;
+				MARKETING_VERSION = 3.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kindred.KindredTable.TonightWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -482,7 +488,7 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = TonightWidget/TonightWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 17;
+				CURRENT_PROJECT_VERSION = 18;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TonightWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = TonightWidget;
@@ -493,7 +499,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 3.3;
+				MARKETING_VERSION = 3.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kindred.KindredTable.TonightWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
