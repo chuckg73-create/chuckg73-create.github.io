@@ -8,6 +8,7 @@ struct CookbookView: View {
     @Environment(TasteFeedbackStore.self) private var feedback
     @State private var query = ""
     @State private var showFileImporter = false
+    @State private var showURLImport = false
 
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
 
@@ -44,6 +45,9 @@ struct CookbookView: View {
                         Button { presentAddRecipeSheet() } label: {
                             Label("Add Your Own Recipe", systemImage: "camera.fill")
                         }
+                        Button { showURLImport = true } label: {
+                            Label("Import from URL", systemImage: "link.circle.fill")
+                        }
                         Divider()
                         Button { presentExportSheet() } label: {
                             Label("Export My Cookbook", systemImage: "square.and.arrow.up")
@@ -59,6 +63,9 @@ struct CookbookView: View {
             }
             .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [.kindredCookbook]) { result in
                 if case .success(let url) = result { presentImportSheet(url: url) }
+            }
+            .sheet(isPresented: $showURLImport) {
+                URLImportView().environment(cookbook)
             }
         }
     }

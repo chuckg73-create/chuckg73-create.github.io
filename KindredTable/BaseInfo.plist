@@ -2,26 +2,21 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Base Info.plist kept OUTSIDE the synchronized source folder so it is
-	     not auto-added to Copy Bundle Resources. GENERATE_INFOPLIST_FILE=YES
-	     merges the generated keys (display name, usage strings, versions,
-	     scene manifest, launch screen) on top of this.
-	     Present only to guarantee the TOP-LEVEL CFBundleIconName that
-	     Xcode 26's actool nests under CFBundlePrimaryIcon and doesn't emit at
-	     top level — required by App Store validation (error 90713). -->
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>KindredTable Cookbook</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.kindred.kindredtable.cookbook</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleIconName</key>
 	<string>AppIcon</string>
-	<!-- Custom keys can't be injected via INFOPLIST_KEY_* (that only handles
-	     Apple's recognized keys), so the Gemini key is substituted here from the
-	     GEMINI_API_KEY build setting (fed by Secrets.xcconfig). This is what
-	     AppConfig.geminiAPIKey reads. -->
-	<key>GEMINI_API_KEY</key>
-	<string>$(GEMINI_API_KEY)</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Kindred Kitchen listens for cooking commands like "next step" so you can move through a recipe hands-free while cooking.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Kindred Kitchen uses speech recognition to understand hands-free cooking commands like "next step" and "repeat".</string>
-	<!-- Deep link for sharing taste cards by link/AirDrop: kindredkitchen://taste?c=… -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -33,20 +28,19 @@
 			</array>
 		</dict>
 	</array>
-	<!-- Whole-cookbook export/import (see CookbookPackageService.swift): a
-	     .kindredcookbook file — tapping one in Files/Mail/Messages opens
-	     straight into the import screen via RootView's .onOpenURL. -->
+	<key>GEMINI_API_KEY</key>
+	<string>$(GEMINI_API_KEY)</string>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>
-			<key>UTTypeIdentifier</key>
-			<string>com.kindred.kindredtable.cookbook</string>
-			<key>UTTypeDescription</key>
-			<string>KindredTable Cookbook</string>
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.data</string>
 			</array>
+			<key>UTTypeDescription</key>
+			<string>KindredTable Cookbook</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.kindred.kindredtable.cookbook</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -56,23 +50,5 @@
 			</dict>
 		</dict>
 	</array>
-	<key>CFBundleDocumentTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeName</key>
-			<string>KindredTable Cookbook</string>
-			<key>LSItemContentTypes</key>
-			<array>
-				<string>com.kindred.kindredtable.cookbook</string>
-			</array>
-			<key>LSHandlerRank</key>
-			<string>Owner</string>
-		</dict>
-	</array>
-	<!-- We only read a cookbook file once on import, never edit it at its
-	     original location, so it's copied into the app rather than opened
-	     in place. -->
-	<key>LSSupportsOpeningDocumentsInPlace</key>
-	<false/>
 </dict>
 </plist>

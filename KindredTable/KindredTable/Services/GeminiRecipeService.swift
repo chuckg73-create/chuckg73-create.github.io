@@ -834,6 +834,109 @@ struct GeminiRecipeService {
 
     // MARK: Request construction (recipes)
 
+    // MARK: URL recipe import
+
+    /// Fetch a webpage, strip it to plain text, then ask Gemini to extract the
+    /// recipe. Returns the first recipe found, tagged as `.imported`.
+    func importRecipe(from urlString: String) async throws -> Recipe {
+        guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
+        guard let url = URL(string: urlString.trimmingCharacters(in: .whitespacesAndNewlines)),
+              url.scheme == "https" || url.scheme == "http"
+        else { throw RecipeServiceError.decoding("Invalid URL") }
+
+        // Fetch the page with a realistic browser User-Agent so recipe sites
+        // don't return a login wall or a stripped mobile page.
+        var pageRequest = URLRequest(url: url, timeoutInterval: 20)
+        pageRequest.setValue(
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+            forHTTPHeaderField: "User-Agent"
+        )
+        let (pageData, _) = try await session.data(for: pageRequest)
+        let rawHTML = String(data: pageData, encoding: .utf8) ?? ""
+
+        // Strip tags and collapse whitespace — send only readable text so we
+        // don't burn tokens on HTML scaffolding.
+        let plainText = Self.stripHTML(rawHTML)
+        // Cap at ~8 000 chars to stay well within the model's context budget
+        // while covering the recipe body on any site.
+        let excerpt = String(plainText.prefix(8_000))
+
+        let schema = Self.recipeSchemaBlock()
+        let prompt = """
+        You are a recipe extraction engine. A cook pasted a cooking webpage.
+        Extract the ONE main recipe from the text below and return it as JSON matching this schema exactly. Do NOT invent steps or ingredients not present in the source. Use source=\\"imported\\" and set matchScore=75.
+        \(schema)
+        WEBPAGE TEXT:
+        \(excerpt)
+        Respond with ONLY the JSON array containing one recipe object, no markdown fences.
+        """
+
+        let request = try makeRequest(prompt: prompt, apiKey: apiKey)
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw RecipeServiceError.badResponse(status: (response as? HTTPURLResponse)?.statusCode ?? -1,
+                                                 body: String(data: data, encoding: .utf8) ?? "")
+        }
+        let text = try Self.extractText(from: data)
+        let recipes = try Self.decodeRecipes(from: text)
+        guard let recipe = recipes.first else { throw RecipeServiceError.noRecipes }
+        var imported = recipe
+        imported.source = .imported
+        return imported
+    }
+
+    // MARK: In-cook substitution
+
+    /// Ask the chef what to use instead of a missing ingredient, given the
+    /// current step's context. Returns a plain-English answer (not a recipe).
+    func substitute(ingredient: String, inStep step: String, recipe: Recipe) async throws -> String {
+        guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
+
+        let prompt = """
+        You are a helpful cooking assistant. The home cook is mid-recipe and is missing an ingredient.
+        Recipe: \(recipe.title)
+        Current step: \(step)
+        Missing ingredient: \(ingredient)
+        Suggest 1-2 practical substitutes that work for this specific step. Keep your answer to 2-3 sentences, practical and confident. No preamble.
+        """
+        let request = try makeRequest(prompt: prompt, apiKey: apiKey)
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw RecipeServiceError.badResponse(status: (response as? HTTPURLResponse)?.statusCode ?? -1,
+                                                 body: String(data: data, encoding: .utf8) ?? "")
+        }
+        return try Self.extractText(from: data)
+    }
+
+    // MARK: HTML helpers
+
+    private static func stripHTML(_ html: String) -> String {
+        // Remove <script> and <style> blocks wholesale.
+        var text = html
+        for tag in ["script", "style"] {
+            let pattern = "<\(tag)[^>]*>[\\s\\S]*?</\(tag)>"
+            text = text.replacingOccurrences(of: pattern, with: " ",
+                                             options: [.regularExpression, .caseInsensitive])
+        }
+        // Strip remaining tags.
+        text = text.replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
+        // Decode common HTML entities.
+        let entities: [(String, String)] = [("&amp;","&"),("&lt;","<"),("&gt;",">"),
+                                            ("&nbsp;"," "),("&#39;","'"),("&quot;","\"")]
+        for (entity, char) in entities { text = text.replacingOccurrences(of: entity, with: char) }
+        // Collapse whitespace.
+        text = text.components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }.joined(separator: " ")
+        return text
+    }
+
+    private static func recipeSchemaBlock() -> String {
+        """
+        JSON schema — return an array with ONE object:
+        [{"title":"...","summary":"...","mealType":"dinner","source":"imported","sourceNote":"","story":"","imageURL":"","ingredients":[{"name":"...","quantity":"...","haveIt":false}],"steps":["..."],"tips":["..."],"cooksNotes":[],"servings":4,"prepMinutes":15,"cookMinutes":30,"difficulty":"easy","tags":["..."],"matchScore":75,"whyYoullLikeIt":"","timeline":[],"nutrition":null}]
+        """
+    }
+
     private func makeRequest(prompt: String, apiKey: String) throws -> URLRequest {
         let url = URL(string: "\(AppConfig.workerURL)/v1beta/models/\(model):generateContent")!
         var request = URLRequest(url: url)

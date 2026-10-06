@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import AudioToolbox
+import PhotosUI
 
 /// Full-screen, hands-free cooking view: one big step at a time, reads steps
 /// aloud, listens for "next / back / repeat", keeps the screen awake, and stays
@@ -11,8 +12,11 @@ struct CookModeView: View {
     @Environment(TasteFeedbackStore.self) private var feedback
     @Environment(RecentSuggestionsStore.self) private var recent
     @Environment(PantryStore.self) private var pantry
+    @Environment(SavedRecipeStore.self) private var cookbook
 
+    private let gemini = GeminiRecipeService()
     private let session = CookingSession.shared
+
     @State private var showFinishRating = false
     @State private var showDepletionOffer = false
     @State private var showManualTimer = false
@@ -21,9 +25,22 @@ struct CookModeView: View {
     @State private var autoSpeak = true
     @State private var micOn = false
     @State private var showPermissionAlert = false
-    /// Per-step timer (seconds left; nil = not started).
-    @State private var timerRemaining: Int?
-    @State private var timerRunning = false
+
+    // Multi-timer
+    @State private var activeTimers: [ActiveTimer] = []
+    /// Per-step auto-detected timer (tracks whether we already offered it).
+    @State private var stepTimerStarted = false
+
+    // In-cook substitution
+    @State private var showSubstitution = false
+    @State private var subIngredient = ""
+    @State private var subAnswer: String?
+    @State private var subLoading = false
+
+    // Finished dish photo
+    @State private var showDishPhotoOptions = false
+    @State private var dishPhotoItem: PhotosPickerItem?
+    @State private var dishPhotoData: Data?
 
     private var stepSeconds: Int? { StepDuration.seconds(in: session.currentStep) }
 
@@ -42,6 +59,8 @@ struct CookModeView: View {
                 counter
                 stepText
                 timerChip
+                if !activeTimers.isEmpty { activeTimersPanel }
+                quickActions
                 Spacer(minLength: 8)
                 controls
             }
@@ -58,6 +77,16 @@ struct CookModeView: View {
             voice.stopSpeaking()
         }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in tick() }
+        .onChange(of: session.stepNumber) { _, _ in stepTimerStarted = false }
+        .onChange(of: dishPhotoItem) { _, item in
+            guard let item else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self) {
+                    dishPhotoData = data
+                    saveDishPhoto(data)
+                }
+            }
+        }
         .confirmationDialog("How did it turn out?", isPresented: $showFinishRating, titleVisibility: .visible) {
             ForEach(RecipeVerdict.allCases) { v in
                 Button(v.title) {
@@ -74,19 +103,36 @@ struct CookModeView: View {
         .alert("Remove used ingredients?", isPresented: $showDepletionOffer) {
             Button("Remove from pantry") {
                 depletableItems.forEach { pantry.remove($0) }
-                dismiss()
+                showDishPhotoOptions = true
             }
-            Button("Keep them", role: .cancel) { dismiss() }
+            Button("Keep them", role: .cancel) { showDishPhotoOptions = true }
         } message: {
             let names = depletableItems.prefix(3).map(\.name).joined(separator: ", ")
             Text("Clear \(names) from your pantry since you just cooked them.")
         }
+        .confirmationDialog("Save a photo of your dish?", isPresented: $showDishPhotoOptions, titleVisibility: .visible) {
+            PhotosPicker(selection: $dishPhotoItem, matching: .images) {
+                Text("Choose from Photos")
+            }
+            Button("Skip") { dismiss() }
+        }
+        .photosPicker(isPresented: .constant(false), selection: $dishPhotoItem)
         .sheet(isPresented: $showManualTimer) {
-            ManualTimerSheet(selectedMinutes: $manualMinutes) {
-                timerRemaining = manualMinutes * 60
-                timerRunning = true
+            ManualTimerSheet(selectedMinutes: $manualMinutes) { label in
+                activeTimers.append(ActiveTimer(label: label, seconds: manualMinutes * 60))
             }
             .presentationDetents([.medium])
+        }
+        .sheet(isPresented: $showSubstitution) {
+            SubstitutionSheet(
+                recipe: recipe,
+                currentStep: session.currentStep,
+                ingredient: $subIngredient,
+                answer: $subAnswer,
+                isLoading: $subLoading,
+                gemini: gemini
+            )
+            .presentationDetents([.medium, .large])
         }
         .alert("Microphone access needed", isPresented: $showPermissionAlert) {
             Button("OK", role: .cancel) {}
@@ -131,69 +177,28 @@ struct CookModeView: View {
     }
 
     @ViewBuilder private var timerChip: some View {
-        if let total = stepSeconds {
-            // Auto-detected step duration.
-            HStack(spacing: 12) {
-                Image(systemName: "timer")
-                    .foregroundStyle(timerRemaining == 0 ? KindredTheme.coral : KindredTheme.amber)
-                if let r = timerRemaining {
-                    Text(StepDuration.clock(r))
-                        .font(.title2.monospacedDigit().weight(.bold))
-                        .foregroundStyle(r == 0 ? KindredTheme.coral : KindredTheme.text)
-                    Spacer()
-                    if r == 0 {
-                        Text("Time's up").font(.subheadline.weight(.semibold)).foregroundStyle(KindredTheme.coral)
-                        Button { resetTimer() } label: { Image(systemName: "arrow.counterclockwise") }
-                            .foregroundStyle(KindredTheme.accent)
-                    } else {
-                        Button { timerRunning.toggle() } label: {
-                            Image(systemName: timerRunning ? "pause.fill" : "play.fill").font(.title3)
-                                .foregroundStyle(KindredTheme.accent)
-                        }
-                        Button { resetTimer() } label: {
-                            Image(systemName: "xmark.circle.fill").foregroundStyle(KindredTheme.faint)
-                        }
-                    }
-                } else {
+        if let total = stepSeconds, !stepTimerStarted {
+            // Auto-detected step duration — offer to start it.
+            Button {
+                let label = "Step \(session.stepNumber)"
+                activeTimers.append(ActiveTimer(label: label, seconds: total))
+                stepTimerStarted = true
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "timer").foregroundStyle(KindredTheme.amber)
                     Text("Timer for this step").font(.subheadline).foregroundStyle(KindredTheme.subtext)
                     Spacer()
-                    Button { timerRemaining = total; timerRunning = true } label: {
-                        Label("Start \(StepDuration.clock(total))", systemImage: "play.fill")
-                            .font(.subheadline.weight(.semibold))
-                            .padding(.horizontal, 14).padding(.vertical, 8)
-                            .foregroundStyle(.white)
-                            .background(KindredTheme.warmGradient, in: Capsule())
-                    }
-                    .buttonStyle(.plain)
+                    Label("Start \(StepDuration.clock(total))", systemImage: "play.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 14).padding(.vertical, 8)
+                        .foregroundStyle(.white)
+                        .background(KindredTheme.warmGradient, in: Capsule())
                 }
+                .chipFrame
             }
-            .chipFrame
-        } else if let r = timerRemaining {
-            // Manual timer is running (no auto-detected duration in this step).
-            HStack(spacing: 12) {
-                Image(systemName: "timer")
-                    .foregroundStyle(r == 0 ? KindredTheme.coral : KindredTheme.amber)
-                Text(StepDuration.clock(r))
-                    .font(.title2.monospacedDigit().weight(.bold))
-                    .foregroundStyle(r == 0 ? KindredTheme.coral : KindredTheme.text)
-                Spacer()
-                if r == 0 {
-                    Text("Time's up").font(.subheadline.weight(.semibold)).foregroundStyle(KindredTheme.coral)
-                    Button { resetTimer() } label: { Image(systemName: "arrow.counterclockwise") }
-                        .foregroundStyle(KindredTheme.accent)
-                } else {
-                    Button { timerRunning.toggle() } label: {
-                        Image(systemName: timerRunning ? "pause.fill" : "play.fill").font(.title3)
-                            .foregroundStyle(KindredTheme.accent)
-                    }
-                    Button { resetTimer() } label: {
-                        Image(systemName: "xmark.circle.fill").foregroundStyle(KindredTheme.faint)
-                    }
-                }
-            }
-            .chipFrame
-        } else {
-            // No detected time and no timer running — offer a manual timer.
+            .buttonStyle(.plain)
+        } else if stepSeconds == nil {
+            // No detected time — offer a manual timer.
             Button { showManualTimer = true } label: {
                 HStack(spacing: 10) {
                     Image(systemName: "timer").foregroundStyle(KindredTheme.faint)
@@ -211,26 +216,96 @@ struct CookModeView: View {
         }
     }
 
-    private func tick() {
-        guard timerRunning, let r = timerRemaining else { return }
-        if r <= 1 {
-            timerRemaining = 0
-            timerRunning = false
-            timerFinished()
-        } else {
-            timerRemaining = r - 1
+    /// Running timers panel — shows all active timers below the step chip.
+    private var activeTimersPanel: some View {
+        VStack(spacing: 8) {
+            ForEach($activeTimers) { $timer in
+                HStack(spacing: 12) {
+                    Image(systemName: "timer")
+                        .foregroundStyle(timer.isFinished ? KindredTheme.coral : KindredTheme.amber)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(timer.label).font(.caption).foregroundStyle(KindredTheme.faint)
+                        Text(StepDuration.clock(timer.remaining))
+                            .font(.title3.monospacedDigit().weight(.bold))
+                            .foregroundStyle(timer.isFinished ? KindredTheme.coral : KindredTheme.text)
+                    }
+                    Spacer()
+                    if timer.isFinished {
+                        Text("Done!").font(.subheadline.weight(.semibold)).foregroundStyle(KindredTheme.coral)
+                    } else {
+                        Button { timer.isRunning.toggle() } label: {
+                            Image(systemName: timer.isRunning ? "pause.fill" : "play.fill")
+                                .font(.title3).foregroundStyle(KindredTheme.accent)
+                        }
+                    }
+                    Button {
+                        activeTimers.removeAll { $0.id == timer.id }
+                    } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(KindredTheme.faint)
+                    }
+                }
+                .chipFrame
+            }
         }
+    }
+
+    /// Quick-action row: substitution + add another timer.
+    private var quickActions: some View {
+        HStack(spacing: 10) {
+            Button { showSubstitution = true } label: {
+                Label("Substitute", systemImage: "arrow.2.squarepath")
+                    .font(.caption.weight(.semibold))
+                    .frame(maxWidth: .infinity).padding(.vertical, 10)
+                    .foregroundStyle(KindredTheme.accent)
+                    .background(KindredTheme.accent.opacity(0.12),
+                                in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            .buttonStyle(.plain)
+
+            Button { showManualTimer = true } label: {
+                Label("Add timer", systemImage: "plus.circle")
+                    .font(.caption.weight(.semibold))
+                    .frame(maxWidth: .infinity).padding(.vertical, 10)
+                    .foregroundStyle(KindredTheme.subtext)
+                    .background(KindredTheme.card,
+                                in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 12)
+                        .stroke(KindredTheme.hairline, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func tick() {
+        var anyFinishedNow = false
+        for i in activeTimers.indices {
+            guard activeTimers[i].isRunning, !activeTimers[i].isFinished else { continue }
+            activeTimers[i].remaining -= 1
+            if activeTimers[i].remaining <= 0 {
+                activeTimers[i].remaining = 0
+                activeTimers[i].isRunning = false
+                anyFinishedNow = true
+            }
+        }
+        if anyFinishedNow { timerFinished() }
     }
 
     private func timerFinished() {
         AudioServicesPlaySystemSound(1005)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
-        voice.speak("Time's up for this step.")
+        voice.speak("Time's up!")
     }
 
-    private func resetTimer() {
-        timerRunning = false
-        timerRemaining = nil
+    private func saveDishPhoto(_ data: Data) {
+        var updated = recipe
+        // Store photo on disk keyed by recipe ID; signal cookbook to update.
+        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("dish_photos")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let file = dir.appendingPathComponent("\(recipe.id.uuidString).jpg")
+        try? data.write(to: file)
+        updated.imageURL = file.absoluteString
+        cookbook.add(updated)
     }
 
     private var controls: some View {
@@ -315,13 +390,11 @@ struct CookModeView: View {
             return
         }
         _ = session.next()
-        resetTimer()
         if speak { voice.speak(session.spokenCurrent) }
     }
 
     private func retreat(speak: Bool) {
         _ = session.previous()
-        resetTimer()
         if speak { voice.speak(session.spokenCurrent) }
     }
 
@@ -356,8 +429,9 @@ struct CookModeView: View {
 
 private struct ManualTimerSheet: View {
     @Binding var selectedMinutes: Int
-    var onStart: () -> Void
+    var onStart: (_ label: String) -> Void
     @Environment(\.dismiss) private var dismiss
+    @State private var labelText = ""
 
     private let presets = [1, 2, 5, 10, 15, 20, 30]
 
@@ -402,8 +476,15 @@ private struct ManualTimerSheet: View {
                             .padding(.horizontal, 24)
                         }
                     }
+                    TextField("Label (optional)", text: $labelText)
+                        .multilineTextAlignment(.center)
+                        .font(.subheadline)
+                        .foregroundStyle(KindredTheme.text)
+                        .padding(.horizontal, 30)
+
                     Button {
-                        onStart()
+                        let label = labelText.trimmingCharacters(in: .whitespacesAndNewlines)
+                        onStart(label.isEmpty ? "\(selectedMinutes) min" : label)
                         dismiss()
                     } label: {
                         Label("Start \(selectedMinutes) min timer", systemImage: "play.fill")
@@ -422,6 +503,87 @@ private struct ManualTimerSheet: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Cancel") { dismiss() }
                 }
+            }
+        }
+    }
+}
+
+// MARK: - Substitution sheet
+
+private struct SubstitutionSheet: View {
+    let recipe: Recipe
+    let currentStep: String
+    @Binding var ingredient: String
+    @Binding var answer: String?
+    @Binding var isLoading: Bool
+    let gemini: GeminiRecipeService
+    @Environment(\.dismiss) private var dismiss
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                KindredBackground()
+                VStack(spacing: 20) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("What are you missing?")
+                            .font(.headline).foregroundStyle(KindredTheme.text)
+                        HStack(spacing: 10) {
+                            TextField("e.g. heavy cream, butter, eggs", text: $ingredient)
+                                .focused($focused)
+                                .submitLabel(.go)
+                                .onSubmit { ask() }
+                                .padding(12)
+                                .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(KindredTheme.hairline, lineWidth: 1))
+                            Button(action: ask) {
+                                Image(systemName: "arrow.up.circle.fill")
+                                    .font(.title2).foregroundStyle(ingredient.isEmpty ? KindredTheme.faint : KindredTheme.accent)
+                            }
+                            .disabled(ingredient.trimmingCharacters(in: .whitespaces).isEmpty || isLoading)
+                        }
+                    }
+
+                    if isLoading {
+                        HStack(spacing: 10) {
+                            ProgressView().tint(KindredTheme.accent)
+                            Text("Thinking…").foregroundStyle(KindredTheme.subtext)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    if let answer {
+                        KindredCard {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Label("Substitution", systemImage: "arrow.2.squarepath")
+                                    .font(.caption.weight(.semibold)).foregroundStyle(KindredTheme.accent)
+                                Text(answer)
+                                    .font(.body).foregroundStyle(KindredTheme.text)
+                            }
+                        }
+                    }
+                    Spacer()
+                }
+                .padding(20)
+            }
+            .navigationTitle("Substitute an ingredient")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
+            .onAppear { focused = true }
+        }
+    }
+
+    private func ask() {
+        let q = ingredient.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty, !isLoading else { return }
+        focused = false
+        isLoading = true
+        answer = nil
+        Task {
+            let result = try? await gemini.substitute(ingredient: q, inStep: currentStep, recipe: recipe)
+            await MainActor.run {
+                answer = result ?? "I couldn't find a substitution right now. Try using less of the ingredient or omitting it if it's a garnish."
+                isLoading = false
             }
         }
     }
