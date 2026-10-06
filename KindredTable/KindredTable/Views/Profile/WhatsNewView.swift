@@ -2,24 +2,39 @@ import SwiftUI
 
 struct WhatsNewView: View {
     private let features: [(icon: String, tint: Color, title: String, detail: String)] = [
-        ("link.circle.fill", KindredTheme.accent,
+        ("lock.display", KindredTheme.accent,
+         "Live on your Lock Screen",
+         "Cook Mode pins your current step and any running timer to the Dynamic Island and Lock Screen so you never lose your place."),
+        ("link.circle.fill", KindredTheme.blue,
          "Import any recipe from the web",
-         "Paste a URL from NYT Cooking, Serious Eats, AllRecipes, or anywhere -- Gemini extracts it straight into your cookbook."),
-        ("timer.circle.fill", KindredTheme.mint,
+         "Paste a URL from NYT Cooking, Serious Eats, AllRecipes, or anywhere — Gemini extracts it straight into your cookbook."),
+        ("book.pages.fill", KindredTheme.mint,
+         "Technique guides",
+         "36 built-in guides — how to fillet fish, soft-boil eggs, make a roux, deglaze a pan, and more. Each one links to a curated video tutorial."),
+        ("timer.circle.fill", KindredTheme.amber,
          "Multiple timers at once",
-         "Name each timer (wings, sauce, rice), run them all at once, and pause or dismiss individually in Cook Mode."),
+         "Name each timer (wings, sauce, rice), run them all simultaneously, and dismiss individually without leaving Cook Mode."),
+        ("percent", KindredTheme.coral,
+         "Baker's percentages",
+         "Scaling a baking recipe now shows every ingredient as a percentage of flour — so your ratios stay right no matter what batch size you choose."),
+        ("timeline.selection", KindredTheme.accent,
+         "Visual cook timeline",
+         "Cook Plan now shows a Gantt-style timeline with a live Now marker, so back-timing dinner is a glance, not a calculation."),
         ("camera.circle.fill", KindredTheme.coral,
          "Finished dish photos",
-         "Snap a photo right after you rate a cooked recipe. Saved to your cookbook so you remember how it turned out."),
+         "Snap a photo right after you rate a cooked recipe. Saved to your cookbook so you remember exactly how it turned out."),
         ("wand.and.stars", KindredTheme.amber,
          "In-cook substitutions",
          "Missing something mid-recipe? Tap Substitute and get an AI swap suggestion without leaving Cook Mode."),
-        ("bubble.left.and.text.bubble.right.fill", KindredTheme.blue,
-         "Chef AI front and center",
-         "The search bar is now inline on the home screen -- type your idea and go straight to recipes, no extra taps."),
-        ("figure.2.and.child.holdinghands", KindredTheme.accent,
+        ("figure.2.and.child.holdinghands", KindredTheme.blue,
          "Cook for the whole family",
-         "Add family members by QR code and KindredTable blends everyone's taste -- never suggesting something someone dislikes or is allergic to."),
+         "Add family members by QR code and KindredTable blends everyone's taste — never suggesting something someone dislikes or is allergic to."),
+        ("person.crop.circle.fill", KindredTheme.mint,
+         "Your profile, your face",
+         "Add your name and a profile photo. The toolbar icon updates to show it."),
+        ("bubble.left.and.text.bubble.right.fill", KindredTheme.accent,
+         "Chef AI front and center",
+         "The craving search bar is now inline on the home screen — type your idea and go straight to recipes, no extra taps."),
     ]
 
     var body: some View {
@@ -35,7 +50,7 @@ struct WhatsNewView: View {
                             .background(KindredTheme.accent.opacity(0.12), in: Capsule())
                         Text("What's New")
                             .font(.title2).fontWeight(.bold).foregroundStyle(KindredTheme.text)
-                        Text("Six new features to make cooking easier for everyone at your table.")
+                        Text("Everything your kitchen needed — Live Activities, technique guides, baker's ratios, and more.")
                             .font(.subheadline).foregroundStyle(KindredTheme.subtext)
                             .multilineTextAlignment(.center)
                     }
