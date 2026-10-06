@@ -37,6 +37,8 @@ struct RecipeDetailView: View {
     @State private var polishError: String?
     /// Transient confirmation after a more/less-like-this tap.
     @State private var tuneMessage: String?
+    @State private var tuneTask: Task<Void, Never>?
+    @State private var polishTask: Task<Void, Never>?
     /// Rendered share card + build state.
     @State private var shareCardImage: UIImage?
     @State private var isBuildingCard = false
@@ -101,12 +103,12 @@ struct RecipeDetailView: View {
                 .padding(20)
             }
         }
-        .navigationTitle(recipe.mealType.title)
+        .navigationTitle(recipe.title)
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: keepAwake) { _, on in
             UIApplication.shared.isIdleTimerDisabled = on
         }
-        .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
+        .onDisappear { UIApplication.shared.isIdleTimerDisabled = false; tuneTask?.cancel(); polishTask?.cancel() }
         .fullScreenCover(isPresented: $showCookMode) {
             CookModeView(recipe: recipe)
         }
@@ -506,8 +508,10 @@ struct RecipeDetailView: View {
             let subject = tag.map { "\($0) " } ?? ""
             let msg = up ? "Got it — more \(subject)coming up" : "Noted — fewer \(subject)dishes"
             withAnimation { tuneMessage = msg }
-            Task {
+            tuneTask?.cancel()
+            tuneTask = Task {
                 try? await Task.sleep(nanoseconds: 2_200_000_000)
+                guard !Task.isCancelled else { return }
                 await MainActor.run { withAnimation { tuneMessage = nil } }
             }
         } label: {
@@ -820,7 +824,8 @@ struct RecipeDetailView: View {
     private func polish() {
         polishError = nil
         isPolishing = true
-        Task {
+        polishTask?.cancel()
+        polishTask = Task {
             do {
                 let service = GeminiRecipeService()
                 let enriched = try await service.enrich(recipe, profile: profileStore.profile)

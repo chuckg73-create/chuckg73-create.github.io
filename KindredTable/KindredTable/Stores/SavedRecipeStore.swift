@@ -30,7 +30,7 @@ final class SavedRecipeStore {
     var isEmpty: Bool { saved.isEmpty }
 
     func isSaved(_ recipe: Recipe) -> Bool {
-        saved.contains { $0.id == recipe.id || $0.title == recipe.title }
+        saved.contains { $0.id == recipe.id }
     }
 
     func toggle(_ recipe: Recipe) {
@@ -64,7 +64,7 @@ final class SavedRecipeStore {
     var fromApp: [Recipe] { saved.filter { !$0.source.isImported } }
 
     func remove(_ recipe: Recipe) {
-        saved.removeAll { $0.id == recipe.id || $0.title == recipe.title }
+        saved.removeAll { $0.id == recipe.id }
         persist()
     }
 

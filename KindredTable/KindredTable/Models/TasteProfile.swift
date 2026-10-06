@@ -159,12 +159,12 @@ extension Diet {
 
     private static let porkTerms = ["pork", "bacon", "ham", "prosciutto", "pancetta", "lard", "chorizo", "pepperoni", "salami"]
     private static let meatTerms = porkTerms
-        + ["beef", "steak", "chicken", "turkey", "lamb", "veal", "duck", "sausage", "meatball", "brisket"]
+        + ["beef", "steak", "chicken", "turkey", "poultry", "lamb", "veal", "duck", "quail", "game hen", "sausage", "meatball", "brisket"]
     private static let shellfishTerms = ["shrimp", "prawn", "crab", "lobster", "clam", "mussel", "oyster", "scallop"]
     private static let seafoodTerms = shellfishTerms
         + ["fish", "salmon", "tuna", "cod", "tilapia", "anchovy", "sardine", "halibut", "trout"]
     private static let dairyTerms = ["milk", "butter", "cheese", "cream", "yogurt", "whey", "ghee", "cheddar", "parmesan", "mozzarella", "feta", "ricotta"]
-    private static let glutenTerms = ["wheat", "flour", "pasta", "bread", "barley", "rye", "couscous", "breadcrumb", "tortilla", "noodle", "cracker"]
+    private static let glutenTerms = ["wheat", "flour", "pasta", "bread", "barley", "rye", "couscous", "breadcrumb", "flour tortilla", "noodle", "cracker"]
 }
 
 extension TasteProfile {
@@ -172,7 +172,7 @@ extension TasteProfile {
     /// words. Unrecognised allergens are matched literally.
     private static let allergenGroups: [String: [String]] = [
         "dairy": ["milk", "butter", "cheese", "cream", "yogurt", "whey", "ghee", "cheddar", "parmesan", "mozzarella", "feta", "ricotta"],
-        "gluten": ["wheat", "flour", "pasta", "bread", "barley", "rye", "couscous", "breadcrumb", "tortilla", "noodle", "cracker"],
+        "gluten": ["wheat", "flour", "pasta", "bread", "barley", "rye", "couscous", "breadcrumb", "flour tortilla", "noodle", "cracker"],
         "nuts": ["almond", "walnut", "cashew", "pecan", "pistachio", "hazelnut", "macadamia", "nut"],
         "tree nuts": ["almond", "walnut", "cashew", "pecan", "pistachio", "hazelnut", "macadamia"],
         "shellfish": ["shrimp", "prawn", "crab", "lobster", "clam", "mussel", "oyster", "scallop"],

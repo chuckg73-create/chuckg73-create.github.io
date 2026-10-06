@@ -38,6 +38,7 @@ struct SubstituteSheet: View {
             .navigationTitle("Swap ingredient")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Close") { dismiss() } } }
+            .task { suggest() }
         }
     }
 

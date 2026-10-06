@@ -251,7 +251,7 @@ struct MealPlanView: View {
     private func planWeek() {
         let targets = emptyDays
         guard !targets.isEmpty else { return }
-        guard !pantry.isEmpty else { planError = "Add a few ingredients in On Hand first so we can match your week."; return }
+        guard !pantry.isEmpty else { planError = "Snap your fridge or add a few ingredients first — I'll plan around what you've got."; return }
         planError = nil
         isPlanning = true
         Task {

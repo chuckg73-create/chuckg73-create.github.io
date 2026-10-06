@@ -86,7 +86,7 @@ struct RootTabView: View {
 
             GroceryListView()
                 .tabItem { Label("Grocery", systemImage: "cart.fill") }
-                .badge(grocery.items.count)
+                .badge(grocery.items.filter { !$0.isChecked }.count)
                 .tag(Tab.grocery)
         }
     }

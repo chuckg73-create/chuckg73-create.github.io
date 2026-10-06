@@ -399,7 +399,7 @@ struct TasteProfileView: View {
                             .foregroundStyle(KindredTheme.text)
                         Text(household.isSharedCook
                              ? household.cookingForSummary()
-                             : "Just you -- add family members to blend tastes")
+                             : "Just you — add family members to blend tastes")
                             .font(.caption)
                             .foregroundStyle(household.isSharedCook ? KindredTheme.accent : KindredTheme.subtext)
                     }
@@ -410,7 +410,7 @@ struct TasteProfileView: View {
             }
             .foregroundStyle(KindredTheme.text)
         } footer: {
-            Text("Add family members by QR code -- KindredTable blends everyone's taste and skips anything someone dislikes or is allergic to.")
+            Text("Add family members by QR code — KindredTable blends everyone's taste and skips anything someone dislikes or is allergic to.")
         }
         .listRowBackground(KindredTheme.card)
     }

@@ -861,14 +861,13 @@ struct GeminiRecipeService {
         // while covering the recipe body on any site.
         let excerpt = String(plainText.prefix(8_000))
 
-        let schema = Self.recipeSchemaBlock()
         let prompt = """
         You are a recipe extraction engine. A cook pasted a cooking webpage.
-        Extract the ONE main recipe from the text below and return it as JSON matching this schema exactly. Do NOT invent steps or ingredients not present in the source. Use source=\\"imported\\" and set matchScore=75.
-        \(schema)
+        Extract the ONE main recipe from the text below and return it as JSON matching this schema exactly. Do NOT invent steps or ingredients not present in the source. Use source="imported" and set matchScore=75.
+        Return ONLY a JSON object in this format — no markdown fences, no extra keys:
+        {"recipes":[{"title":"...","summary":"...","mealType":"dinner","source":"imported","sourceNote":"","story":"","imageURL":"","ingredients":[{"name":"...","quantity":"...","haveIt":false}],"steps":["..."],"tips":["..."],"cooksNotes":[],"servings":4,"prepMinutes":15,"cookMinutes":30,"difficulty":"easy","tags":["..."],"matchScore":75,"whyYoullLikeIt":"","timeline":[],"nutrition":null}]}
         WEBPAGE TEXT:
         \(excerpt)
-        Respond with ONLY the JSON array containing one recipe object, no markdown fences.
         """
 
         let request = try makeRequest(prompt: prompt, apiKey: apiKey)
@@ -1407,13 +1406,21 @@ extension GeminiRecipeService {
 
         guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
         let request = try makeRequest(prompt: prompt, apiKey: apiKey)
-        let (data, _) = try await session.data(for: request)
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw RecipeServiceError.badResponse(status: (response as? HTTPURLResponse)?.statusCode ?? -1,
+                                                 body: String(data: data, encoding: .utf8) ?? "")
+        }
         let raw = try Self.extractText(from: data)
         let cleaned = raw
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "^```json\\s*", with: "", options: .regularExpression)
             .replacingOccurrences(of: "```$", with: "", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        return try JSONDecoder().decode(TechniqueGuide.self, from: Data(cleaned.utf8))
+        do {
+            return try JSONDecoder().decode(TechniqueGuide.self, from: Data(cleaned.utf8))
+        } catch {
+            throw RecipeServiceError.decoding("technique JSON: \(error.localizedDescription)")
+        }
     }
 }

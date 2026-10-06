@@ -131,7 +131,6 @@ struct CookModeView: View {
             }
             Button("Skip") { dismiss() }
         }
-        .photosPicker(isPresented: .constant(false), selection: $dishPhotoItem)
         .sheet(isPresented: $showManualTimer) {
             ManualTimerSheet(selectedMinutes: $manualMinutes) { label in
                 activeTimers.append(ActiveTimer(label: label, seconds: manualMinutes * 60))
@@ -153,6 +152,11 @@ struct CookModeView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text("Allow microphone and speech recognition in Settings to use hands-free voice commands. You can still tap the arrows or use Siri.")
+        }
+        .alert("Photo not saved", isPresented: $photoDiskError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("There wasn't enough space to save your dish photo. Free up some storage and try again.")
         }
     }
 
@@ -369,16 +373,21 @@ struct CookModeView: View {
         voice.speak("Time's up!")
     }
 
+    @State private var photoDiskError = false
+
     private func saveDishPhoto(_ data: Data) {
         var updated = recipe
-        // Store photo on disk keyed by recipe ID; signal cookbook to update.
         let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("dish_photos")
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let file = dir.appendingPathComponent("\(recipe.id.uuidString).jpg")
-        try? data.write(to: file)
-        updated.imageURL = file.absoluteString
-        cookbook.add(updated)
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let file = dir.appendingPathComponent("\(recipe.id.uuidString).jpg")
+            try data.write(to: file)
+            updated.imageURL = file.absoluteString
+            cookbook.add(updated)
+        } catch {
+            photoDiskError = true
+        }
     }
 
     private var controls: some View {
@@ -653,10 +662,15 @@ private struct SubstitutionSheet: View {
         isLoading = true
         answer = nil
         Task {
-            let result = try? await gemini.substitute(ingredient: q, inStep: currentStep, recipe: recipe)
-            await MainActor.run {
-                answer = result ?? "I couldn't find a substitution right now. Try using less of the ingredient or omitting it if it's a garnish."
-                isLoading = false
+            do {
+                let result = try await gemini.substitute(ingredient: q, inStep: currentStep, recipe: recipe)
+                await MainActor.run { answer = result; isLoading = false }
+            } catch {
+                await MainActor.run {
+                    answer = (error as? RecipeServiceError)?.errorDescription
+                        ?? "Couldn't reach the chef right now — check your connection and try again."
+                    isLoading = false
+                }
             }
         }
     }

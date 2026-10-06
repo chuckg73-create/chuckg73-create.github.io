@@ -36,7 +36,11 @@ final class ProfileStore {
             profile = LocalStore.load(TasteProfile.self, from: fileName) ?? .starter
             hasOnboarded = LocalStore.load([Bool].self, from: onboardFileName)?.first ?? false
         }
-        photoData = try? Data(contentsOf: photoURL)
+        // Load photo off the main thread to avoid blocking launch.
+        let url = photoURL
+        Task { @MainActor [weak self] in
+            self?.photoData = try? Data(contentsOf: url)
+        }
     }
 
     func savePhoto(_ data: Data) {

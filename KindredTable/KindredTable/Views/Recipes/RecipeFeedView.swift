@@ -14,6 +14,7 @@ struct RecipeFeedView: View {
     @Environment(RecentSuggestionsStore.self) private var recent
 
     @State private var model = RecipeFeedModel()
+    @State private var refreshTask: Task<Void, Never>?
     /// Meal-type filter. nil = show all types.
     @State private var selectedMealType: MealType?
     @State private var showHousehold = false
@@ -65,7 +66,9 @@ struct RecipeFeedView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: tasteSignals, useUpItems: pantry.useUpNames()) }
+                        let p = effectiveProfile; let i = pantry.ingredients; let s = household.servings; let sp = household.specialOccasion; let t = tasteSignals; let u = pantry.useUpNames()
+                        refreshTask?.cancel()
+                        refreshTask = Task { await model.refresh(ingredients: i, profile: p, servings: s, special: sp, tasteFeedback: t, useUpItems: u) }
                     } label: {
                         Image(systemName: "arrow.clockwise")
                     }
@@ -74,7 +77,9 @@ struct RecipeFeedView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: surpriseSignals, useUpItems: pantry.useUpNames()) }
+                        let p = effectiveProfile; let i = pantry.ingredients; let s = household.servings; let sp = household.specialOccasion; let t = surpriseSignals; let u = pantry.useUpNames()
+                        refreshTask?.cancel()
+                        refreshTask = Task { await model.refresh(ingredients: i, profile: p, servings: s, special: sp, tasteFeedback: t, useUpItems: u) }
                     } label: {
                         Image(systemName: "dice.fill")
                     }
@@ -106,8 +111,11 @@ struct RecipeFeedView: View {
                 await model.loadIfNeeded(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: tasteSignals, useUpItems: pantry.useUpNames())
             }
             .onChange(of: household.signature(you: profileStore.profile)) {
-                Task { await model.refresh(ingredients: pantry.ingredients, profile: effectiveProfile, servings: household.servings, special: household.specialOccasion, tasteFeedback: tasteSignals, useUpItems: pantry.useUpNames()) }
+                let p = effectiveProfile; let i = pantry.ingredients; let s = household.servings; let sp = household.specialOccasion; let t = tasteSignals; let u = pantry.useUpNames()
+                refreshTask?.cancel()
+                refreshTask = Task { await model.refresh(ingredients: i, profile: p, servings: s, special: sp, tasteFeedback: t, useUpItems: u) }
             }
+            .onDisappear { refreshTask?.cancel() }
             .sheet(isPresented: $showHousehold) { HouseholdView() }
             .sheet(isPresented: $showCrave) { CraveSearchView() }
             .sheet(isPresented: $showPlan) { MealPlanView() }
@@ -190,6 +198,19 @@ struct RecipeFeedView: View {
                     if model.usingSamples { sampleBanner }
                     if pantry.isEmpty { addIngredientNudge }
                     if !pantry.agingItems().isEmpty { useItUpBanner }
+                    if shown.isEmpty && onHandOnly {
+                        VStack(spacing: 12) {
+                            Image(systemName: "cart.badge.questionmark")
+                                .font(.system(size: 40)).foregroundStyle(KindredTheme.faint)
+                            Text("Nothing to cook right now without shopping")
+                                .font(.headline).foregroundStyle(KindredTheme.text).multilineTextAlignment(.center)
+                            Text("Turn off \"No shopping\" to see all ideas, or add more to your pantry.")
+                                .font(.subheadline).foregroundStyle(KindredTheme.subtext).multilineTextAlignment(.center)
+                            Button("Show all ideas") { onHandOnly = false }
+                                .font(.subheadline.weight(.semibold)).foregroundStyle(KindredTheme.accent)
+                        }
+                        .padding(30)
+                    }
                     ForEach(shown) { recipe in
                         NavigationLink {
                             RecipeDetailView(recipe: recipe)

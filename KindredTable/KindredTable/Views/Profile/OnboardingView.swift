@@ -22,7 +22,13 @@ struct OnboardingView: View {
 
     private var welcome: some View {
         VStack(spacing: 0) {
-            Spacer(minLength: 20)
+            HStack {
+                Spacer()
+                Button("Skip") { profileStore.hasOnboarded = true }
+                    .font(.subheadline).foregroundStyle(KindredTheme.faint)
+                    .padding(.trailing, 24).padding(.top, 16)
+            }
+            Spacer(minLength: 8)
 
             // Sample result: show what the app actually produces before asking anything.
             VStack(alignment: .leading, spacing: 10) {
@@ -104,6 +110,12 @@ struct OnboardingView: View {
     private func quickTaste(store storeRef: ProfileStore) -> some View {
         @Bindable var store = storeRef
         return VStack(spacing: 20) {
+            HStack {
+                Spacer()
+                Button("Skip") { store.hasOnboarded = true }
+                    .font(.subheadline).foregroundStyle(KindredTheme.faint)
+                    .padding(.trailing, 24).padding(.top, 16)
+            }
             VStack(spacing: 8) {
                 Text("A little about your taste")
                     .font(.title2).fontWeight(.bold)
@@ -112,7 +124,7 @@ struct OnboardingView: View {
                     .foregroundStyle(KindredTheme.subtext)
                     .multilineTextAlignment(.center)
             }
-            .padding(.top, 40)
+            .padding(.top, 8)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {

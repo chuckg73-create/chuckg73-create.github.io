@@ -108,6 +108,11 @@ struct HouseholdView: View {
                 Label("Remove \(guest.name)", systemImage: "trash")
             }
         }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive) { household.remove(guest) } label: {
+                Label("Remove", systemImage: "trash")
+            }
+        }
     }
 
     private var actions: some View {
