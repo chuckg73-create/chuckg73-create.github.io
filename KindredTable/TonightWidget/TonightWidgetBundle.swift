@@ -5,5 +5,6 @@ import SwiftUI
 struct TonightWidgetBundle: WidgetBundle {
     var body: some Widget {
         TonightWidget()
+        CookingLiveActivity()
     }
 }

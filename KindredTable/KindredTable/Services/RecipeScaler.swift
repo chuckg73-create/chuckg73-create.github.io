@@ -28,6 +28,44 @@ enum RecipeScaler {
         return copy
     }
 
+    // MARK: - Baker's percentages
+
+    /// For a baking recipe, return each ingredient's baker's percentage (relative
+    /// to total flour weight). Returns nil when no flour-like ingredient is found
+    /// or the flour quantity can't be parsed.
+    static func bakersPercentages(for recipe: Recipe) -> [(name: String, amount: String, percent: String)]? {
+        guard recipe.recipeType == .baking else { return nil }
+        let flourNames = ["flour", "bread flour", "all-purpose flour", "whole wheat flour",
+                          "almond flour", "oat flour", "rye flour", "cake flour"]
+        guard let flourIng = recipe.ingredients.first(where: { ing in
+            flourNames.contains(where: { ing.name.lowercased().contains($0) })
+        }), let flourQty = leadingQuantity(in: flourIng.amount) else { return nil }
+
+        let flourBase = flourQty.values.first ?? 1
+        guard flourBase > 0 else { return nil }
+
+        return recipe.ingredients.map { ing in
+            if let q = leadingQuantity(in: ing.amount), let first = q.values.first {
+                let pct = (first / flourBase) * 100
+                let pctStr = pct >= 10 ? String(Int(pct.rounded())) + "%" : String(format: "%.1f%%", pct)
+                return (ing.name, ing.amount, pctStr)
+            }
+            return (ing.name, ing.amount, "—")
+        }
+    }
+
+    /// For a cocktail recipe scaled past 4x, return the recommended pre-dilution
+    /// water to add to the batch (replaces per-drink stirring/shaking).
+    /// Returns nil for standard recipes or scales ≤ 4.
+    static func batchDilutionNote(recipe: Recipe, scaledTo target: Int) -> String? {
+        guard recipe.recipeType == .cocktail else { return nil }
+        let factor = Double(target) / Double(max(1, recipe.servings))
+        guard factor > 4 else { return nil }
+        // Standard dilution: ~20% of total spirit volume. We can't know exact
+        // spirit volume from strings, so give a rule-of-thumb note instead.
+        return "For a batch of \(target), pre-chill the mixture and add about 20% of its volume as water before serving — this replaces the dilution from stirring each drink individually."
+    }
+
     /// Scale a single amount string by `factor`. Returns the original string
     /// unchanged when there's no leading number to scale.
     static func scaleAmount(_ amount: String, by factor: Double) -> String {
@@ -46,14 +84,14 @@ enum RecipeScaler {
 
     // MARK: - Parsing
 
-    private struct Quantity {
+    struct Quantity {
         var values: [Double]     // one, or two for a range
         var separator: String    // "-" or " to " — preserved in output
         var remainder: String    // the unit + any trailing text
     }
 
     /// Pull a leading number / fraction / range off the front of `text`.
-    private static func leadingQuantity(in text: String) -> Quantity? {
+    static func leadingQuantity(in text: String) -> Quantity? {
         let scalar = Array(text)
         var i = 0
 

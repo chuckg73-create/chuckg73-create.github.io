@@ -21,6 +21,7 @@ struct RecipeDetailView: View {
     /// The ingredient the cook is swapping (drives the substitute sheet).
     @State private var substituteTarget: RecipeIngredient?
     @State private var addedToList = false
+    @State private var showBakersPercent = false
     /// Keeps the display awake while cooking (no auto-lock).
     @State private var keepAwake = false
     @State private var showCookMode = false
@@ -552,8 +553,14 @@ struct RecipeDetailView: View {
                         .font(.caption2).foregroundStyle(KindredTheme.faint)
                 }
                 scaleControl
-                ForEach(Array(displayed.ingredients.enumerated()), id: \.offset) { idx, ing in
-                    ingredientRow(ing, base: idx < recipe.ingredients.count ? recipe.ingredients[idx] : ing)
+                ratioScalingBanner
+                if showBakersPercent,
+                   let rows = RecipeScaler.bakersPercentages(for: displayed) {
+                    bakersPercentView(rows)
+                } else {
+                    ForEach(Array(displayed.ingredients.enumerated()), id: \.offset) { idx, ing in
+                        ingredientRow(ing, base: idx < recipe.ingredients.count ? recipe.ingredients[idx] : ing)
+                    }
                 }
                 let toBuy = displayed.needsToBuy.filter { !staples.covers($0) }
                 if !toBuy.isEmpty {
@@ -573,6 +580,63 @@ struct RecipeDetailView: View {
                 }
             }
         }
+    }
+
+    /// Baker's % toggle (baking) or cocktail batch note (cocktail).
+    @ViewBuilder
+    private var ratioScalingBanner: some View {
+        if recipe.recipeType == .baking,
+           RecipeScaler.bakersPercentages(for: recipe) != nil {
+            HStack(spacing: 10) {
+                Image(systemName: showBakersPercent ? "percent" : "list.number")
+                    .font(.caption).foregroundStyle(KindredTheme.amber)
+                Text(showBakersPercent ? "Baker's percentages" : "Show baker's percentages")
+                    .font(.caption.weight(.medium)).foregroundStyle(KindredTheme.amber)
+                Spacer()
+                Toggle("", isOn: $showBakersPercent).labelsHidden().tint(KindredTheme.amber)
+            }
+            .padding(.horizontal, 12).padding(.vertical, 10)
+            .background(KindredTheme.amber.opacity(0.08),
+                        in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        } else if recipe.recipeType == .cocktail,
+                  let note = RecipeScaler.batchDilutionNote(recipe: recipe, scaledTo: displayServings) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "drop.fill").font(.caption).foregroundStyle(KindredTheme.blue)
+                Text(note).font(.caption).foregroundStyle(KindredTheme.blue)
+            }
+            .padding(.horizontal, 12).padding(.vertical, 10)
+            .background(KindredTheme.blue.opacity(0.08),
+                        in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+    }
+
+    private func bakersPercentView(_ rows: [(name: String, amount: String, percent: String)]) -> some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Ingredient").font(.caption.weight(.semibold)).foregroundStyle(KindredTheme.faint)
+                Spacer()
+                Text("Amount").font(.caption.weight(.semibold)).foregroundStyle(KindredTheme.faint)
+                    .frame(width: 80, alignment: .trailing)
+                Text("%").font(.caption.weight(.semibold)).foregroundStyle(KindredTheme.amber)
+                    .frame(width: 44, alignment: .trailing)
+            }
+            .padding(.horizontal, 2).padding(.bottom, 6)
+            .tracking(0.4)
+            ForEach(rows, id: \.name) { row in
+                HStack(spacing: 8) {
+                    Text(row.name).font(.subheadline).foregroundStyle(KindredTheme.text)
+                    Spacer()
+                    Text(row.amount).font(.subheadline.monospacedDigit())
+                        .foregroundStyle(KindredTheme.subtext).frame(width: 80, alignment: .trailing)
+                    Text(row.percent).font(.subheadline.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(row.percent == "100%" ? KindredTheme.amber : KindredTheme.text)
+                        .frame(width: 44, alignment: .trailing)
+                }
+                .padding(.vertical, 6)
+                Divider()
+            }
+        }
+        .padding(.horizontal, 2)
     }
 
     /// Scale-to-servings control: amounts rescale live, on-device. The heart of

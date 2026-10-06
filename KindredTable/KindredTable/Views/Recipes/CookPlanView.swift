@@ -63,29 +63,77 @@ struct CookPlanView: View {
     }
 
     private var schedulePreview: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 12) {
             SectionHeader(label: "Your timeline")
-            ForEach(Array(tasks.enumerated()), id: \.element.id) { index, task in
-                if index > 0 { Divider().overlay(KindredTheme.hairline) }
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    Text(task.fireAt, format: .dateTime.hour().minute())
-                        .font(.subheadline.weight(.semibold)).monospacedDigit()
-                        .foregroundStyle(task.isPast ? KindredTheme.faint : KindredTheme.accent)
-                        .frame(width: 78, alignment: .leading)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(task.task)
-                            .font(.subheadline)
-                            .foregroundStyle(task.isPast ? KindredTheme.faint : KindredTheme.text)
-                        Text(beforeLabel(task.minutesBeforeServing) + (task.isPast ? " · already passed" : ""))
-                            .font(.caption2).foregroundStyle(KindredTheme.faint)
-                    }
-                    Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(tasks.enumerated()), id: \.element.id) { index, task in
+                    timelineRow(task: task, index: index, total: tasks.count)
                 }
-                .padding(.vertical, 10)
             }
         }
-        .padding(.horizontal, 14).padding(.vertical, 6)
-        .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private func timelineRow(task: CookPlanner.ScheduledTask, index: Int, total: Int) -> some View {
+        let isLast = index == total - 1
+        let isNow = !task.isPast && (index == 0 || tasks[index - 1].isPast)
+        let nodeColor: Color = task.isPast ? KindredTheme.faint : isLast ? KindredTheme.mint : isNow ? KindredTheme.amber : KindredTheme.accent
+
+        return HStack(alignment: .top, spacing: 0) {
+            // Time column
+            Text(task.fireAt, format: .dateTime.hour().minute())
+                .font(.caption.weight(.semibold)).monospacedDigit()
+                .foregroundStyle(task.isPast ? KindredTheme.faint : nodeColor)
+                .frame(width: 52, alignment: .leading)
+
+            // Line + node
+            VStack(spacing: 0) {
+                if index > 0 {
+                    Rectangle()
+                        .fill(tasks[index - 1].isPast ? KindredTheme.faint.opacity(0.4) : KindredTheme.accent.opacity(0.3))
+                        .frame(width: 2, height: 14)
+                }
+                ZStack {
+                    Circle().fill(nodeColor.opacity(0.15)).frame(width: 22, height: 22)
+                    Circle().fill(nodeColor).frame(width: isLast ? 12 : isNow ? 10 : 8, height: isLast ? 12 : isNow ? 10 : 8)
+                    if isLast {
+                        Image(systemName: "fork.knife")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+                }
+                if !isLast {
+                    Rectangle()
+                        .fill(task.isPast ? KindredTheme.faint.opacity(0.4) : KindredTheme.accent.opacity(0.3))
+                        .frame(width: 2)
+                        .frame(maxHeight: .infinity)
+                }
+            }
+            .frame(width: 24)
+
+            // Task description
+            VStack(alignment: .leading, spacing: 2) {
+                Text(task.task)
+                    .font(isLast ? .subheadline.weight(.semibold) : .subheadline)
+                    .foregroundStyle(task.isPast ? KindredTheme.faint : KindredTheme.text)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 4) {
+                    if isNow && !task.isPast {
+                        Text("Now")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(KindredTheme.amber)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(KindredTheme.amber.opacity(0.12), in: Capsule())
+                    }
+                    Text(beforeLabel(task.minutesBeforeServing) + (task.isPast ? " · done" : ""))
+                        .font(.caption2).foregroundStyle(KindredTheme.faint)
+                }
+            }
+            .padding(.leading, 10)
+            .padding(.vertical, 10)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 14)
+        .background(isNow && !task.isPast ? KindredTheme.amber.opacity(0.04) : Color.clear)
     }
 
     private var actionButton: some View {

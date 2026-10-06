@@ -73,14 +73,26 @@ struct CookModeView: View {
             session.start(title: recipe.title, steps: recipe.steps)
             UIApplication.shared.isIdleTimerDisabled = true
             if autoSpeak { voice.speak(session.spokenCurrent) }
+            CookingActivityManager.shared.start(recipe: recipe)
         }
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = false
             voice.stopListening()
             voice.stopSpeaking()
+            CookingActivityManager.shared.end()
         }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in tick() }
-        .onChange(of: session.stepNumber) { _, _ in stepTimerStarted = false }
+        .onChange(of: session.stepNumber) { _, _ in
+            stepTimerStarted = false
+            let nextTimer = activeTimers.filter { $0.isRunning && !$0.isFinished }.first
+            let timerEnd = nextTimer.map { Date().addingTimeInterval(TimeInterval($0.remaining)) }
+            CookingActivityManager.shared.update(
+                stepNumber: session.stepNumber,
+                totalSteps: session.totalSteps,
+                stepText: session.currentStep,
+                timerEnd: timerEnd
+            )
+        }
         .onChange(of: dishPhotoItem) { _, item in
             guard let item else { return }
             Task {

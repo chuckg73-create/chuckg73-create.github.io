@@ -20,6 +20,13 @@ struct TimelineTask: Codable, Hashable {
     var minutesBeforeServing: Int
 }
 
+/// Broad category that drives ratio-aware scaling and UI hints.
+enum RecipeType: String, Codable, Hashable {
+    case standard   // default — flat scaling works fine
+    case baking     // flour-based; show baker's percentages
+    case cocktail   // liquid ratios; pre-dilute when batching large volumes
+}
+
 /// Where a recipe came from: matched by the app, or added by the cook from a
 /// photo of a recipe card (their mom's, a magazine clipping…).
 enum RecipeSource: String, Codable, Hashable {
@@ -47,6 +54,7 @@ struct Recipe: Identifiable, Codable, Hashable {
     var summary: String
     var mealType: MealType
     /// How this recipe entered the cookbook.
+    var recipeType: RecipeType
     var source: RecipeSource
     /// Optional attribution for an imported recipe — "Mom's", "Grandma Rose".
     var sourceNote: String
@@ -99,6 +107,7 @@ struct Recipe: Identifiable, Codable, Hashable {
         title: String,
         summary: String,
         mealType: MealType = .dinner,
+        recipeType: RecipeType = .standard,
         source: RecipeSource = .app,
         sourceNote: String = "",
         story: String = "",
@@ -121,6 +130,7 @@ struct Recipe: Identifiable, Codable, Hashable {
         self.title = title
         self.summary = summary
         self.mealType = mealType
+        self.recipeType = recipeType
         self.source = source
         self.sourceNote = sourceNote
         self.story = story
@@ -141,7 +151,7 @@ struct Recipe: Identifiable, Codable, Hashable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, title, summary, mealType, source, sourceNote, story, imageURL, ingredients, steps, tips, cooksNotes
+        case id, title, summary, mealType, recipeType, source, sourceNote, story, imageURL, ingredients, steps, tips, cooksNotes
         case servings, prepMinutes, cookMinutes, difficulty, tags, matchScore, whyYoullLikeIt, timeline, nutrition
     }
 
@@ -158,6 +168,7 @@ struct Recipe: Identifiable, Codable, Hashable {
         title = try c.decodeIfPresent(String.self, forKey: .title) ?? ""
         summary = try c.decodeIfPresent(String.self, forKey: .summary) ?? ""
         mealType = try c.decodeIfPresent(MealType.self, forKey: .mealType) ?? .dinner
+        recipeType = try c.decodeIfPresent(RecipeType.self, forKey: .recipeType) ?? .standard
         source = try c.decodeIfPresent(RecipeSource.self, forKey: .source) ?? .app
         sourceNote = try c.decodeIfPresent(String.self, forKey: .sourceNote) ?? ""
         story = try c.decodeIfPresent(String.self, forKey: .story) ?? ""
