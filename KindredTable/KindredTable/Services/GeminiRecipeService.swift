@@ -1376,3 +1376,44 @@ private struct RecipePayload: Decodable {
         }
     }
 }
+
+// MARK: - Technique guide
+
+extension GeminiRecipeService {
+    /// Generate a step-by-step cooking technique guide for anything from
+    /// "how to fillet a fish" to "perfect soft-boiled egg".
+    func technique(name: String) async throws -> TechniqueGuide {
+        let prompt = """
+        You are a professional culinary instructor. Explain the cooking technique "\(name)" \
+        in clear, practical steps a home cook can follow.
+
+        Return ONLY valid JSON matching this exact schema — no markdown, no extra keys:
+        {
+          "title": "How to <technique>",
+          "difficulty": "beginner|intermediate|advanced",
+          "timeEstimate": "e.g. 5 minutes",
+          "intro": "One or two sentences explaining what this technique is and why it matters.",
+          "steps": ["Step 1 as a complete sentence.", "Step 2 ...", ...],
+          "tips": ["Pro tip 1.", "Pro tip 2.", "Pro tip 3."],
+          "youtubeQuery": "short search query for a YouTube tutorial video"
+        }
+
+        Rules:
+        - steps: 4-8 clear, numbered-action steps (write the action, not "Step N:")
+        - tips: exactly 3 practical tips
+        - difficulty: beginner for everyday tasks, intermediate for knife skills / heat control, advanced for professional techniques
+        - youtubeQuery: optimized for finding a good beginner tutorial (include "how to" + technique name)
+        """
+
+        guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
+        let request = try makeRequest(prompt: prompt, apiKey: apiKey)
+        let (data, _) = try await session.data(for: request)
+        let raw = try Self.extractText(from: data)
+        let cleaned = raw
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "^```json\\s*", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "```$", with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return try JSONDecoder().decode(TechniqueGuide.self, from: Data(cleaned.utf8))
+    }
+}

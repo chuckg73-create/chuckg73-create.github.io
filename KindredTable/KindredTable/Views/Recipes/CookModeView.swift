@@ -37,6 +37,9 @@ struct CookModeView: View {
     @State private var subAnswer: String?
     @State private var subLoading = false
 
+    // Technique look-up
+    @State private var techniqueQuery: String?
+
     // Finished dish photo
     @State private var showDishPhotoOptions = false
     @State private var dishPhotoItem: PhotosPickerItem?
@@ -249,31 +252,89 @@ struct CookModeView: View {
         }
     }
 
-    /// Quick-action row: substitution + add another timer.
+    /// Quick-action row: substitution + add another timer + technique lookup.
     private var quickActions: some View {
-        HStack(spacing: 10) {
-            Button { showSubstitution = true } label: {
-                Label("Substitute", systemImage: "arrow.2.squarepath")
-                    .font(.caption.weight(.semibold))
-                    .frame(maxWidth: .infinity).padding(.vertical, 10)
-                    .foregroundStyle(KindredTheme.accent)
-                    .background(KindredTheme.accent.opacity(0.12),
-                                in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            }
-            .buttonStyle(.plain)
+        VStack(spacing: 8) {
+            HStack(spacing: 10) {
+                Button { showSubstitution = true } label: {
+                    Label("Substitute", systemImage: "arrow.2.squarepath")
+                        .font(.caption.weight(.semibold))
+                        .frame(maxWidth: .infinity).padding(.vertical, 10)
+                        .foregroundStyle(KindredTheme.accent)
+                        .background(KindredTheme.accent.opacity(0.12),
+                                    in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .buttonStyle(.plain)
 
-            Button { showManualTimer = true } label: {
-                Label("Add timer", systemImage: "plus.circle")
-                    .font(.caption.weight(.semibold))
-                    .frame(maxWidth: .infinity).padding(.vertical, 10)
-                    .foregroundStyle(KindredTheme.subtext)
-                    .background(KindredTheme.card,
-                                in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 12)
-                        .stroke(KindredTheme.hairline, lineWidth: 1))
+                Button { showManualTimer = true } label: {
+                    Label("Add timer", systemImage: "plus.circle")
+                        .font(.caption.weight(.semibold))
+                        .frame(maxWidth: .infinity).padding(.vertical, 10)
+                        .foregroundStyle(KindredTheme.subtext)
+                        .background(KindredTheme.card,
+                                    in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 12)
+                            .stroke(KindredTheme.hairline, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+            if let keyword = detectedTechnique(in: session.currentStep) {
+                Button { techniqueQuery = keyword } label: {
+                    Label("How to \(keyword)?", systemImage: "book.pages.fill")
+                        .font(.caption.weight(.semibold))
+                        .frame(maxWidth: .infinity).padding(.vertical, 10)
+                        .foregroundStyle(KindredTheme.blue)
+                        .background(KindredTheme.blue.opacity(0.10),
+                                    in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 12)
+                            .stroke(KindredTheme.blue.opacity(0.2), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
         }
+        .animation(.spring(duration: 0.3), value: session.stepNumber)
+        .sheet(isPresented: Binding(
+            get: { techniqueQuery != nil },
+            set: { if !$0 { techniqueQuery = nil } }
+        )) {
+            if let q = techniqueQuery {
+                NavigationStack { TechniqueDetailView(query: q) }
+            }
+        }
+    }
+
+    /// Scans a step string for recognisable technique keywords and returns a
+    /// short human-readable phrase to look up if one is found.
+    private func detectedTechnique(in step: String) -> String? {
+        let lower = step.lowercased()
+        let pairs: [(keyword: String, label: String)] = [
+            ("julienne", "julienne vegetables"),
+            ("brunoise", "brunoise dice"),
+            ("chiffonade", "chiffonade herbs"),
+            ("deglaze", "deglaze a pan"),
+            ("blanch", "blanch vegetables"),
+            ("beurre blanc", "make a beurre blanc"),
+            ("brine", "brine chicken"),
+            ("render", "render fat"),
+            ("emulsif", "emulsify a sauce"),
+            ("temper", "temper chocolate"),
+            ("proof", "proof yeast"),
+            ("knead", "knead dough"),
+            ("fold in", "fold egg whites into batter"),
+            ("soft.?boil", "soft boil an egg"),
+            ("hard.?boil", "hard boil an egg"),
+            ("poach", "poach an egg"),
+            ("caramel", "make caramel"),
+            ("sear", "sear meat"),
+            ("roux", "make a roux"),
+        ]
+        for pair in pairs {
+            if lower.range(of: pair.keyword, options: .regularExpression) != nil {
+                return pair.label
+            }
+        }
+        return nil
     }
 
     private func tick() {

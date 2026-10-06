@@ -145,30 +145,47 @@ struct CookbookView: View {
     }
 
     private var journalRow: some View {
-        NavigationLink {
-            RecipeJournalView()
-        } label: {
-            HStack(spacing: 14) {
-                Image(systemName: "clock.arrow.circlepath")
-                    .font(.title3).foregroundStyle(KindredTheme.amber)
-                    .frame(width: 40, height: 40)
-                    .background(KindredTheme.amber.opacity(0.12),
-                                in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Cooking history")
-                        .font(.subheadline.weight(.semibold)).foregroundStyle(KindredTheme.text)
-                    Text("\(feedback.ratings.count) dish\(feedback.ratings.count == 1 ? "" : "es") rated")
-                        .font(.caption).foregroundStyle(KindredTheme.subtext)
-                }
-                Spacer()
-                Image(systemName: "chevron.right").font(.caption2).foregroundStyle(KindredTheme.faint)
+        VStack(spacing: 10) {
+            NavigationLink {
+                RecipeJournalView()
+            } label: {
+                utilityRow(icon: "clock.arrow.circlepath", tint: KindredTheme.amber,
+                           title: "Cooking history",
+                           detail: "\(feedback.ratings.count) dish\(feedback.ratings.count == 1 ? "" : "es") rated")
             }
-            .padding(14)
-            .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(KindredTheme.hairline, lineWidth: 1))
+            .buttonStyle(.plain)
+
+            NavigationLink {
+                TechniquesView()
+            } label: {
+                utilityRow(icon: "book.pages.fill", tint: KindredTheme.blue,
+                           title: "Technique guides",
+                           detail: "How to fillet fish, soft-boil eggs, make a roux, and more")
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
+    }
+
+    private func utilityRow(icon: String, tint: Color, title: String, detail: String) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.title3).foregroundStyle(tint)
+                .frame(width: 40, height: 40)
+                .background(tint.opacity(0.12),
+                            in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(KindredTheme.text)
+                Text(detail)
+                    .font(.caption).foregroundStyle(KindredTheme.subtext)
+            }
+            Spacer()
+            Image(systemName: "chevron.right").font(.caption2).foregroundStyle(KindredTheme.faint)
+        }
+        .padding(14)
+        .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .stroke(KindredTheme.hairline, lineWidth: 1))
     }
 
     private var emptyState: some View {
