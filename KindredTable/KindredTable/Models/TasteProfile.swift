@@ -21,6 +21,8 @@ struct TasteProfile: Codable, Hashable {
     /// heart-healthy, whole-food plant-based). Distinct from `diets`, which are
     /// hard exclusions.
     var eatingStyles: Set<EatingStyle>
+    /// Display name shown in household sharing and the profile header.
+    var name: String
 
     init(
         diets: Set<Diet> = [],
@@ -32,7 +34,8 @@ struct TasteProfile: Codable, Hashable {
         maxCookMinutes: Int = 45,
         equipment: [String] = [],
         notes: String = "",
-        eatingStyles: Set<EatingStyle> = []
+        eatingStyles: Set<EatingStyle> = [],
+        name: String = ""
     ) {
         self.diets = diets
         self.lovedCuisines = lovedCuisines
@@ -44,6 +47,7 @@ struct TasteProfile: Codable, Hashable {
         self.equipment = equipment
         self.notes = notes
         self.eatingStyles = eatingStyles
+        self.name = name
     }
 
     /// Tolerant decoding so profiles saved by older versions (without newer
@@ -60,11 +64,12 @@ struct TasteProfile: Codable, Hashable {
         equipment = try c.decodeIfPresent([String].self, forKey: .equipment) ?? []
         notes = try c.decodeIfPresent(String.self, forKey: .notes) ?? ""
         eatingStyles = try c.decodeIfPresent(Set<EatingStyle>.self, forKey: .eatingStyles) ?? []
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
     }
 
     private enum CodingKeys: String, CodingKey {
         case diets, lovedCuisines, dislikedIngredients, allergens
-        case spiceLevel, skill, maxCookMinutes, equipment, notes, eatingStyles
+        case spiceLevel, skill, maxCookMinutes, equipment, notes, eatingStyles, name
     }
 
     /// Common appliances offered as quick-add chips in the profile editor.

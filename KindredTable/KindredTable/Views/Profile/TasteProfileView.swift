@@ -1,18 +1,22 @@
 import SwiftUI
+import PhotosUI
 
 /// Edits the user's taste profile — their cooking "DNA" used to personalise
 /// suggestions. Bound directly to the persisted `ProfileStore`.
 struct TasteProfileView: View {
     @Environment(ProfileStore.self) private var profileStore
+    @Environment(HouseholdStore.self) private var household
     @Environment(TasteFeedbackStore.self) private var feedback
     @Environment(TastePreferenceStore.self) private var preferences
     @Environment(StaplesStore.self) private var staples
     @Environment(PantryStore.self) private var pantry
     @Environment(\.dismiss) private var dismiss
     @State private var showEquipmentScan = false
+    @State private var showHousehold = false
     @State private var stapleDraft = ""
     @State private var showFullResetConfirm = false
     @State private var nudgeEnabled = DinnerNudgeService.isEnabled
+    @State private var photoItem: PhotosPickerItem?
 
     var body: some View {
         @Bindable var store = profileStore
@@ -20,6 +24,8 @@ struct TasteProfileView: View {
         ZStack {
             KindredBackground()
             Form {
+                profileHeaderSection(store: store)
+                cookingForSection
                 if !feedback.isEmpty || !preferences.isEmpty { learnedSection }
                 dietSection(store: store)
                 eatingStyleSection(store: store)
@@ -92,6 +98,7 @@ struct TasteProfileView: View {
                 .listRowBackground(KindredTheme.card)
 
                 apiStatusSection
+                aboutSection
                 fullResetSection
             }
             .scrollContentBackground(.hidden)
@@ -104,6 +111,16 @@ struct TasteProfileView: View {
             }
         }
         .sheet(isPresented: $showEquipmentScan) { EquipmentScanView() }
+        .sheet(isPresented: $showHousehold) { HouseholdView() }
+        .onChange(of: photoItem) { _, item in
+            guard let item else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self) {
+                    profileStore.savePhoto(data)
+                }
+                photoItem = nil
+            }
+        }
         .alert("Reset your taste profile?", isPresented: $showFullResetConfirm) {
             Button("Reset Everything", role: .destructive) { profileStore.profile = .empty }
             Button("Cancel", role: .cancel) {}
@@ -311,6 +328,110 @@ struct TasteProfileView: View {
             Text("Kitchen equipment")
         } footer: {
             Text("Suggestions favor methods your gear enables — air-frying, smoking, sous vide, and so on.")
+        }
+        .listRowBackground(KindredTheme.card)
+    }
+
+    // MARK: - Profile header
+
+    private func profileHeaderSection(store: ProfileStore) -> some View {
+        Section {
+            VStack(spacing: 14) {
+                PhotosPicker(selection: $photoItem, matching: .images) {
+                    ZStack(alignment: .bottomTrailing) {
+                        if let data = store.photoData, let uiImage = UIImage(data: data) {
+                            Image(uiImage: uiImage)
+                                .resizable().scaledToFill()
+                                .frame(width: 88, height: 88)
+                                .clipShape(Circle())
+                                .overlay(Circle().stroke(KindredTheme.hairline, lineWidth: 1.5))
+                        } else {
+                            Circle()
+                                .fill(KindredTheme.card)
+                                .frame(width: 88, height: 88)
+                                .overlay(
+                                    Image(systemName: "person.fill")
+                                        .font(.system(size: 38))
+                                        .foregroundStyle(KindredTheme.faint)
+                                )
+                                .overlay(Circle().stroke(KindredTheme.hairline, lineWidth: 1.5))
+                        }
+                        Image(systemName: "camera.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(KindredTheme.accent)
+                            .background(KindredTheme.background, in: Circle().inset(by: 3))
+                    }
+                }
+                @Bindable var s = store
+                TextField("Your name", text: $s.profile.name)
+                    .multilineTextAlignment(.center)
+                    .font(.headline)
+                    .foregroundStyle(KindredTheme.text)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+        }
+        .listRowBackground(KindredTheme.card)
+    }
+
+    // MARK: - Cooking for
+
+    private var cookingForSection: some View {
+        Section {
+            Button {
+                showHousehold = true
+            } label: {
+                HStack(spacing: 12) {
+                    ZStack {
+                        if household.isSharedCook {
+                            Image(systemName: "figure.2.and.child.holdinghands")
+                                .font(.title3).foregroundStyle(KindredTheme.accent)
+                        } else {
+                            Image(systemName: "person.fill")
+                                .font(.title3).foregroundStyle(KindredTheme.faint)
+                        }
+                    }
+                    .frame(width: 32)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Cooking for")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(KindredTheme.text)
+                        Text(household.isSharedCook
+                             ? household.cookingForSummary()
+                             : "Just you -- add family members to blend tastes")
+                            .font(.caption)
+                            .foregroundStyle(household.isSharedCook ? KindredTheme.accent : KindredTheme.subtext)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption2).foregroundStyle(KindredTheme.faint)
+                }
+            }
+            .foregroundStyle(KindredTheme.text)
+        } footer: {
+            Text("Add family members by QR code -- KindredTable blends everyone's taste and skips anything someone dislikes or is allergic to.")
+        }
+        .listRowBackground(KindredTheme.card)
+    }
+
+    // MARK: - About
+
+    private var aboutSection: some View {
+        Section("About") {
+            HStack {
+                Label("KindredTable", systemImage: "fork.knife.circle.fill")
+                    .foregroundStyle(KindredTheme.text)
+                Spacer()
+                Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "3.4")")
+                    .font(.subheadline).foregroundStyle(KindredTheme.faint)
+            }
+            NavigationLink {
+                WhatsNewView()
+            } label: {
+                Label("What's New in 3.4", systemImage: "sparkles")
+                    .foregroundStyle(KindredTheme.text)
+            }
         }
         .listRowBackground(KindredTheme.card)
     }
