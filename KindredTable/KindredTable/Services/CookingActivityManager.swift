@@ -46,7 +46,7 @@ final class CookingActivityManager {
 
     func end() {
         guard let activity else { return }
-        let final = activity.contentState
+        let final = activity.content.state
         Task {
             await activity.end(.init(state: final, staleDate: nil), dismissalPolicy: .immediate)
         }
