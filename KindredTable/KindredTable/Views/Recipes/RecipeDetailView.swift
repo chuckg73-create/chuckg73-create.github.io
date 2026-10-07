@@ -121,7 +121,9 @@ struct RecipeDetailView: View {
         .sheet(isPresented: $showPlate) {
             PlateSheet(main: recipe)
         }
-        .sheet(isPresented: $showSpruce) {
+        .sheet(isPresented: $showSpruce, onDismiss: {
+            noteDraft = notesStore.note(for: recipe)
+        }) {
             SpruceSheet(recipe: recipe)
         }
         .sheet(isPresented: $showEdit) {
