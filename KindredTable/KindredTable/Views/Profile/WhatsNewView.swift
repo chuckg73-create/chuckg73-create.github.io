@@ -43,7 +43,7 @@ struct WhatsNewView: View {
             ScrollView {
                 VStack(spacing: 24) {
                     VStack(spacing: 8) {
-                        Text("Version 3.4")
+                        Text("Version 3.4.1")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(KindredTheme.accent)
                             .padding(.horizontal, 12).padding(.vertical, 4)
