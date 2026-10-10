@@ -701,6 +701,88 @@ struct GeminiRecipeService {
         return try await runVision(prompt: prompt, jpegData: jpegData, apiKey: apiKey)
     }
 
+    /// Identify a plated dish in a photo and generate a recipe to recreate it at
+    /// home, tuned to the cook's taste profile and hard dietary rules. Returns a
+    /// single Recipe marked `.imported` with sourceNote "Recreated from photo".
+    func recreateFromPhoto(jpegData: Data, profile: TasteProfile) async throws -> Recipe {
+        guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
+
+        var lines: [String] = []
+        lines.append("Look at this photo of a plated dish. Identify what the dish is and write a complete recipe so a home cook can recreate it from scratch at home.")
+        lines.append("Rules:")
+        lines.append("- Identify the dish from the photo. Use its well-known name if it has one.")
+        lines.append("- Write a full recipe to recreate it: authentic ingredients with amounts, step-by-step method with temperatures and times, 2-4 practical tips.")
+        lines.append("- Set haveIt=false for every ingredient (the cook is shopping to make this).")
+        lines.append("- Give a realistic matchScore=0 (no pantry to match against).")
+        lines.append("- whyYoullLikeIt: one short sentence about the dish's appeal.")
+        lines.append(Self.dietaryConstraintLine(profile))
+        lines.append("- If the dish conflicts with the cook's dietary rules, adapt the recipe to comply while staying as close to the original as possible.")
+        lines.append("- If you cannot identify any dish in the photo, return {\"recipes\": []}.")
+        lines.append("Respond with ONLY this JSON, no markdown:")
+        lines.append("""
+        {
+          "recipes": [
+            {
+              "title": "string",
+              "summary": "one-sentence description",
+              "mealType": "breakfast|lunch|dinner|snack|dessert",
+              "servings": 2,
+              "prepMinutes": 0,
+              "cookMinutes": 0,
+              "ingredients": [ { "name": "ingredient", "amount": "amount", "haveIt": false } ],
+              "steps": ["step 1", "step 2"],
+              "tips": ["tip"],
+              "difficulty": "easy|medium|involved",
+              "tags": ["tag"],
+              "matchScore": 0,
+              "whyYoullLikeIt": "string",
+              "timeline": [],
+              "nutrition": { "calories": 0, "protein": 0, "carbs": 0, "fat": 0 }
+            }
+          ]
+        }
+        """)
+
+        let prompt = lines.joined(separator: "\n")
+        let url = URL(string: "\(AppConfig.workerURL)/v1beta/models/\(model):generateContent")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 60
+
+        let payload = GeminiRequest(
+            contents: [
+                .init(role: "user", parts: [
+                    .init(text: prompt),
+                    .init(inlineData: .init(mimeType: "image/jpeg", data: jpegData.base64EncodedString())),
+                ])
+            ],
+            generationConfig: .init(
+                temperature: 0.4,
+                topP: 0.95,
+                maxOutputTokens: 8192,
+                responseMimeType: "application/json",
+                thinkingConfig: .init(thinkingBudget: 0)
+            )
+        )
+        request.httpBody = try JSONEncoder().encode(payload)
+
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw RecipeServiceError.badResponse(status: -1, body: "")
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            throw RecipeServiceError.badResponse(status: http.statusCode, body: String(data: data, encoding: .utf8) ?? "")
+        }
+        let text = try Self.extractText(from: data)
+        let recipes = try Self.decodeRecipes(from: text)
+        guard var recipe = recipes.first else { throw RecipeServiceError.noRecipes }
+        recipe.source = .imported
+        recipe.sourceNote = "Recreated from photo"
+        recipe.matchScore = 0
+        return recipe
+    }
+
     /// Identify cooking equipment/appliances in a photo of the cook's kitchen —
     /// so recipe steps can be written for exactly what they own (their rice
     /// cooker, air fryer, smoker) instead of a hand-typed list.

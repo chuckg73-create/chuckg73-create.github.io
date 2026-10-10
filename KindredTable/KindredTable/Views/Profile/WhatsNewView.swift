@@ -35,6 +35,9 @@ struct WhatsNewView: View {
         ("bubble.left.and.text.bubble.right.fill", KindredTheme.accent,
          "Chef AI front and center",
          "The craving search bar is now inline on the home screen — type your idea and go straight to recipes, no extra taps."),
+        ("fork.knife.circle.fill", KindredTheme.coral,
+         "Recreate any dish from a photo",
+         "Photograph a dish at a restaurant, a friend's table, or anywhere — KindredTable identifies it and writes you a full recipe to make it at home."),
     ]
 
     var body: some View {

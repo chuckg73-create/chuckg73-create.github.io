@@ -17,6 +17,7 @@ struct CaptureView: View {
 
     @State private var showCamera = false
     @State private var showChef = false
+    @State private var showRecreate = false
     @State private var chefQuery = ""
     @FocusState private var chefFocused: Bool
     @State private var photoItems: [PhotosPickerItem] = []
@@ -57,6 +58,7 @@ struct CaptureView: View {
                         if let tonight { tonightCard(tonight.recipe, label: tonight.label) }
                         if !recentRecipes.isEmpty { jumpBackIn }
                         scanStrip
+                        recreateBanner
                         quickLinks
                         if recentRecipes.isEmpty { howItWorks }
                     }
@@ -69,6 +71,11 @@ struct CaptureView: View {
             .fullScreenCover(isPresented: $showCamera) {
                 CameraPicker { image in handle(image) }
                     .ignoresSafeArea()
+            }
+            .sheet(isPresented: $showRecreate) {
+                RecreateDishView(onCook: { recipe in
+                    goToRecipes()
+                })
             }
             .sheet(isPresented: $showChef) {
                 ChefView(initialQuery: chefQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : chefQuery)
@@ -223,6 +230,39 @@ struct CaptureView: View {
                 .font(.caption).foregroundStyle(KindredTheme.faint)
         }
         .frame(width: 168, alignment: .leading)
+    }
+
+    /// Compact banner that opens the "photograph a dish to recreate it" flow.
+    private var recreateBanner: some View {
+        Button { showRecreate = true } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "fork.knife.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(KindredTheme.coral)
+                    .frame(width: 44, height: 44)
+                    .background(KindredTheme.coral.opacity(0.14),
+                                in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Recreate a dish")
+                        .font(.subheadline).fontWeight(.semibold)
+                        .foregroundStyle(KindredTheme.text)
+                    Text("Photograph something you love — get the recipe to make it.")
+                        .font(.caption)
+                        .foregroundStyle(KindredTheme.subtext)
+                        .lineLimit(2)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(KindredTheme.faint)
+            }
+            .padding(.horizontal, 16).padding(.vertical, 14)
+            .background(KindredTheme.card,
+                        in: RoundedRectangle(cornerRadius: KindredTheme.corner, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: KindredTheme.corner, style: .continuous)
+                .stroke(KindredTheme.hairline, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     private var quickLinks: some View {
