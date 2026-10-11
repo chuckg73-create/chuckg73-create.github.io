@@ -33,7 +33,6 @@ struct KindredTableApp: App {
                     mealPlan.prunePast()
                     LocalStore.migrateLocalToCloudIfNeeded()
                 }
-                .preferredColorScheme(.dark)
                 .tint(KindredTheme.accent)
         }
     }
