@@ -704,13 +704,17 @@ struct GeminiRecipeService {
     /// Identify a plated dish in a photo and generate a recipe to recreate it at
     /// home, tuned to the cook's taste profile and hard dietary rules. Returns a
     /// single Recipe marked `.imported` with sourceNote "Recreated from photo".
-    func recreateFromPhoto(jpegData: Data, profile: TasteProfile) async throws -> Recipe {
+    func recreateFromPhoto(jpegData: Data, profile: TasteProfile, hint: String? = nil) async throws -> Recipe {
         guard let apiKey, !apiKey.isEmpty else { throw RecipeServiceError.missingAPIKey }
 
         var lines: [String] = []
-        lines.append("Look at this photo of a plated dish. Identify what the dish is and write a complete recipe so a home cook can recreate it from scratch at home.")
+        if let hint, !hint.isEmpty {
+            lines.append("Look at this photo of a plated dish. The cook tells you it is: \"\(hint)\". Use that as your primary identification — match the recipe to that specific dish and, if a restaurant is named, to that restaurant's known style.")
+        } else {
+            lines.append("Look at this photo of a plated dish. Identify what the dish is and write a complete recipe so a home cook can recreate it from scratch at home.")
+        }
         lines.append("Rules:")
-        lines.append("- Identify the dish from the photo. Use its well-known name if it has one.")
+        lines.append("- Identify the dish from the photo\(hint != nil ? " and the cook's hint" : ""). Use its well-known name if it has one.")
         lines.append("- Write a full recipe to recreate it: authentic ingredients with amounts, step-by-step method with temperatures and times, 2-4 practical tips.")
         lines.append("- Set haveIt=false for every ingredient (the cook is shopping to make this).")
         lines.append("- Give a realistic matchScore=0 (no pantry to match against).")

@@ -35,6 +35,8 @@ struct RecreateDishView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var saved = false
     @State private var showAllIngredients = false
+    @State private var dishHint = ""
+    @FocusState private var hintFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -86,8 +88,11 @@ struct RecreateDishView: View {
             }
             .padding(.top, 16)
 
+            hintField
+
             VStack(spacing: 12) {
                 Button {
+                    hintFocused = false
                     showCamera = true
                 } label: {
                     HStack(spacing: 12) {
@@ -122,6 +127,33 @@ struct RecreateDishView: View {
 
                 examplePrompts
             }
+        }
+    }
+
+    private var hintField: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Know the dish or restaurant? (optional)")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(KindredTheme.faint)
+            HStack(spacing: 10) {
+                Image(systemName: "text.magnifyingglass")
+                    .font(.subheadline).foregroundStyle(KindredTheme.accent)
+                TextField("e.g. duck confit at Bouchon", text: $dishHint)
+                    .focused($hintFocused)
+                    .submitLabel(.done)
+                    .onSubmit { hintFocused = false }
+                if !dishHint.isEmpty {
+                    Button { dishHint = "" } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(KindredTheme.faint)
+                    }
+                }
+            }
+            .padding(.horizontal, 14).padding(.vertical, 12)
+            .background(KindredTheme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(
+                hintFocused ? KindredTheme.accent.opacity(0.5) : KindredTheme.hairline, lineWidth: 1))
+            Text("Helps when the dish name or restaurant is well-known — Gemini will use it to nail the authentic recipe.")
+                .font(.caption2).foregroundStyle(KindredTheme.faint)
         }
     }
 
@@ -284,7 +316,7 @@ struct RecreateDishView: View {
             .buttonStyle(.plain)
             .disabled(saved)
 
-            Button("Try a different photo") { phase = .choose; saved = false; showAllIngredients = false }
+            Button("Try a different photo") { phase = .choose; saved = false; showAllIngredients = false; dishHint = "" }
                 .font(.caption.weight(.semibold)).foregroundStyle(KindredTheme.faint)
         }
         .padding(.top, 4)
@@ -302,7 +334,7 @@ struct RecreateDishView: View {
                     .font(.subheadline).foregroundStyle(KindredTheme.subtext)
                     .multilineTextAlignment(.center)
             }
-            Button("Try again") { phase = .choose; showAllIngredients = false }
+            Button("Try again") { phase = .choose; showAllIngredients = false; dishHint = "" }
                 .font(.headline)
                 .padding(.horizontal, 32).padding(.vertical, 14)
                 .foregroundStyle(.white)
@@ -331,11 +363,13 @@ struct RecreateDishView: View {
             return
         }
         phase = .recognizing
+        hintFocused = false
         let profile = household.effectiveProfile(you: profileStore.profile)
+        let hint = dishHint.trimmingCharacters(in: .whitespacesAndNewlines)
         let svc = service
         Task {
             do {
-                let recipe = try await svc.recreateFromPhoto(jpegData: jpeg, profile: profile)
+                let recipe = try await svc.recreateFromPhoto(jpegData: jpeg, profile: profile, hint: hint.isEmpty ? nil : hint)
                 await MainActor.run { phase = .review(recipe) }
             } catch {
                 let msg = (error as? RecipeServiceError)?.errorDescription
