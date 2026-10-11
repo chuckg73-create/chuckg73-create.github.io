@@ -715,7 +715,7 @@ struct GeminiRecipeService {
         }
         lines.append("Rules:")
         lines.append("- Identify the dish from the photo\(hint != nil ? " and the cook's hint" : ""). Use its well-known name if it has one.")
-        lines.append("- Write a full recipe to recreate it: authentic ingredients with amounts, step-by-step method with temperatures and times, 2-4 practical tips.")
+        lines.append("- Write a full recipe to recreate it: authentic ingredients with amounts, step-by-step method with temperatures and times, 2-4 practical tips. Include the exact ingredient amount inline the first time it appears in a step -- e.g. 'Add 1 cup frozen corn' not 'Add corn'.")
         lines.append("- Set haveIt=false for every ingredient (the cook is shopping to make this).")
         lines.append("- Give a realistic matchScore=0 (no pantry to match against).")
         lines.append("- whyYoullLikeIt: one short sentence about the dish's appeal.")
@@ -1168,6 +1168,7 @@ struct GeminiRecipeService {
         lines.append("- Set haveIt=true for ingredients in the ON HAND list (and common staples: salt, pepper, oil, water, basic dried spices); otherwise haveIt=false. Keep haveIt=false items to at most 4 common extras.")
         lines.append("- Include 'servings', 'prepMinutes' and 'cookMinutes'.")
         lines.append("- Steps must be detailed, numbered and beginner-friendly: give temperatures, times, pan sizes and doneness cues (e.g. \"until golden\", \"until it reaches 165°F / 74°C\").")
+        lines.append("- AMOUNTS IN STEPS: the first time any ingredient appears in a step, write its exact amount inline — e.g. \"Add 1 cup frozen corn and one 15 oz can drained black beans\" not \"Add frozen corn and black beans\". Cooks follow steps hands-free and cannot look up the ingredients list mid-cook.")
         if !profile.equipment.isEmpty {
             lines.append("- IMPORTANT — write the steps for THIS cook's equipment, naming their appliances with exact settings and times. Examples: \"In your rice cooker, add 1 cup rice + 1½ cups water and cook until it switches to warm (~20 min)\"; \"Air-fry at 400°F/205°C for 12 min, shaking halfway\". If a component needs pre-cooking (rice, pasta, roasted veg), include that as its own step using their gear.")
         } else {

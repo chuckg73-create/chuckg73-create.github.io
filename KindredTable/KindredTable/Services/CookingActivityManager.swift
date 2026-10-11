@@ -54,6 +54,6 @@ final class CookingActivityManager {
     }
 
     private func truncate(_ text: String) -> String {
-        text.count > 80 ? String(text.prefix(77)) + "..." : text
+        text.count > 120 ? String(text.prefix(117)) + "..." : text
     }
 }
