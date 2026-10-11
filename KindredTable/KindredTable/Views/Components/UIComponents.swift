@@ -62,7 +62,7 @@ struct Chip: View {
 
     var body: some View {
         HStack(spacing: 5) {
-            if let systemImage { Image(systemName: systemImage).font(.caption2) }
+            if let systemImage { Image(systemName: systemImage).font(.caption) }
             Text(text).font(.caption).fontWeight(.medium)
         }
         .padding(.horizontal, 11)

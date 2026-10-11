@@ -143,12 +143,16 @@ struct CaptureView: View {
             if !chefQuery.isEmpty {
                 Button { chefQuery = "" } label: {
                     Image(systemName: "xmark.circle.fill").foregroundStyle(KindredTheme.faint)
+                        .frame(width: 44, height: 44).contentShape(Rectangle())
                 }
+                .accessibilityLabel("Clear")
             } else {
                 Button { chefFocused = false; showChef = true } label: {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.title3).foregroundStyle(KindredTheme.accent)
+                        .frame(width: 44, height: 44).contentShape(Rectangle())
                 }
+                .accessibilityLabel("Open chef")
             }
         }
         .padding(.horizontal, 14).padding(.vertical, 12)

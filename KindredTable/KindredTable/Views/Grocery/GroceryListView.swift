@@ -10,6 +10,7 @@ struct GroceryListView: View {
 
     @State private var newItem = ""
     @State private var showShopOptions = false
+    @State private var showClearConfirm = false
 
     /// Retailers we can hand the list off to.
     private enum Store {
@@ -89,7 +90,7 @@ struct GroceryListView: View {
                                 Label("Move checked to On Hand", systemImage: "arrow.right.circle")
                             }
                             Button(role: .destructive) {
-                                grocery.removeChecked()
+                                showClearConfirm = true
                             } label: {
                                 Label("Clear checked items", systemImage: "trash")
                             }
@@ -97,6 +98,14 @@ struct GroceryListView: View {
                             Image(systemName: "ellipsis.circle")
                         }
                         .accessibilityLabel("Checked-item actions")
+                        .confirmationDialog(
+                            "Clear \(grocery.checkedCount) checked item\(grocery.checkedCount == 1 ? "" : "s")?",
+                            isPresented: $showClearConfirm,
+                            titleVisibility: .visible
+                        ) {
+                            Button("Clear", role: .destructive) { grocery.removeChecked() }
+                            Button("Cancel", role: .cancel) {}
+                        }
                     }
                 }
             }

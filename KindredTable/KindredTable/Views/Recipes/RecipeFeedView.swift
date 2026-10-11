@@ -319,6 +319,8 @@ struct RecipeFeedView: View {
                 .foregroundStyle(KindredTheme.accent)
                 .frame(width: 30, height: 30)
                 .background(KindredTheme.accent.opacity(0.14), in: Circle())
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }

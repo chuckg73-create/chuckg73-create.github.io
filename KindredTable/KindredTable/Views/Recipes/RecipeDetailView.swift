@@ -695,6 +695,8 @@ struct RecipeDetailView: View {
                 .font(.subheadline.weight(.bold)).foregroundStyle(KindredTheme.accent)
                 .frame(width: 30, height: 30)
                 .background(KindredTheme.accent.opacity(0.14), in: Circle())
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -897,6 +899,8 @@ struct RecipeDetailView: View {
                                     if (v == .loved || v == .liked) && !hasCustomPhoto {
                                         offerMadeItPhoto = true
                                     }
+                                    let haptic = UIImpactFeedbackGenerator(style: v == .loved ? .medium : .light)
+                                    haptic.impactOccurred()
                                 }
                             }
                         } label: {
@@ -961,8 +965,11 @@ struct RecipeDetailView: View {
                             } label: {
                                 Image(systemName: "xmark")
                                     .font(.caption).foregroundStyle(KindredTheme.faint)
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("Dismiss")
                         }
                         .padding(12)
                         .background(KindredTheme.coral.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))

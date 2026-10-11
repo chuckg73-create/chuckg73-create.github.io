@@ -187,7 +187,7 @@ struct CookModeView: View {
     private var stepText: some View {
         ScrollView {
             Text(session.currentStep)
-                .font(.system(size: 29, weight: .semibold, design: .rounded))
+                .font(.title2.weight(.semibold))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(KindredTheme.text)
                 .frame(maxWidth: .infinity)
@@ -255,13 +255,17 @@ struct CookModeView: View {
                         Button { timer.isRunning.toggle() } label: {
                             Image(systemName: timer.isRunning ? "pause.fill" : "play.fill")
                                 .font(.title3).foregroundStyle(KindredTheme.accent)
+                                .frame(width: 44, height: 44).contentShape(Rectangle())
                         }
+                        .accessibilityLabel(timer.isRunning ? "Pause timer" : "Resume timer")
                     }
                     Button {
                         activeTimers.removeAll { $0.id == timer.id }
                     } label: {
                         Image(systemName: "xmark.circle.fill").foregroundStyle(KindredTheme.faint)
+                            .frame(width: 44, height: 44).contentShape(Rectangle())
                     }
+                    .accessibilityLabel("Dismiss timer")
                 }
                 .chipFrame
             }
@@ -468,6 +472,7 @@ struct CookModeView: View {
     private func advance(speak: Bool) {
         if session.isLastStep {
             voice.speak("That's the last step. Enjoy your \(recipe.title)!")
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
             showFinishRating = true
             return
         }
@@ -528,10 +533,12 @@ private struct ManualTimerSheet: View {
                                 if selectedMinutes > 1 { selectedMinutes -= 1 }
                             } label: {
                                 Image(systemName: "minus.circle.fill")
-                                    .font(.system(size: 36)).foregroundStyle(KindredTheme.accent)
+                                    .font(.title).foregroundStyle(KindredTheme.accent)
+                                    .frame(width: 44, height: 44).contentShape(Rectangle())
                             }
+                            .accessibilityLabel("Decrease minutes")
                             Text("\(selectedMinutes) min")
-                                .font(.system(size: 52, weight: .bold, design: .rounded))
+                                .font(.largeTitle.weight(.bold))
                                 .foregroundStyle(KindredTheme.text)
                                 .frame(minWidth: 130)
                                 .contentTransition(.numericText())
@@ -539,8 +546,10 @@ private struct ManualTimerSheet: View {
                                 if selectedMinutes < 90 { selectedMinutes += 1 }
                             } label: {
                                 Image(systemName: "plus.circle.fill")
-                                    .font(.system(size: 36)).foregroundStyle(KindredTheme.accent)
+                                    .font(.title).foregroundStyle(KindredTheme.accent)
+                                    .frame(width: 44, height: 44).contentShape(Rectangle())
                             }
+                            .accessibilityLabel("Increase minutes")
                         }
                         // Quick presets
                         ScrollView(.horizontal, showsIndicators: false) {

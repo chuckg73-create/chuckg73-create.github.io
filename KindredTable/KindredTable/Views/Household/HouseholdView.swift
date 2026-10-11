@@ -101,6 +101,8 @@ struct HouseholdView: View {
             ))
             .labelsHidden()
             .tint(KindredTheme.accent)
+            .accessibilityLabel("\(guest.name) at the table")
+            .accessibilityHint("Double-tap to toggle whether their taste is included in suggestions")
         }
         .padding(.vertical, 10)
         .contextMenu {

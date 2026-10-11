@@ -80,6 +80,8 @@ struct RecipeCard: View {
                     Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
                         .font(.title3)
                         .foregroundStyle(isSaved ? KindredTheme.amber : KindredTheme.faint)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(isSaved ? "Saved" : "Save recipe")

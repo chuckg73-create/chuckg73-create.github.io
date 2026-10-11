@@ -350,17 +350,21 @@ struct MealPlanView: View {
             }
             Spacer(minLength: 0)
             Button { swap(meal) } label: {
-                if swappingID == meal.id {
-                    ProgressView().tint(KindredTheme.accent)
-                } else {
-                    Image(systemName: "arrow.triangle.2.circlepath").foregroundStyle(KindredTheme.accent)
+                Group {
+                    if swappingID == meal.id {
+                        ProgressView().tint(KindredTheme.accent)
+                    } else {
+                        Image(systemName: "arrow.triangle.2.circlepath").foregroundStyle(KindredTheme.accent)
+                    }
                 }
+                .frame(width: 44, height: 44).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .disabled(swappingID != nil)
             .accessibilityLabel("Swap for another taste match")
             Button { editingTimeMeal = meal } label: {
                 Image(systemName: "clock.arrow.circlepath").foregroundStyle(KindredTheme.accent)
+                    .frame(width: 44, height: 44).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Set time and headcount")
@@ -368,6 +372,7 @@ struct MealPlanView: View {
                 removeMeal(meal)
             } label: {
                 Image(systemName: "minus.circle.fill").foregroundStyle(KindredTheme.faint)
+                    .frame(width: 44, height: 44).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Remove \(meal.recipe.title)")
