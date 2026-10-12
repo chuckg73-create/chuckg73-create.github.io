@@ -429,7 +429,7 @@ struct TasteProfileView: View {
             NavigationLink {
                 WhatsNewView()
             } label: {
-                Label("What's New in 3.4", systemImage: "sparkles")
+                Label("What's New in 3.5", systemImage: "sparkles")
                     .foregroundStyle(KindredTheme.text)
             }
         }
