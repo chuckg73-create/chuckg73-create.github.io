@@ -423,13 +423,13 @@ struct TasteProfileView: View {
                 Label("KindredTable", systemImage: "fork.knife.circle.fill")
                     .foregroundStyle(KindredTheme.text)
                 Spacer()
-                Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "3.4")")
+                Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "3.6")")
                     .font(.subheadline).foregroundStyle(KindredTheme.faint)
             }
             NavigationLink {
                 WhatsNewView()
             } label: {
-                Label("What's New in 3.5", systemImage: "sparkles")
+                Label("What's New in 3.6", systemImage: "sparkles")
                     .foregroundStyle(KindredTheme.text)
             }
         }
