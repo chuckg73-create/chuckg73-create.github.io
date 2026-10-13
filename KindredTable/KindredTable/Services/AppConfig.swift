@@ -30,6 +30,6 @@ enum AppConfig {
     static var hasGeminiKey: Bool { true } // Worker is always available in production
 
     /// Model used for recipe matching.
-    static let geminiModel = "gemini-2.5-flash"
-    static let geminiImageModel = "gemini-2.5-flash-image"
+    static let geminiModel = "gemini-3.6-flash"
+    static let geminiImageModel = "gemini-3.6-flash"
 }
