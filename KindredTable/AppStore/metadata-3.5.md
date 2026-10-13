@@ -62,6 +62,9 @@ See something you love at a restaurant or a friend's table? Open KindredTable, t
 
 Works for restaurant entrees, dishes at parties, menu photos, food magazines, or anything you find and want to cook.
 
+LIGHT MODE
+KindredTable now follows your phone's display setting. Switch between light and dark in Settings > Display and Brightness -- the app updates instantly.
+
 ## URLs
 Support URL:        https://chuckg73-create.github.io/kindredkitchen/support.html
 Marketing URL:      https://chuckg73-create.github.io/kindredkitchen/
