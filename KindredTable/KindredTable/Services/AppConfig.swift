@@ -31,5 +31,5 @@ enum AppConfig {
 
     /// Model used for recipe matching.
     static let geminiModel = "gemini-3.6-flash"
-    static let geminiImageModel = "gemini-3.6-flash"
+    static let geminiImageModel = "gemini-3.1-flash-lite-image"
 }

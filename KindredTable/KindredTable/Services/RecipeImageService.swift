@@ -15,7 +15,7 @@ actor RecipeImageService {
     static let shared = RecipeImageService()
 
     /// Dedicated image-generation model — separate from the text model in `AppConfig`.
-    private let model = "gemini-3.6-flash"
+    private let model = AppConfig.geminiImageModel
     private let apiKey: String? = "via-worker"
     private let session: URLSession = .shared
 
