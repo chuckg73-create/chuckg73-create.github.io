@@ -65,6 +65,9 @@ Works for restaurant entrees, dishes at parties, menu photos, food magazines, or
 LIGHT MODE
 KindredTable now follows your phone's display setting. Switch between light and dark in Settings > Display and Brightness -- the app updates instantly.
 
+SHARPER AI, BETTER PHOTOS
+Upgraded to Gemini 3.6 for recipe generation and a new dedicated image model for richer food photography on every recipe card.
+
 ## URLs
 Support URL:        https://chuckg73-create.github.io/kindredkitchen/support.html
 Marketing URL:      https://chuckg73-create.github.io/kindredkitchen/

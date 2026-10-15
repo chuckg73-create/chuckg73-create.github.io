@@ -209,6 +209,9 @@ struct TasteProfileView: View {
                             .background(KindredTheme.mint.opacity(0.14), in: Capsule())
                         }
                         .buttonStyle(.plain)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                        .accessibilityLabel("Remove \(name)")
                     }
                 }
                 .padding(.vertical, 4)
@@ -482,6 +485,9 @@ struct TokenEditor: View {
                             .background(tint.opacity(0.14), in: Capsule())
                         }
                         .buttonStyle(.plain)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                        .accessibilityLabel("Remove \(token)")
                     }
                 }
             }

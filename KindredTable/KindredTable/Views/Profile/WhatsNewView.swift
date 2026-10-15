@@ -38,6 +38,12 @@ struct WhatsNewView: View {
         ("fork.knife.circle.fill", KindredTheme.coral,
          "Recreate any dish from a photo",
          "Photograph a dish at a restaurant, a friend's table, or anywhere — KindredTable identifies it and writes you a full recipe to make it at home."),
+        ("circle.lefthalf.filled.righthalf.stripe.vertical.fill", KindredTheme.subtext,
+         "Light mode",
+         "KindredTable now follows your phone's display setting. Switch between light and dark in Settings — the app updates instantly."),
+        ("sparkles", KindredTheme.accent,
+         "Sharper AI, better photos",
+         "Upgraded to Gemini 3.6 for recipe generation and a new dedicated image model for richer food photography."),
     ]
 
     var body: some View {
